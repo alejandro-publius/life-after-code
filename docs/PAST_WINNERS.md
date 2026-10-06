@@ -1,5 +1,7 @@
 # Past winners: GitLab, Google Cloud and Anthropic hackathons, January 2025 to October 2026
 
+> **Refreshed 6 Oct 2026, 07:35 to 07:50 UTC.** Primary sources were read again for organizer-stated winner reasons. Where [the refresh note](research/refresh_2026-10-06.md#4-field-and-past-winners) differs from this file, the refresh note controls.
+
 Part 1 of the research handoff for Alex Velazquez, solo entrant in Life After Code, the GitLab Transcend Hackathon (October 2026; judges from GitLab, Google and Anthropic). Compiled on 2026-10-06 from the research notes in [research/winners/](research/winners/) and the June judging note quoted in [research/gitlab_guide_and_reference.md](research/gitlab_guide_and_reference.md). No new web research was done for this file. Cross-event patterns belong to Part 2 (docs/PATTERNS.md, listed as pending in [STATUS.md](STATUS.md)).
 
 Conventions:

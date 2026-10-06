@@ -1,5 +1,7 @@
 # Life After Code: rules, requirements and prizes
 
+> **Refreshed 6 Oct 2026, 07:35 to 07:50 UTC.** Primary sources were read again for the rules. Where [the refresh note](research/refresh_2026-10-06.md#1-official-rules) differs from this file, the refresh note controls.
+
 GitLab Transcend Hackathon on Devpost, October 2026. Main page: [gitlab-transcend.devpost.com](https://gitlab-transcend.devpost.com/).
 Compiled on 2026-10-06 (about 00:45 UTC) for Alex Velazquez (solo entrant, UC Berkeley CS). Checked again and extended in a second pass between about 01:00 and 01:30 UTC the same day.
 
