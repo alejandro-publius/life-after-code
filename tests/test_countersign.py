@@ -112,3 +112,15 @@ def test_demo_morning_keeps_the_flag_off_and_undoes_the_fallback():
     assert any("KEEP new_checkout off in production" in line for line in lines)
     assert any("UNDO stock_from_cache off in production" in line for line in lines)
     assert ports.shop.flags == {"new_checkout": "off", "stock_from_cache": "off"}
+
+
+def test_dawn_goal_lists_the_loose_ends_from_the_ledger():
+    from conftest import REPO
+    from nightorders.dawn import dawn_goal
+    from nightorders.demo_night import run
+
+    _ports, night = run(REPO / "demo" / "night-2026-10-20")
+    goal = dawn_goal(night, watch_issue=7)
+    assert goal.splitlines()[0] == "Watch issue #7, night of Tue 20 Oct. Code posted the watch log there."
+    assert "- stock_from_cache on in production (approved by thumbs-up, 01:53)" in goal
+    assert "- new_checkout off in production (order 1, 03:13)" in goal

@@ -82,3 +82,16 @@ def render_watch_log(night: Night) -> str:
     else:
         lines.append("Loose ends: none.")
     return "\n".join(lines) + "\n"
+
+
+def dawn_goal(night: Night, watch_issue: int) -> str:
+    """The goal the relay gives the dawn flow at the watch end. Facts come from the ledger, not the model."""
+    title_night = night.orders.night.strftime("%a %d %b") if night.orders else "last night"
+    ends = loose_ends(night)
+    lines = [f"Watch issue #{watch_issue}, night of {title_night}. Code posted the watch log there."]
+    if ends:
+        lines.append("Loose ends, changed tonight and still in place. Propose keep or undo for each:")
+        lines += [f"- {action.describe()} ({why})" for action, why in ends]
+    else:
+        lines.append("Loose ends: none. Post one note saying nothing needs a countersign, and open no merge request.")
+    return "\n".join(lines)
