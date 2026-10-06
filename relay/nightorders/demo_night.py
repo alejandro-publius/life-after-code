@@ -14,7 +14,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from .dawn import render_watch_log
+from .countersign import parse_state, plan_morning
+from .dawn import loose_ends, render_watch_log
 from .decide import Night
 from .ledger import Ledger
 from .model import Action, Signature
@@ -166,6 +167,23 @@ def run(folder: Path | str, ops: Path | str | None = None) -> tuple[RecordingPor
     return ports, night
 
 
+def countersign(folder: Path | str, ports: RecordingPorts, night: Night) -> list[str]:
+    """The morning: apply the merged countersign (countersign.yml in the demo folder) the way the relay does."""
+    path = Path(folder) / "countersign.yml"
+    if not path.exists():
+        return []
+    data = load_yaml(path)
+    at = _local(data["merged_at"], night.oncall.timezone)
+    plan = plan_morning(loose_ends(night), parse_state(data.get("state"), night.targets))
+    lines = [f"{ports._t(at)}  countersign merged by {night.oncall.first_name} ({data['merged_by']})"]
+    lines += [f"{ports._t(at)}  KEEP {item.action.describe()}, until {item.until}" for item in plan.kept]
+    for action, why in plan.undo:
+        ports.apply(action, at)
+        lines.append(f"{ports._t(at)}  UNDO {action.describe()}: {why}")
+    lines += [f"{ports._t(at)}  FOR A PERSON: {text}" for text in plan.by_hand]
+    return lines
+
+
 def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
     folder = Path(args[0]) if args else REPO / "demo" / "night-2026-10-20"
@@ -174,7 +192,14 @@ def main(argv: list[str] | None = None) -> int:
     for line in ports.log:
         print(line)
     print()
-    print(render_watch_log(night))
+    print(render_watch_log(night).rstrip("\n"))
+    morning = countersign(folder, ports, night)
+    if morning:
+        print()
+        print("## Countersign (demo data: merged in the morning)")
+        print()
+        for line in morning:
+            print(line)
     return 0
 
 

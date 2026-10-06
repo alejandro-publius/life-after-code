@@ -119,7 +119,7 @@ prompts:
       system: |
         Open one merge request from the countersign branch to the default branch titled "Countersign" plus
         the date. The description lists each loose end with keep or undo and why, then: Merge to countersign.
-        The apply_state job makes production match.
+        After the merge, the relay makes production match.
       user: |
         {{goal}}
         Proposal: {{proposal}}

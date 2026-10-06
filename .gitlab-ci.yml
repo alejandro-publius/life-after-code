@@ -1,8 +1,9 @@
 # Night Orders pipeline.
 #
 # Test: unit tests (one per reason code refuses to act) and the demo night replay.
-# Verify: tonight's orders checked against the schema, targets and floor; Duo flow files checked
-#         against GitLab's flow schema and tool list.
+# Verify: tonight's orders checked against the schema, targets and floor; the morning countersign
+#         file checked against the targets; Duo flow files checked against GitLab's flow schema and
+#         tool list.
 # Secure: GitLab SAST and secret detection.
 # Audit: every gcloud flag the deploy uses, checked inside the pinned Google Cloud SDK image.
 # Deploy: keyless deploy to Cloud Run (deploy/gitlab-ci-deploy.yml, a manual job on the protected
@@ -64,6 +65,13 @@ validate_orders:
   script:
     - cd relay
     - uv run --project .. python -m nightorders.cli validate ../ops/night-orders.yml --ops ../ops
+
+validate_state:
+  extends: .python
+  stage: verify
+  script:
+    - cd relay
+    - uv run --project .. python -m nightorders.cli state ../ops/state.yml --ops ../ops
 
 validate_flows:
   extends: .python
