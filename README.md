@@ -4,7 +4,7 @@
 
 An entry for [Life After Code, the GitLab Transcend Hackathon](https://gitlab-transcend.devpost.com/), Path A. Built by Alex Velazquez. MIT licence.
 
-Status on 6 Oct 2026: the decision code, its tests, the dusk drafter, a replayed demo night, the relay service, the demo shop and the three Duo flow files are in this repo and run in CI. Nothing has run on GitLab.com or Google Cloud yet. The dated plan is in [docs/PLAN.md](docs/PLAN.md).
+Status on 6 Oct 2026: the decision code, its tests, the dusk drafter, a replayed demo night, the morning countersign and the three Duo flow files are in this repo and run in CI. The relay service and the demo shop are being built. Nothing has run on GitLab.com or Google Cloud yet. The dated plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## The problem
 
