@@ -31,10 +31,12 @@ class MorningPorts(Protocol):
 
 @dataclass(frozen=True)
 class StateFile:
-    """ops/state.yml as signed: its parsed YAML and who signed it (None when nobody did)."""
+    """ops/state.yml as signed: its parsed YAML, who signed it (None when nobody did), and why it cannot
+    be read, if it cannot. A file that cannot be read never counts as "keep nothing"."""
 
     data: dict | None
     signature: Signature | None
+    problem: str | None = None
 
 
 def new_record(night: Night) -> dict:
@@ -75,7 +77,7 @@ def step(relay_doc: dict, night: Night, watch_expired: bool, state_file: StateFi
     record = relay_doc.get("dawn")
     if watch_expired and orders is not None and (record is None or record.get("night") != orders.night.isoformat()):
         record = relay_doc["dawn"] = new_record(night)
-        done.append(f"night of {record['night']} ended; {len(record['loose_ends'])} loose end(s) kept for the countersign")
+        done.append(f"night of {record['night']} ended with {len(record['loose_ends'])} loose end(s) awaiting the countersign")
     if record is None:
         return done
 
@@ -92,7 +94,7 @@ def step(relay_doc: dict, night: Night, watch_expired: bool, state_file: StateFi
         result = countersign(record, state_file, night, ports, now)
         if result is not None:
             record["countersign"] = result
-            text = render_countersign(result, night)
+            text = record["countersign_text"] = render_countersign(result, night)
             if watch_issue is not None:
                 ports.watch_note(text, now)
             done.append(text.splitlines()[0])
@@ -110,6 +112,9 @@ def countersign(record: dict, state_file: StateFile, night: Night, ports: Any, n
     if signature.user != night.oncall.user:
         result["problems"] = [f"ops/state.yml was signed by {signature.user}, not by the on-call person "
                               f"({night.oncall.user}). Nothing was changed."]
+        return result
+    if state_file.problem:
+        result["problems"] = [state_file.problem, "Nothing was changed."]
         return result
     try:
         plan = plan_morning(loose_from(record), parse_state(state_file.data, night.targets))
