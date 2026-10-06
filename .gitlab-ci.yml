@@ -1,0 +1,83 @@
+# Night Orders pipeline.
+#
+# Test: unit tests (one per reason code refuses to act) and the demo night replay.
+# Verify: tonight's orders checked against the schema, targets and floor; Duo flow files checked
+#         against GitLab's flow schema and tool list.
+# Secure: GitLab SAST and secret detection.
+# Audit: every gcloud flag the deploy uses, checked inside the pinned Google Cloud SDK image.
+# Deploy: keyless deploy to Cloud Run (deploy/gitlab-ci-deploy.yml, a manual job on the protected
+#         default branch: a person decides when it ships).
+
+stages:
+  - test
+  - verify
+  - audit
+  - deploy
+
+include:
+  - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/Secret-Detection.gitlab-ci.yml
+  - local: deploy/gitlab-ci-deploy.yml
+
+default:
+  interruptible: true
+
+.python:
+  image: python:3.12-slim
+  variables:
+    UV_LINK_MODE: copy
+    PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  before_script:
+    - pip install --quiet uv
+    - uv sync --quiet
+
+unit_tests:
+  extends: .python
+  stage: test
+  script:
+    - uv run pytest -q --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: report.xml
+
+demo_night:
+  extends: .python
+  stage: test
+  script:
+    - cd relay
+    - uv run --project .. python -m nightorders.demo_night ../demo/night-2026-10-20 | tee ../demo-night.txt
+  artifacts:
+    expose_as: "Demo night replay (demo data)"
+    paths:
+      - demo-night.txt
+
+deploy_unit_tests:
+  image: python:3.12-slim
+  stage: test
+  script:
+    - python3 -m unittest discover -s deploy/tests -p "test_*.py" -v
+
+validate_orders:
+  extends: .python
+  stage: verify
+  script:
+    - cd relay
+    - uv run --project .. python -m nightorders.cli validate ../ops/night-orders.yml --ops ../ops
+
+validate_flows:
+  extends: .python
+  stage: verify
+  script:
+    - uv run python flows/validate.py
+
+cli_audit:
+  stage: audit
+  # Google Cloud SDK 587.0.0 with the alpha and beta components, the same image the deploy job uses.
+  image: gcr.io/google.com/cloudsdktool/google-cloud-cli@sha256:be4876b4311056bf3ce236a14a7dea1288e70b7cfea2454ea15e4165c819921f
+  script:
+    - python3 -m unittest -v deploy/tests/test_cli_flags.py
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - changes:
+        - deploy/**/*
