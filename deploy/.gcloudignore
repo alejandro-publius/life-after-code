@@ -1,0 +1,17 @@
+.gcloudignore
+.git
+docs
+**/.env
+**/.env.*
+**/.venv
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/*.pem
+**/*.key
+**/*credentials*.json
+**/*token*.json
+**/.life-after-code-bootstrap.json
+**/.bootstrap-work
+deploy/result.env
+deploy/result.json

@@ -1,0 +1,29 @@
+# Claude includes this file and adds deploy to the root pipeline's stages.
+deploy_cloud_run:
+  stage: deploy
+  image: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
+  timeout: 20m
+  resource_group: google-cloud-run
+  id_tokens:
+    GITLAB_OIDC_TOKEN:
+      aud: https://gitlab.com
+  variables:
+    GCP_ENVIRONMENT: staging
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
+      when: manual
+      allow_failure: false
+    - when: never
+  script:
+    - bash deploy/ci_deploy.sh
+  environment:
+    name: $GCP_ENVIRONMENT
+    url: $DYNAMIC_ENVIRONMENT_URL
+    deployment_tier: staging
+  artifacts:
+    when: on_success
+    reports:
+      dotenv: deploy/result.env
+    paths:
+      - deploy/result.json
+    expire_in: 30 days
