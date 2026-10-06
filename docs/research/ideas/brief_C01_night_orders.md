@@ -215,7 +215,7 @@ Dusk, night, dawn, and the next dusk closes the loop. The "relay" is a small Fas
 **Dusk (Priya awake)**
 
 1. **Plan.** At 17:00 the relay opens the issue "Tonight's watch, Tue 20 Oct" from an issue template. At 21:30 Priya assigns it to the dusk flow's service account (Assign trigger, her own action).
-2. **Plan, create.** The dusk flow (custom Duo flow) chooses where to look: MRs merged today and their diffs (`gitlab_merge_request_search`, `get_merge_request`, `get_commit_diff`), production deployments, feature flags and environments (`gitlab_api_get`), open incidents and loose ends from earlier nights. It drafts at most three orders. Each has a condition (signal, threshold, duration), one action from a fixed menu (`flag_set` or `traffic_to_revision`; `max_instances` up to 4 is a stretch), its target, and the change that motivates it. A change that cannot be undone safely, such as a schema migration, gets no order, so it wakes Priya.
+2. **Plan, create.** The dusk flow (custom Duo flow) chooses where to look: MRs merged today and their diffs (`gitlab_merge_request_search`, `get_merge_request`, `list_merge_request_diffs`), production deployments, feature flags and environments (`gitlab_api_get`), open incidents and loose ends from earlier nights. It drafts at most three orders. Each has a condition (signal, threshold, duration), one action from a fixed menu (`flag_set` or `traffic_to_revision`; `max_instances` up to 4 is a stretch), its target, and the change that motivates it. A change that cannot be undone safely, such as a schema migration, gets no order, so it wakes Priya.
 3. **Govern.** If unsure, it asks one question (`HumanInputComponent`, `interaction_type: input`), which reaches Priya as a To-Do item and an email ([SPONSORS.md](../../SPONSORS.md#1-summary), fact 1). If she never answers there is no MR, so no orders, so every alert wakes her: the safe default.
 4. **Create.** A critic component checks each draft against the menu and the always-wake list (at most two rounds). A one-shot writer then commits `ops/night-orders.yml` on branch `orders/1020` and opens the MR (`create_commit`, `create_merge_request`).
 5. **Verify, package, secure.** The MR pipeline checks the file against a JSON schema and rehearses each order on staging. The job calls the relay with its GitLab ID token; the relay applies the action to `shop-staging` (the flag's staging scope, or the previous staging revision); the job smoke-tests staging; the relay undoes the action; the job tests again. Results show in the MR test report widget (JUnit) and an exposed artifact. The same job checks that each rollback target's image is still in the registry. SAST and secret detection templates run in the same pipeline.
@@ -386,7 +386,7 @@ Suggested adjustment to the total of 88.6:
 
 | Dimension | Now | Suggested | Reason |
 |---|---|---|---|
-| Stages | 6 | 7.5 | The rehearsal, the image check, the refused injection and the countersign and fix MRs make verify, package, secure and create real touches |
+| Stages | 6 | 7.5 | The rehearsal, the image check, the refused injection and the agent-written orders and countersign MRs make verify, package, secure and create real touches (the fix MR is a stretch) |
 | Novelty | 7 | 6.5 | PagerDuty's agent and "pre-approved, narrowly-scoped actions" guidance sit close; the nightly signed grant is still new |
 | Feasibility | 7 | 6.5 | Three flows, a relay and a rehearsal job, and the signature needs merge or approval rights (counts double) |
 
