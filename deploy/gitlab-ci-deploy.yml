@@ -1,7 +1,8 @@
 # Claude includes this file and adds deploy to the root pipeline's stages.
 deploy_cloud_run:
   stage: deploy
-  image: gcr.io/google.com/cloudsdktool/google-cloud-cli:slim
+  # Google Cloud SDK 587.0.0, audited with local command help.
+  image: gcr.io/google.com/cloudsdktool/google-cloud-cli@sha256:be4876b4311056bf3ce236a14a7dea1288e70b7cfea2454ea15e4165c819921f
   timeout: 20m
   resource_group: google-cloud-run
   id_tokens:

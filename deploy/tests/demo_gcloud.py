@@ -62,7 +62,7 @@ if args[:2] == ['services', 'enable']:
 if args[:2] == ['services', 'disable']:
     s['apis'] = [a for a in s['apis'] if a not in args[2:]]
     out({})
-if args[:2] == ['projects', 'update']:
+if args[:3] == ['alpha', 'projects', 'update']:
     if flag('update-labels'):
         k, v = flag('update-labels').split('=')
         s['project']['labels'][k] = v
