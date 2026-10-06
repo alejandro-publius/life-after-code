@@ -73,7 +73,149 @@ The provisioning token is `TRANSCEND_HACKATHON_GROUP_TOKEN`, and staff notes say
 
 The full "Details" text of the October page, from [ShowcaseDetails.md](https://gitlab.com/gitlab-org/developer-relations/contributor-success/contributors-gitlab-com/-/blob/main/contributors/app/javascript/pages/transcend-hackathon-page/ShowcaseDetails.md) (last changed 2026-10-02):
 
-{{V_SHOWCASE_DETAILS}}
+````markdown
+<!-- markdownlint-disable MD033 MD041 -->
+
+### How it works
+
+- **Registration** opens September 29, 2026 (10:00 UTC).
+- **Submissions** run from October 5 until October 27, 2026 (14:00 UTC).
+- **Judging** runs until November 11, 2026.
+- **Winners** are announced on or around November 16, 2026.
+
+Open to every experience level, from seasoned contributors to complete
+beginners.
+Some countries and regions are excluded.
+
+> **Required to be eligible for cash prizes:** you must both register for
+the hackathon and submit your work on
+[Devpost](https://gitlab-transcend.devpost.com/).
+See the full [official rules](https://gitlab-transcend.devpost.com/rules)
+for details.
+
+<details>
+<summary><b>Get started</b></summary>
+
+1. Register for the hackathon on
+   [Devpost](https://gitlab-transcend.devpost.com/).
+1. Select **Get started** on the Transcend Hackathon card above and submit
+   your Devpost username.
+   Approvals start on October 5th when the hackathon opens.
+1. Once approved, we provision a dedicated GitLab subgroup and project for
+   you.
+   You have the Developer role in that space, so you can add more projects
+   to it.
+1. Build your project using Duo Agent Platform.
+1. **Required:** Film an explanatory video of your project.
+1. Submit your project on
+   [Devpost](https://gitlab-transcend.devpost.com/) by October 27th,
+   including both your repository and your video.
+   See the "What to submit" section on Devpost for full details.
+1. (Optional) Share your work through a blog post or on social media.
+
+</details>
+<br>
+
+<details>
+<summary><b>The challenge</b></summary>
+
+Please see the official rules on
+[Devpost](https://gitlab-transcend.devpost.com/rules) for the full
+description.
+
+</details>
+<br>
+
+<details>
+<summary><b>How it is judged</b></summary>
+
+First a pass or fail check: does the project fit the theme and genuinely use
+GitLab AI features?
+
+Everything that passes is then scored on five equally weighted criteria:
+
+- **Technological implementation** - how thoroughly and skilfully it uses
+  GitLab to automate the post-code lifecycle.
+- **Design** - a complete, coherent workflow rather than a proof of concept.
+- **Potential impact** - a credible, specific case for solving a real
+  problem.
+- **Innovation** - how novel the idea is, and how inventively it applies
+  agentic automation.
+- **Presentation** - how clearly the video demonstrates the automation
+  running end to end.
+
+Projects deployed on Google Cloud score higher on technological
+implementation.
+Full details are listed on the
+[Devpost rules](https://gitlab-transcend.devpost.com/rules) page.
+
+</details>
+<br>
+
+<details>
+<summary><b>Build your idea</b></summary>
+
+Add agents and flows through the UI of your provisioned project under
+**Automate → Agents**, or add skills directly to the repository.
+
+- Read the
+  [agents](https://docs.gitlab.com/user/duo_agent_platform/agents/),
+  [flows](https://docs.gitlab.com/user/duo_agent_platform/flows/), and
+  [skills](https://docs.gitlab.com/user/duo_agent_platform/customize/agent_skills/#create-skills)
+  documentation.
+- The quickest way to author files is the
+  [Web IDE](https://docs.gitlab.com/user/project/web_ide/).
+
+#### Test your agent
+
+Chat with your agent in the
+[GitLab Duo sidebar](https://docs.gitlab.com/user/gitlab_duo_chat/agentic_chat/#use-gitlab-duo-chat-in-the-gitlab-ui)
+by starting a new Duo Chat and selecting your agent, or use one of the
+[available extensions](https://docs.gitlab.com/editor_extensions/#available-extensions).
+
+#### Test your flow
+
+Your flow gets a user identity, and you choose what starts it with a
+[trigger](https://docs.gitlab.com/user/duo_agent_platform/triggers/).
+Flows can run when that user is mentioned in a comment, assigned to an issue
+or merge request, or added as a reviewer, and on pipeline, merge request, and
+work item events.
+
+#### Test your skill
+
+[Project-level skills](https://docs.gitlab.com/user/duo_agent_platform/customize/agent_skills/#create-project-level-skills)
+live in `skills/<skill-name>/SKILL.md` at the project root.
+The `name` and `description` metadata fields at the top of the file are
+required.
+Start a **new** conversation or flow each time you change `SKILL.md` to
+avoid context confusion.
+
+#### Observability
+
+Monitoring and incident response are part of life after code, so your
+subgroup can have its own observability instance.
+In your subgroup, go to
+**Observe → Observability configuration → Enable Observability**.
+Provisioning takes up to 10 minutes, and you get your own OpenTelemetry
+endpoint to send traces, metrics, and logs to.
+See the
+[observability documentation](https://docs.gitlab.com/operations/observability/observability/)
+for what you can do with it.
+
+It is entirely optional and is not required to submit or to win.
+
+</details>
+<br>
+
+### Resources
+
+- [Devpost](https://gitlab-transcend.devpost.com/)
+- [Official rules](https://gitlab-transcend.devpost.com/rules)
+- [GitLab Duo Agent Platform documentation](https://docs.gitlab.com/user/duo_agent_platform/)
+- [Prompt library](https://about.gitlab.com/gitlab-duo/prompt-library/)
+- [DevSecOps lifecycle stages](https://about.gitlab.com/stages-devops-lifecycle/)
+- [GitLab Discord](https://discord.gg/gitlab)
+````
 
 The "Rewards" tab only says: "Amounts, judging criteria, and eligibility are set by the [official rules](https://gitlab-transcend.devpost.com/rules), which are the binding source." ([ShowcaseRewards.md](https://gitlab.com/gitlab-org/developer-relations/contributor-success/contributors-gitlab-com/-/blob/main/contributors/app/javascript/pages/transcend-hackathon-page/ShowcaseRewards.md))
 
@@ -102,7 +244,28 @@ Summary of what is required and what is allowed, from that text:
 
 The onboarding issue text, from [description.md.erb](https://gitlab.com/gitlab-org/developer-relations/contributor-success/contributors-gitlab-com/-/blob/main/contributors/app/templates/transcend_hackathon_issue/description.md.erb):
 
-{{V_ONBOARDING}}
+````markdown
+Hey @<%= username %>  -  you're in! 🎉
+
+Your [workspace](<%= group_url %>) and project are set up and ready to go.
+
+### Get started
+
+1. Read the [Transcend Hackathon guide](https://contributors.gitlab.com/transcend-hackathon).
+2. Join the [GitLab Community Discord](https://discord.gg/gitlab) and say hi in `#transcend-hackathon`.
+
+### Optional: observability
+
+Your workspace can have its own observability stack. In [your group](<%= group_url %>), go to **Observe → Observability configuration → Enable Observability**. It is not required to submit or to win.
+
+### Need help?
+
+- @-mention `gitlab-org/developer-relations/contributor-success` in any issue or MR and we jump in.
+- Ask in `#transcend-hackathon` on [Discord](https://discord.gg/gitlab).
+- Join the office hours for live troubleshooting + brainstorming.
+
+Good luck, and have fun building! 🚀
+````
 
 - Office hours: the template mentions them but gives no link or time. I found no office hours link in the page source, the template, the reference project or the team-task issues. (unverified; the Discord channel is the likely place)
 - Staff check-ins: the on-call plan for October 6 to 12 says: "two short check-ins a day instead of a full day watch, one in EU hours and one in US hours, around 30 min each. Between check-ins you just react to @mentions in Discord (#contribute and #transcend-hackathon) and in Slack #co-create-and-community-engineering when you can." Times: "EU check-in 10:00 CEST", "US check-in 16:00 ET"; weekend is one check-in ([team-task#1296](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1296), comment by sabadi1, 2026-09-30). Coverage after October 12 is not stated (unverified).
@@ -144,7 +307,16 @@ Sources: June and October [provisioning diff](https://gitlab.com/gitlab-org/deve
 - Max configuration size: 80 KiB ([ai_catalog.md](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/duo_agent_platform/ai_catalog.md)).
 - The YAML form used by the February AI Hackathon's repo template ([agents/agent.yml.template](https://gitlab.com/gitlab-ai-hackathon/project-templates/participant-template/-/blob/main/agents/agent.yml.template)):
 
-{{V_AGENT_TEMPLATE}}
+```yaml
+name: "AI Hackathon Agent"
+description: "An agent to..."
+public: true
+system_prompt: |
+  Only reply with "I'm a placeholder agent, please change my prompt"
+tools: # List of available tools https://gitlab.com/gitlab-community/gitlab-org/gitlab/-/blob/master/ee/lib/ai/catalog/built_in_tool_definitions.rb
+  - read_file
+  - read_files
+```
 
 Tool names (from [agents/tools.md](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/duo_agent_platform/agents/tools.md); the same names go in a flow `toolset`). Useful ones for post-code work:
 
@@ -154,7 +326,7 @@ Tool names (from [agents/tools.md](https://gitlab.com/gitlab-org/gitlab/-/blob/m
 - Code and repo: `get_repository_file`, `get_repository_files`, `list_repository_tree`, `create_branch`, `create_commit`, `get_commit`, `get_commit_diff`, `list_commits`, `gitlab_blob_search`.
 - Read-only API: `gitlab_api_get`, `gitlab_graphql`, `run_glql_query`, plus search tools (`gitlab_issue_search`, `gitlab_merge_request_search`, and others).
 - Security: `list_vulnerabilities`, `get_vulnerability_details`, `create_vulnerability_issue`, `dismiss_vulnerability`, `confirm_vulnerability`, `link_vulnerability_to_issue`, `link_vulnerability_to_merge_request`.
-- IDE only for custom agents (but usable in flows, which run with a repo clone, see the reference run below): `read_file`, `read_files`, `edit_file`, `create_file_with_contents`, `find_files`, `grep`, `list_dir`, `mkdir`, `run_command`, `notify_me_when`.
+- IDE only for custom agents, but usable in flows, because a flow gets a repository clone unless it sets `coding_environment: none` ([custom_flows_schema.md](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/duo_agent_platform/flows/custom_flows_schema.md)): `read_file`, `read_files`, `edit_file`, `create_file_with_contents`, `find_files`, `grep`, `list_dir`, `mkdir`, `run_command`, `notify_me_when`.
 - Note on quick actions: notes and work items tools say "Quick actions are not supported."
 
 ### Custom flows: the facts
@@ -233,7 +405,68 @@ flow:
 
 The original February 2026 template ([flows/flow.yml.template](https://gitlab.com/gitlab-ai-hackathon/project-templates/participant-template/-/blob/main/flows/flow.yml.template)). Its outer `name`, `description`, `public` and `definition` keys are the wrapper used by the repo sync job in the next section; in the UI editor you paste only what is under `definition:`, because the schema rejects top-level `name` and `description` (inference):
 
-{{V_FLOW_TEMPLATE}}
+```yaml
+name: "AI Hackathon Flow"
+description: "A flow to..."
+public: true
+definition:
+  version: v1
+  environment: ambient
+  
+  # Components define the steps in your flow
+  # Each component can be an Agent, DeterministicStep, or other component types
+  components:
+    - name: "my_agent"
+      type: AgentComponent  # Options: AgentComponent, DeterministicStepComponent
+      prompt_id: "my_prompt"  # References a prompt defined below
+      inputs:
+        - "context:goal"  # Input from user or previous component
+      toolset: []  # Add tool names here: ["get_issue", "create_issue_note"], see https://gitlab.com/components/ai-catalog/-/blob/main/tool_mapping.json?ref_type=heads
+
+      # Optional: UI logging
+      ui_log_events:
+        - on_agent_final_answer
+        - on_tool_execution_success
+  
+  # Define your prompts here
+  # Each prompt configures an AI agent's behavior
+  prompts:
+    - prompt_id: "my_prompt"  # Must match the prompt_id referenced above
+      name: "My Agent Prompt"
+
+      # System and user prompts define the agent's behavior
+      prompt_template:
+        system: |
+          Only reply with "I'm a placeholder agent, please change my prompt"
+
+        # Available variables depend on your inputs:
+        # {{goal}} - The user's request
+        # {{context}} - Additional context from previous steps
+        user: |
+          {{goal}}
+        placeholder: history  # Maintains conversation context
+      unit_primitives: []
+      params:
+        timeout: 180  # Seconds before timeout
+
+  # Routers define the flow between components
+  # Use "end" as the final destination
+  routers:
+    - from: "my_agent"
+      to: "end"
+
+    # Example: Multi-step flow
+    # - from: "fetch_data"
+    #   to: "process_data"
+    # - from: "process_data"
+    #   to: "my_agent"
+    # - from: "my_agent"
+    #   to: "end"
+
+  # Define the entry point for your flow
+  flow:
+    entry_point: "my_agent"
+```
 
 A real flow that ran in June: the first-place "Design and Usability" winner Carver kept its flow in the repo as [flows/carver-handoff.flow.yml](https://gitlab.com/gitlab-ai-hackathon/transcend/13178946/-/blob/main/flows/carver-handoff.flow.yml). It uses one `AgentComponent` with `inputs: ["context:goal", "context:project_id"]`, a local prompt with `unit_primitives: []` and `params: timeout: 300`, `routers: [{from: "carver_handoff_agent", to: "end"}]` and `flow: entry_point: "carver_handoff_agent"`. Its prompt says "`main` is NEVER modified - everything waits for a human to review and merge." The project ran 2 successful `duo_workflow` pipelines ([pipelines](https://gitlab.com/gitlab-ai-hackathon/transcend/13178946/-/pipelines)).
 
@@ -322,7 +555,7 @@ From [custom_flows_schema.md](https://gitlab.com/gitlab-org/gitlab/-/blob/master
 ### Where flows run (execution environment)
 
 - "Flows executed from the GitLab UI use CI/CD." The runner downloads the GitLab Duo CLI binary and connects to the GitLab Duo Workflow Service ([flows/execution/_index.md](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/duo_agent_platform/flows/execution/_index.md)).
-- In the reference project each session shows up as a pipeline with source `duo_workflow`, ref `refs/workloads/<id>`, one job `workload` in stage `build`, on a GitLab-hosted runner with tag `gitlab--duo`. The Developer flow job took about 97 seconds and the code review session about 201 seconds ([pipeline 2905826919](https://gitlab.com/gitlab-org/developer-relations/contributor-success/hello-world-showcase/-/pipelines/2905826919), [pipeline 2905830631](https://gitlab.com/gitlab-org/developer-relations/contributor-success/hello-world-showcase/-/pipelines/2905830631)).
+- In the reference project each session shows up as a pipeline with source `duo_workflow`, ref `refs/workloads/<id>`, one job `workload` in stage `build`, on a GitLab-hosted runner with tag `gitlab--duo`. The Developer flow job took about 97 seconds; the next workload, which by its timing was the code review session (inference), took about 201 seconds ([pipeline 2905826919](https://gitlab.com/gitlab-org/developer-relations/contributor-success/hello-world-showcase/-/pipelines/2905826919), [pipeline 2905830631](https://gitlab.com/gitlab-org/developer-relations/contributor-success/hello-world-showcase/-/pipelines/2905830631)).
 - Config file: `.gitlab/duo/agent-config.yml`. "The configuration file is read-only from the project's default branch. Files committed to other branches are ignored, even when a flow runs from those branches." Keys ([agent-config-yaml.md](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/duo_agent_platform/flows/execution/agent-config-yaml.md)): `image`, `setup_script`, `cache` (`paths`, `key`, `key.files` max 2, `key.prefix`), `network_policy` (`allowed_domains`, `denied_domains`, `include_recommended_allowed`, `allow_all_unix_sockets`), and `id_tokens` (added in 19.2, [execution/_index.md](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/duo_agent_platform/flows/execution/_index.md)).
 - `setup_script` runs outside the sandbox: "These commands have access to all environment variables in the flow, including the triggering user's OAuth token, service token, and identity details."
 - Variables ([execution-variables.md](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/duo_agent_platform/flows/execution/execution-variables.md)):
@@ -460,7 +693,26 @@ Stages, in order: `test`, `build`, `deploy`, `validate`, `release`. Global varia
 
 The README, word for word:
 
-{{V_HWS_LOOP}}
+> **The hands-off loop**
+>
+> 1. Create an issue describing a small change and assign it to `duo-developer-gitlab-org`.
+> 2. The Duo Developer flow implements it and opens a merge request on a `duo/*` branch.
+> 3. The MR pipeline marks the MR ready, arms auto-merge, and waits for GitLab Duo Code Review to finish without critical findings.
+> 4. On merge, the main pipeline runs tests, builds the image, runs SAST, dependency, secret and container scans, deploys to staging, smoke-tests it, promotes to production, cuts a tagged GitLab Release, and posts a summary with the live URL and release link back on the issue.
+>
+> Nothing in steps 2 to 4 requires a human.
+>
+> **Replicating this**
+>
+> Set these CI/CD variables on your project:
+>
+> | Variable | Type | Purpose |
+> |---|---|---|
+> | `AUTO_MERGE_TOKEN` | masked | Project access token (Maintainer, `api` scope) used to mark MRs ready, arm auto-merge, and comment on issues |
+> | `GCP_PROJECT_ID` | variable | Google Cloud project for Cloud Run |
+> | `GCP_SERVICE_KEY` | file | Service account JSON with Cloud Run and Artifact Registry permissions |
+>
+> Deployment to Google Cloud is optional for the hackathon. Swap the `deploy-*` jobs for your own target if you prefer.
 
 | Step | Triggered by | Who acts |
 |---|---|---|
@@ -522,15 +774,363 @@ About 15 minutes from assignment to the production comment, with one human actio
 
 `.gitlab/duo/agent-config.yml`:
 
-{{V_HWS_AGENT_CONFIG}}
+```yaml
+image: python:3.12
+setup_script:
+  - pip install -r requirements.txt
+cache:
+  key:
+    files:
+      - requirements.txt
+    prefix: python-deps
+  paths:
+    - .cache/pip
+network_policy:
+  include_recommended_allowed: true
+```
 
 `.gitlab/duo/mr-review-instructions.yaml`:
 
-{{V_HWS_MR_REVIEW}}
+```yaml
+instructions:
+  - name: security
+    fileFilters:
+      - "app/**/*.py"
+    instructions: |
+      Check for hardcoded secrets, credentials, or API keys.
+      Verify that user input is validated before use.
+      Flag any use of string formatting for SQL or shell commands, and any subprocess call with shell=True.
+  - name: testing
+    fileFilters:
+      - "app/**/*.py"
+      - "tests/**/*.py"
+    instructions: |
+      Every new endpoint or behavior change must have a corresponding test in tests/test_api.py.
+      Tests must use the Flask test client fixture.
+  - name: api_consistency
+    fileFilters:
+      - "app/**/*.py"
+    instructions: |
+      All API endpoints must return JSON via jsonify.
+      Error responses must include an "error" key with a human-readable message.
+      Use standard HTTP status codes: 200, 201, 400, 404.
+  - name: dockerfile
+    fileFilters:
+      - "Dockerfile"
+    instructions: |
+      The Dockerfile must use a slim base image.
+      Dependencies must be installed before copying application code (layer caching).
+      No secrets or credentials in the Dockerfile.
+  - name: pipeline
+    fileFilters:
+      - ".gitlab-ci.yml"
+    instructions: |
+      Changes to .gitlab-ci.yml must not remove security scanning templates.
+      Deploy jobs must only run on the default branch.
+      Production deploys must depend on the staging validation job.
+```
 
 `.gitlab-ci.yml`:
 
-{{V_HWS_CI}}
+````yaml
+stages:
+  - test
+  - build
+  - deploy
+  - validate
+  - release
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  CONTAINER_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+  GCP_REGION: us-central1
+  GCP_SERVICE_NAME: hello-world-showcase
+  GCP_AR_IMAGE: us-central1-docker.pkg.dev/$GCP_PROJECT_ID/hello-world-showcase/app:$CI_COMMIT_SHORT_SHA
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Dependency-Scanning.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml
+  - template: Security/Container-Scanning.gitlab-ci.yml
+  - template: Jobs/Code-Quality.gitlab-ci.yml
+
+# ---------------------------------------------------------------------------
+# TEST
+# ---------------------------------------------------------------------------
+unit-tests:
+  stage: test
+  image: python:3.12-slim
+  before_script:
+    - pip install --quiet -r requirements.txt
+  script:
+    - pytest tests/ --junitxml=report.xml -v
+  artifacts:
+    reports:
+      junit: report.xml
+
+lint:
+  stage: test
+  image: python:3.12-slim
+  before_script:
+    - pip install --quiet flake8
+  script:
+    - flake8 app/ tests/ --max-line-length=120
+
+# ---------------------------------------------------------------------------
+# BUILD
+# ---------------------------------------------------------------------------
+build-image:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build -t $CONTAINER_IMAGE .
+    - docker tag $CONTAINER_IMAGE $CI_REGISTRY_IMAGE:latest
+    - docker push $CONTAINER_IMAGE
+    - docker push $CI_REGISTRY_IMAGE:latest
+    - cat "$GCP_SERVICE_KEY" | docker login -u _json_key --password-stdin https://us-central1-docker.pkg.dev
+    - docker tag $CONTAINER_IMAGE $GCP_AR_IMAGE
+    - docker push $GCP_AR_IMAGE
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+container_scanning:
+  stage: build
+  allow_failure: true
+  variables:
+    CS_IMAGE: $CONTAINER_IMAGE
+  needs:
+    - job: build-image
+      artifacts: true
+      optional: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ---------------------------------------------------------------------------
+# DEPLOY - Staging (automatic on main)
+# ---------------------------------------------------------------------------
+deploy-staging:
+  stage: deploy
+  image: google/cloud-sdk:slim
+  environment:
+    name: staging
+    url: $STAGING_URL
+  before_script:
+    - gcloud auth activate-service-account --key-file="$GCP_SERVICE_KEY"
+    - gcloud config set project $GCP_PROJECT_ID
+  script:
+    - |
+      gcloud run deploy $GCP_SERVICE_NAME-staging \
+        --image $GCP_AR_IMAGE \
+        --region $GCP_REGION \
+        --platform managed \
+        --allow-unauthenticated \
+        --set-env-vars APP_VERSION=$CI_COMMIT_SHORT_SHA \
+        --quiet
+    - STAGING_URL=$(gcloud run services describe $GCP_SERVICE_NAME-staging --region $GCP_REGION --format 'value(status.url)')
+    - echo "STAGING_URL=$STAGING_URL" >> deploy.env
+  artifacts:
+    reports:
+      dotenv: deploy.env
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ---------------------------------------------------------------------------
+# DEPLOY - Production (auto after staging validation)
+# ---------------------------------------------------------------------------
+deploy-production:
+  stage: release
+  image: google/cloud-sdk:slim
+  environment:
+    name: production
+    url: $PRODUCTION_URL
+  before_script:
+    - gcloud auth activate-service-account --key-file="$GCP_SERVICE_KEY"
+    - gcloud config set project $GCP_PROJECT_ID
+  script:
+    - |
+      gcloud run deploy $GCP_SERVICE_NAME \
+        --image $GCP_AR_IMAGE \
+        --region $GCP_REGION \
+        --platform managed \
+        --allow-unauthenticated \
+        --set-env-vars APP_VERSION=$CI_COMMIT_SHORT_SHA \
+        --quiet
+    - PRODUCTION_URL=$(gcloud run services describe $GCP_SERVICE_NAME --region $GCP_REGION --format 'value(status.url)')
+    - echo "PRODUCTION_URL=$PRODUCTION_URL" >> prod.env
+  artifacts:
+    reports:
+      dotenv: prod.env
+  needs:
+    - validate-staging
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ---------------------------------------------------------------------------
+# VALIDATE - Post-deploy smoke test
+# ---------------------------------------------------------------------------
+validate-staging:
+  stage: validate
+  image: curlimages/curl:latest
+  needs:
+    - deploy-staging
+  script:
+    - echo "Validating staging deployment at $STAGING_URL"
+    - |
+      HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$STAGING_URL/health")
+      if [ "$HTTP_STATUS" != "200" ]; then
+        echo "Health check failed with status $HTTP_STATUS"
+        exit 1
+      fi
+      echo "Health check passed"
+    - |
+      STATUS=$(curl -s "$STAGING_URL/status")
+      echo "Service status: $STATUS"
+    - |
+      TASK=$(curl -s -X POST "$STAGING_URL/api/tasks" \
+        -H "Content-Type: application/json" \
+        -d '{"title": "Smoke test task"}')
+      echo "Created task: $TASK"
+      TASK_ID=$(echo $TASK | grep -o '"id":"[^"]*"' | cut -d'"' -f4)
+      curl -s -X DELETE "$STAGING_URL/api/tasks/$TASK_ID"
+      echo "Smoke test passed"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ---------------------------------------------------------------------------
+# AGENT MR LIFECYCLE - runs on merge requests from duo/* branches
+# ---------------------------------------------------------------------------
+.duo-mr:
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache curl jq
+  variables:
+    MR_API: "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}"
+  rules:
+    - if: $CI_MERGE_REQUEST_IID && $CI_COMMIT_REF_NAME =~ /^duo\//
+
+ready-for-review:
+  extends: .duo-mr
+  stage: test
+  script:
+    - |
+      TITLE=$(curl --silent --fail --header "PRIVATE-TOKEN: $AUTO_MERGE_TOKEN" "$MR_API" | jq -r '.title')
+      READY_TITLE=$(echo "$TITLE" | sed -E 's/^((\[?Draft\]?|\(Draft\)|WIP):?[[:space:]]*)+//I')
+      echo "Marking MR !$CI_MERGE_REQUEST_IID ready for review: \"$READY_TITLE\""
+      curl --silent --show-error --fail-with-body --request PUT \
+        --header "PRIVATE-TOKEN: $AUTO_MERGE_TOKEN" \
+        --header "Content-Type: application/json" \
+        --data "$(jq -n --arg t "$READY_TITLE" '{title: $t}')" \
+        "$MR_API" > /dev/null
+      echo "Arming auto-merge"
+      curl --silent --show-error --fail-with-body --request PUT \
+        --header "PRIVATE-TOKEN: $AUTO_MERGE_TOKEN" \
+        "$MR_API/merge" \
+        --data "merge_when_pipeline_succeeds=true&squash=true&should_remove_source_branch=true" > /dev/null
+      echo "Done. Merge will happen once this pipeline passes."
+
+wait-for-duo-review:
+  extends: .duo-mr
+  stage: validate
+  needs:
+    - ready-for-review
+  timeout: 20m
+  script:
+    - |
+      echo "Waiting for GitLab Duo Code Review on !$CI_MERGE_REQUEST_IID"
+      for i in $(seq 1 60); do
+        NOTES=$(curl --silent --header "PRIVATE-TOKEN: $AUTO_MERGE_TOKEN" \
+          "$MR_API/notes?per_page=100&order_by=created_at&sort=desc")
+        REVIEW=$(echo "$NOTES" | jq -r '
+          [.[] | select(.system == false and .author.username == "GitLabDuo"
+                        and (.body | test("Processing|started|review session"; "i") | not))]
+          | first // empty | .body')
+        if [ -n "$REVIEW" ]; then
+          echo "Review received:"
+          echo "$REVIEW" | head -c 1500; echo
+          if echo "$REVIEW" | grep -qiE "critical|security vulnerability|command injection"; then
+            echo "Duo flagged a critical finding. Blocking merge."
+            exit 1
+          fi
+          echo "No blocking findings. Clearing the gate."
+          exit 0
+        fi
+        echo "[$i/60] no review yet, waiting 15s"
+        sleep 15
+      done
+      echo "Timed out waiting for Duo Code Review. Blocking merge."
+      exit 1
+
+# ---------------------------------------------------------------------------
+# NOTIFY - report the production deployment back on the originating issue
+# ---------------------------------------------------------------------------
+create-release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  needs:
+    - deploy-production
+  variables:
+    GIT_STRATEGY: none
+  script:
+    - |
+      RELEASE_TAG="v1.0.${CI_PIPELINE_IID}"
+      MR_TITLE=$(echo "$CI_COMMIT_MESSAGE" | sed -n '3p')
+      [ -z "$MR_TITLE" ] && MR_TITLE="$CI_COMMIT_TITLE"
+      ISSUE_REF=$(echo "$CI_COMMIT_MESSAGE" | grep -oiE '(Closes|Resolves|Fixes) #[0-9]+' | head -1 || true)
+      echo "RELEASE_TAG=$RELEASE_TAG" >> release.env
+      DESCRIPTION=$(printf '## %s\n\n%s\n\nBuilt from `%s` by pipeline %s.\n\nReviewed by GitLab Duo, scanned, deployed to staging, smoke-tested and promoted to production automatically.' \
+        "$MR_TITLE" "$ISSUE_REF" "$CI_COMMIT_SHORT_SHA" "$CI_PIPELINE_URL")
+      release-cli create \
+        --name "$RELEASE_TAG" \
+        --tag-name "$RELEASE_TAG" \
+        --ref "$CI_COMMIT_SHA" \
+        --description "$DESCRIPTION" \
+        --assets-link "{\"name\":\"Production\",\"url\":\"${PRODUCTION_URL}\",\"link_type\":\"other\"}" \
+        --assets-link "{\"name\":\"Container image ${CI_COMMIT_SHORT_SHA}\",\"url\":\"${CI_PROJECT_URL}/container_registry\",\"link_type\":\"image\"}"
+  artifacts:
+    reports:
+      dotenv: release.env
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+notify-issue:
+  stage: release
+  image: alpine:latest
+  needs:
+    - deploy-production
+    - create-release
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - |
+      ISSUE_IID=$(echo "$CI_COMMIT_MESSAGE" | grep -oiE '(Closes|Resolves|Fixes) #[0-9]+' | grep -oE '[0-9]+' | head -1 || true)
+      if [ -z "$ISSUE_IID" ]; then
+        echo "No issue reference in commit message, nothing to notify"
+        exit 0
+      fi
+      STATUS=$(curl --silent "$PRODUCTION_URL/status")
+      RELEASE_URL="${CI_PROJECT_URL}/-/releases/${RELEASE_TAG}"
+      BODY=$(jq -n --arg sha "$CI_COMMIT_SHORT_SHA" --arg url "$PRODUCTION_URL" \
+        --arg pipeline "$CI_PIPELINE_URL" --arg status "$STATUS" \
+        --arg tag "$RELEASE_TAG" --arg release "$RELEASE_URL" '{
+        body: ("## Deployed to production :rocket:\n\n" +
+               "Commit `" + $sha + "` is live at " + $url + "\n\n" +
+               "Release: [" + $tag + "](" + $release + ")\n\n" +
+               "Pipeline: " + $pipeline + "\n\n" +
+               "Tests, security scans, staging deploy and smoke test all passed before promotion.\n\n" +
+               "```json\n" + $status + "\n```")}')
+      curl --silent --fail --request POST \
+        --header "PRIVATE-TOKEN: $AUTO_MERGE_TOKEN" \
+        --header "Content-Type: application/json" \
+        --data "$BODY" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/issues/${ISSUE_IID}/notes" > /dev/null
+      echo "Posted deployment summary on issue #$ISSUE_IID"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+````
 
 ## Lessons from the June 2026 edition
 
@@ -547,7 +1147,43 @@ From the 2026-07-13 update in [team-task#1137](https://gitlab.com/gitlab-org/dev
 
 The 2026-07-13 update by mmichaux-ext in [team-task#1137](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1137):
 
-{{V_1137_JUDGING}}
+> **2026-07-13 update**
+>
+> **90%, on track.** The GitLab Transcend Hackathon (theme: build with GitLab Orbit) is judged and the winners are [announced publicly on Devpost](https://gitlab-transcend.devpost.com/updates/44639-winners-announcement-gitlab-transcend-hackathon-how-the-community-built-on-orbit). We are moving to the write-up phase. Nothing blocked.
+>
+> **The funnel**
+>
+> * **1,576 developers registered.**
+> * **318 submissions received.**
+> * **265 eligible for judging** (Showcase Track: agents, flows, and skills built on Orbit).
+> * Most submissions clustered into a few crowded problem spaces (69 built pre-merge impact review, 36 built onboarding aids), but the field still produced genuinely novel work: 17 one-of-a-kind concepts and 20 two-of-a-kind. Five of the eight winners came from those rare tiers.
+> * **Contribute Track: 26 unique contributors merged 61 MRs** directly into the Orbit codebase (new language support, bug fixes, the first query tutorial, docs cleanup). 19 earn a cash prize, all 26 earn swag credits.
+>
+> **How we judged it: a hybrid pipeline**
+>
+> * **Bulk scoring by AI, final selection by humans.** Each eligible submission was packaged into a self-contained packet (write-up plus an evidence bundle pulled from the actual repo code) and scored by three models in independent sessions: **Opus 4.8, GPT 5.5, and Gemini 3.1**. Around 800 scoring runs, tracked to a completion gate so nothing was skipped.
+> * **The AI was decision support, not the decision.** Consensus gave clear shortlists for Technological Implementation and Quality of the Idea. It could not settle Potential Impact (models cap it differently) or Design (110 of 265 had silent or missing demos), so the panel resolved both by hand. Humans picked every winner.
+>
+> **The winners**
+>
+> | Category | First | Second |
+> |----------|-------|--------|
+> | Technological Implementation | [Sankofa](https://gitlab-transcend.devpost.com/submissions/1054521-sankofa) | [Stayed Shipped](https://gitlab-transcend.devpost.com/submissions/1054106-stayed-shipped) |
+> | Design and Usability | [Carver](https://gitlab-transcend.devpost.com/submissions/1062163-carver-the-migration-quoting-agent) | [Marshal](https://gitlab-transcend.devpost.com/submissions/1062651-marshal-autonomous-migration-assistant) |
+> | Potential Impact | [CrossCut](https://gitlab-transcend.devpost.com/submissions/1061837-crosscut) | [OrbitWeaver](https://gitlab-transcend.devpost.com/submissions/1061548-orbitweaver) |
+> | Quality of the Idea | [Transcend](https://gitlab-transcend.devpost.com/submissions/1056751-transcend) | [Universal Agent OS](https://gitlab-transcend.devpost.com/submissions/1053916-universal-agent-os) |
+>
+> Full write-up with the reasoning behind each pick: [winners announcement on Devpost](https://gitlab-transcend.devpost.com/updates/44639-winners-announcement-gitlab-transcend-hackathon-how-the-community-built-on-orbit).
+>
+> **What we learned**
+>
+> * We scanned the "challenges we ran into" text across all 318 submissions (219 had substantive text). The friction is overwhelmingly on our side, and it is documentation and platform maturity, not participant skill: the Orbit query DSL is hard and under-documented, schema docs drift from the live schema, and silent failures return confident wrong answers. Captured in [team-task#1245](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1245)
+> * These are the same three themes we saw in our two earlier events, the [AI Hackathon](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1133) and the [Odisee Co-Create week](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1157). Now three times running. Captured in [team-task#1245](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1245), which proposes no new issues: every theme maps to work the Orbit and Duo Agent Platform teams already track, so it adds evidence weight to raise priority.
+>
+> **What's next**
+>
+> * Decide whether to run a GitLab company blog post off the winners write-up. The Devpost announcement is live; the open question is whether a GitLab.com blog version adds reach beyond it. Draft is ready if we go.
+> * Hand the recurring-friction evidence to the Orbit and Duo Agent Platform teams via [team-task#1245](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1245).
 
 Takeaways (inference): show a working demo with sound; avoid the crowded ideas (pre-merge impact review, onboarding aids); the scoring packet used "the actual repo code", so the repo must hold the real flows and code; humans decide Design and Impact.
 
@@ -555,13 +1191,121 @@ Takeaways (inference): show a working demo with sound; avoid the crowded ideas (
 
 Source: [team-task#1245](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1245), "GitLab Transcend Hackathon - participant observations", opened 2026-07-06 by mmichaux-ext. It has no comments (only 3 system notes, checked through GraphQL). The sections that carry lessons:
 
-{{V_1245}}
+> The [GitLab Transcend Hackathon](https://gitlab-transcend.devpost.com/) gave us another large-scale view of developers building on the Duo Agent Platform and GitLab Orbit under real conditions: **318 submissions** across the Showcase and Contribute tracks. We extracted signal from the submissions themselves, specifically the "Challenges we ran into" and "What we learned" sections, which 219 submissions filled in with substantive detail. Where the same issue appears across many independent teams, the confidence is high.
+>
+> This is the third event in a row where we have captured this signal, after the [GitLab AI Hackathon](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1133) and the [Odisee Co-Create Hackathon](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1157). The headline is not new friction, it is the **same three themes recurring**: developers cannot self-diagnose failures, time to first success is too long because behavior is undocumented, and silent failures erode trust. Several specific bugs from the AI hackathon have since been fixed, but the underlying classes of friction showed up again with new specifics, this time concentrated on the Orbit query surface.
+>
+> **Three signals that came through clearly**
+>
+> **1. The Orbit query DSL and its documentation are the single biggest friction point**
+>
+> More teams cited this than anything else. The query language is strict, its error messages are unhelpful, and the public documentation does not match the shipped schema. Teams routinely spent iterations on 400 errors and reverse-engineered the correct query shapes from validation errors. The most common specific traps:
+> - Single-node (`node`) vs multi-node (`nodes[]` + `relationships[]`) shapes are easy to confuse; a one-entry `nodes` array silently violates a `oneOf` constraint.
+> - `query_type` values ("traversal", "aggregation", "neighbors") were described as undocumented.
+> - `columns` must be `"*"`, not an array.
+>
+> **Actionables:** publish a correct, example-rich DSL reference with copy-paste query templates; make validation error messages name the actual problem; keep the schema docs in sync with the shipped version.
+>
+> **Already tracked (all open):** [gitlab-org/orbit/knowledge-graph#933](https://gitlab.com/gitlab-org/orbit/knowledge-graph/-/work_items/933) (unify `node`/`nodes` DSL shapes), [#970](https://gitlab.com/gitlab-org/orbit/knowledge-graph/-/work_items/970) (DSL schema too verbose for models), [#913](https://gitlab.com/gitlab-org/orbit/knowledge-graph/-/work_items/913) (evaluate Cypher front-end), [#917](https://gitlab.com/gitlab-org/orbit/knowledge-graph/-/work_items/917) (error pipeline for validator rejections), [#732](https://gitlab.com/gitlab-org/orbit/knowledge-graph/-/work_items/732) (schema-discovery workflow guide), [#902](https://gitlab.com/gitlab-org/orbit/knowledge-graph/-/work_items/902) (docs out of sync with product), [#832](https://gitlab.com/gitlab-org/orbit/knowledge-graph/-/work_items/832) (MCP quickstart has incorrect CLI commands).
+>
+> <details>
+> <summary>Detail</summary>
+>
+> * Multiple teams baked "READ TWICE" warnings and known-good JSON templates into their own agent/flow prompts after burning iterations on 400s.
+> * The public schema docs describe a `content` column on Definition nodes and per-relation edge tables. The real DuckDB schema (v0.78) has neither: all edges live in one `gl_edge` table keyed by `relationship_kind`, and source content is not on the row (teams re-read it from disk by line range).
+> * Teams ran `orbit schema` against a live index on day one and rebuilt around what they found rather than the docs.
+>
+> </details>
+>
+> **2. Silent failures produce confident wrong answers, not errors**
+>
+> The most dangerous class, and a direct echo of the "cannot self-diagnose failures" theme from both prior events. Several Orbit behaviors fail silently by returning empty or wrong results instead of an error:
+> - Querying the wrong relationship direction returns zero results silently; many teams lost time debugging empty responses.
+> - `project_id` filtering is inconsistent: it works for MergeRequest but silently returns 0 rows for File/Definition.
+> - The graph is shared across all projects, so an unscoped query silently blends results from other repos.
+>
+> **Actionables:** return explicit errors or warnings for wrong-direction and unscoped queries rather than empty results; document project scoping as a required step, not an option.
+>
+> **Already tracked:** [gitlab-org/orbit/knowledge-graph#916](https://gitlab.com/gitlab-org/orbit/knowledge-graph/-/work_items/916) (low/empty result indistinguishable from "nothing matched", open), [#915](https://gitlab.com/gitlab-org/orbit/knowledge-graph/-/work_items/915) (traversal limit silently starves fan-out queries, open), [#801](https://gitlab.com/gitlab-org/orbit/knowledge-graph/-/work_items/801) (aggregation count inflation, filed from our own earlier testing, now closed).
+>
+> <details>
+> <summary>Detail</summary>
+>
+> * "Relationship direction is enforced, using the wrong direction returns zero results silently. No error, no warning. We spent significant time debugging empty responses." (Orbit Memory)
+> * "An unscoped query for validateToken returned nine results from other repos, so everything had to be project-scoped." (Switchyard)
+> * "project_id filtering is inconsistent across entity types. Works for MergeRequest, silently returns 0 rows for File/Definition. Discovered by trial and error." (Downwind)
+>
+> </details>
+>
+> **3. The Duo Agent Platform flow/skill contract is undocumented and discovered by trial and error**
+>
+> The same "time to first success is too long" and "undocumented behavior" theme from the two prior events, now on the flow/skill mechanics. Teams reverse-engineered the platform contract from UI templates and API errors:
+> - Custom agents cannot access `query_graph` directly; Orbit is reachable only via the MCP endpoint + `invoke_command` wrapper (undocumented).
+> - Flow YAML requires exact field names (`prompt_id` not `id`, `entry_point` not `entry`, `unit_primitives`) not found in docs.
+> - Inter-agent data must flow through `conversation_history`; direct output references are not valid.
+> - Custom flows require a group namespace, not personal; a group-level `experiment_features_enabled` flag silently blocks all flow creation.
+> - The per-account "Orbit in GitLab Duo" toggles (Agentic Chat, Custom Agents, etc.) default OFF, one team spent significant time debugging tool-access failures caused by this.
+>
+> **Actionables:** document the flow/skill contract fully (required YAML fields, triggers, tool access, namespace requirements); improve flow YAML validation feedback; surface the "Orbit in Duo" access requirement in onboarding or default it on for participants.
+>
+> **Already tracked (Duo Agent Platform):** [gitlab-org/gitlab#592792](https://gitlab.com/gitlab-org/gitlab/-/work_items/592792) (orphaned custom agents, open, also flagged in the AI hackathon), [#595181](https://gitlab.com/gitlab-org/gitlab/-/work_items/595181) (DAP activation UX, excessive config steps, open), [#591428](https://gitlab.com/gitlab-org/gitlab/-/work_items/591428) (expand DAP troubleshooting/setup docs, open). The AI-hackathon session-debugging issues [#593150](https://gitlab.com/gitlab-org/gitlab/-/work_items/593150) and [#592972](https://gitlab.com/gitlab-org/gitlab/-/work_items/592972) have since been **closed**.
+>
+> <details>
+> <summary>Detail</summary>
+>
+> * "Custom agents can't access query_graph. Discovered Orbit MCP endpoint + invoke_command wrapper." (NEXUS)
+> * "Flow YAML requires specific field names that aren't clearly documented. Discovered through trial and error by reading the UI template." (Orbit AI Engineering Manager)
+> * "All four Orbit-in-Duo toggles were off by default. Enabling Custom Agents gave the flow real tool access immediately." (Dead Code Finder)
+> * Em dashes in flow YAML get silently corrupted in the editor (multiple teams).
+>
+> </details>
+>
+> **What developers expected but does not exist yet**
+>
+> Recurring capability gaps, several of which were already surfaced in the AI hackathon ([team-task#1133](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1133)) and appeared again here.
+>
+> | What the hackathon confirmed | Feature request |
+> |---|---|
+> | Multiple teams noted there is still no "merge request opened" trigger; they assumed one existed and had to rebuild around it. | Native MR-opened trigger for flows |
+> | Flows can read the API and create issues but have no native MR-note tool; teams split their architecture to work around it. | Native MR-comment capability for flows |
+> | Flows cannot make outbound HTTP calls; teams routed scanning through CI and passed results back via an issue. | Documented pattern (or capability) for external calls from flows |
+> | Orbit provides no native pathfinding; teams reimplemented bounded BFS themselves. | Native bounded pathfinding in Orbit |
+> | Missing parsers (HCL, Dockerfile) and unreliable cross-file resolution outside TS/JS forced manual workarounds. | Broader, documented language/file-type coverage |
+>
+> **Access and account gates that blocked hackathon work**
+>
+> A smaller but sharp set of issues where participants lost time to access rather than to the platform itself:
+> - The `/api/v4/orbit/query` remote endpoint requires a paid tier; teams pivoted to the REST API.
+> - New GitLab accounts cannot run CI without a credit card on file; several teams dropped CI or moved it to GitHub Actions.
+> - `CI_JOB_TOKEN` cannot post MR notes (scoped to package registry only).
+>
+> **Actionable:** provision hackathon participants with the tier, CI access, and token scopes they need up front.
+>
+> **Where this fits with the prior two events**
+>
+> | Theme | AI Hackathon ([#1133](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1133)) | Odisee ([#1157](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1157)) | Transcend (this) |
+> |---|---|---|---|
+> | Cannot self-diagnose / silent failures | Yes | Yes | Yes (wrong-direction / unscoped queries return empty) |
+> | Time to first success too long / docs gaps | Yes | Yes | Yes (Orbit DSL and schema docs) |
+> | Undocumented platform behavior found by trial and error | Yes | Yes | Yes (flow/skill contract, Orbit-in-Duo toggles) |
+>
+> Some specific bugs from the AI hackathon have since been fixed (session-failed-with-no-details, the token 403, the misleading catalog validation error, and the two session-debugging MVCs [gitlab-org/gitlab#593150](https://gitlab.com/gitlab-org/gitlab/-/work_items/593150) and [#592972](https://gitlab.com/gitlab-org/gitlab/-/work_items/592972)). That progress is real. But the same *classes* of friction recurred, which suggests the fixes have been point fixes rather than a systemic investment in error visibility and documentation.
+>
+> **This report proposes no new issues.** Everything participants hit is already tracked: the links are inline under each signal above, in the Orbit queue and the Duo Agent Platform. The value here is real multi-team evidence to raise the priority of issues that are already open, the same play as [team-task#1133](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1133). The recurrence across three events is itself the argument for prioritizing the underlying gaps.
+>
+> **Notes on method**
+>
+> - Source: the self-reported "Challenges" and "What we learned" sections of 318 submissions (219 substantive). This is participant-reported friction, not staff-observed as in the prior two events, so it skews toward what teams found notable enough to write down. It under-counts issues teams solved silently.
+> - Several teams filed Contribute-track fixes for the Orbit issues they hit, so some of this is already in the upstream queue.
 
 ### More lessons from the June planning thread (team-task#1137)
 
 Word for word, from [team-task#1137](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1137):
 
-- leetickett-gitlab, 2026-05-01, on roles: "I'm also considering whether we can/should make them maintainers so participants: can create agents and flows the documented way through the UI; will be credited/attributed in the catalog; can create other CI (including secrets/variables)".
+- leetickett-gitlab, 2026-05-01, on roles: "I'm also considering whether we can/should make them maintainers so participants:"
+  - "can create agents and flows the documented way through the UI"
+  - "will be credited/attributed in the catalog"
+  - "can create other CI (including secrets/variables)"
 - leetickett-gitlab, 2026-05-05: "Note: project maintainers can now enable agents and flows in a project (previously they needed to be top level group maintainers, which was in large the reason for our clever setup)."
 - mmichaux-ext, 2026-05-05: "Looking at the issues that the GitLab AI hackathon participants surfaced on proving what works (secrets, CI, ...), it would be really useful if they can be owner or maintainer of their own project."
 - leetickett-gitlab, 2026-05-05: "You need to be a maintainer to manage agents/flows... if we created a token and didn't have a secure policy in place it would be trivial to extract the token. We also lose the attribution if we use a token."
@@ -667,7 +1411,7 @@ Triggers and running:
 - [ ] In flow scripts call the API with `Authorization: Bearer $GITLAB_TOKEN` (not `PRIVATE-TOKEN`); only `ai_workflows` scope endpoints work. June: "`CI_JOB_TOKEN` cannot post MR notes".
 - [ ] Flows cannot read CI/CD variables. Put non-secret config in `agent-config.yml`; use `id_tokens` for cloud access; add outside hosts to `network_policy.allowed_domains`.
 - [ ] `agent-config.yml` is read from the default branch only. Use an image with git (for example `python:3.12`, not `python:3.12-slim`).
-- [ ] Each flow run is a CI pipeline on hosted runners (tag `gitlab--duo`). If runs sit in "created", check compute minutes and runner availability.
+- [ ] Each flow run is a CI pipeline on hosted runners (tag `gitlab--duo`). If a session fails to start, the docs point to runner availability and used-up compute minutes; a session stuck in "created" can also be push rules ([troubleshooting.md](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/duo_agent_platform/troubleshooting.md)).
 - [ ] Custom flows need a group namespace (we have one). If flow creation fails silently, the group-level `experiment_features_enabled` flag was the June cause; ask the organizers.
 
 Google Cloud and observability:
@@ -682,7 +1426,7 @@ Submission:
 - [ ] Video is required. In June "110 of 265 had silent or missing demos". Narrate it and show the loop end to end.
 - [ ] Avoid crowded ideas: in June "69 built pre-merge impact review, 36 built onboarding aids"; "Five of the eight winners came from those rare tiers."
 - [ ] Theme: "Hands Off. How far can your agents go without you?" Show how far the agents go alone, and where a person decides. The Design and Usability winner kept a human merge gate.
-- [ ] Add a `LICENSE` (June rules said "Projects must have an MIT license", [#1137](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1137); October rule unverified, see docs/RULES.md).
+- [ ] Add a `LICENSE` (the June planning issue said "Projects must have an MIT license", [#1137](https://gitlab.com/gitlab-org/developer-relations/contributor-success/team-task/-/work_items/1137); October rule unverified, see docs/RULES.md).
 - [ ] Submit before 2026-10-27 14:00 UTC. Keep a mirror of the repo; teardown MR [!2838](https://gitlab.com/gitlab-org/developer-relations/contributor-success/contributors-gitlab-com/-/merge_requests/2838) is ready.
 - [ ] The project and subgroup are public. Never commit secrets; flow final answers are visible "on the session detail page in the UI and in the CI job log" ([v1 spec](https://gitlab.com/gitlab-org/modelops/applied-ml/code-suggestions/ai-assist/-/blob/main/docs/flow_registry/v1.md)).
 
