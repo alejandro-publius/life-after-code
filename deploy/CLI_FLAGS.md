@@ -1,6 +1,6 @@
 # Google Cloud CLI flag check
 
-Recorded: 2026-10-06T02:20:37Z. Final result: two tests passed. All 50 distinct command help calls succeeded and all 57 distinct used flags matched the actual SDK 587 help. Test run: 27.736 seconds, exit code 0.
+Recorded: 2026-10-06T04:46:25Z. Final three-service result: four tests passed. All 60 distinct command help calls succeeded and all 61 distinct used flags matched the actual SDK 587 help. Test run: 31.665 seconds, exit code 0. The earlier single-service check passed on 2026-10-06T02:20:37Z: 50 command paths, 57 distinct flags.
 
 The CI image is pinned to the actual image inspected during this check:
 
@@ -36,7 +36,9 @@ env -u DOCKER_HOST -u DOCKER_CONTEXT -u DOCKER_TLS \
   python3 deploy/tests/test_cli_flags.py
 ```
 
-The test reads every `gcloud` invocation in `ci_deploy.sh`, `setup_gcp.sh`, `teardown_gcp.sh`, and `lib.sh`. It runs each distinct command with `--help` and checks every used flag against that actual help, including `--[no-]` boolean variants. Unknown command paths fail the test. Docker's network is disabled and no credentials are mounted. This checks command availability and flag names. It does not prove parameter values, IAM permissions, authentication, API operations, or a live deployment.
+The test scans `ci_deploy.sh`, `setup_gcp.sh`, `teardown_gcp.sh`, `lib.sh`, `bootstrap_secrets.sh`, and `bootstrap_ops.sh`. It also parses `monitoring.py` with Python's AST to find `gcloud` subprocess argument lists and joined flag values. Literal flags assigned to the constrained `cpu_flag` variable and `settings` array are included, including assignments in case branches. Alex's manual `scheduler jobs pause` and `scheduler jobs resume` commands are included with `--project`, `--location`, and `--quiet`. The day-one `scheduler jobs run` command is also included with those flags and `--format='value(name)'`, so its printed result is limited to the resource name.
+
+Each distinct command runs with `--help`. Every used flag must appear in actual help, including `--[no-]` boolean variants. Unknown command paths or flag-carrying shell variables fail the test. Regression checks cover hidden array flags, Python arguments and rejection of unknown commands. Docker's network is disabled and no credentials are mounted. This checks command availability and flag names. It does not prove parameter values, IAM permissions, authentication, API operations, REST request schemas, or a live deployment. Scheduler and Monitoring setup use their REST APIs; those request bodies require their separate tests.
 
 ## Command and flag inventory
 
@@ -50,6 +52,7 @@ Each row is checked with `gcloud <command> --help`. SDK reference links help loc
 | [`artifacts repositories delete`](https://cloud.google.com/sdk/gcloud/reference/artifacts/repositories/delete) | `--location`, `--project`, `--quiet` |
 | [`artifacts repositories describe`](https://cloud.google.com/sdk/gcloud/reference/artifacts/repositories/describe) | `--format`, `--location`, `--project` |
 | [`auth login`](https://cloud.google.com/sdk/gcloud/reference/auth/login) | `--cred-file`, `--quiet` |
+| [`auth print-access-token`](https://cloud.google.com/sdk/gcloud/reference/auth/print-access-token) | `--quiet` |
 | [`beta services identity create`](https://cloud.google.com/sdk/gcloud/reference/beta/services/identity/create) | `--project`, `--quiet`, `--service` |
 | [`billing budgets create`](https://cloud.google.com/sdk/gcloud/reference/billing/budgets/create) | `--billing-account`, `--budget-amount`, `--calendar-period`, `--display-name`, `--filter-projects`, `--format`, `--threshold-rule` |
 | [`billing budgets delete`](https://cloud.google.com/sdk/gcloud/reference/billing/budgets/delete) | `--quiet` |
@@ -79,11 +82,20 @@ Each row is checked with `gcloud <command> --help`. SDK reference links help loc
 | [`projects describe`](https://cloud.google.com/sdk/gcloud/reference/projects/describe) | `--format` |
 | [`projects get-iam-policy`](https://cloud.google.com/sdk/gcloud/reference/projects/get-iam-policy) | `--format` |
 | [`projects remove-iam-policy-binding`](https://cloud.google.com/sdk/gcloud/reference/projects/remove-iam-policy-binding) | `--condition`, `--member`, `--quiet`, `--role` |
-| [`run deploy`](https://cloud.google.com/sdk/gcloud/reference/run/deploy) | `--concurrency`, `--cpu`, `--cpu-throttling`, `--image`, `--ingress`, `--labels`, `--max-instances`, `--memory`, `--min`, `--min-instances`, `--no-cpu-boost`, `--no-invoker-iam-check`, `--port`, `--project`, `--quiet`, `--region`, `--service-account`, `--timeout`, `--update-env-vars` |
+| [`run deploy`](https://cloud.google.com/sdk/gcloud/reference/run/deploy) | `--concurrency`, `--cpu`, `--cpu-throttling`, `--env-vars-file`, `--image`, `--ingress`, `--labels`, `--max-instances`, `--memory`, `--min`, `--min-instances`, `--no-cpu-boost`, `--no-cpu-throttling`, `--no-invoker-iam-check`, `--port`, `--project`, `--quiet`, `--region`, `--service-account`, `--set-secrets`, `--timeout` |
 | [`run services add-iam-policy-binding`](https://cloud.google.com/sdk/gcloud/reference/run/services/add-iam-policy-binding) | `--condition`, `--member`, `--project`, `--quiet`, `--region`, `--role` |
 | [`run services delete`](https://cloud.google.com/sdk/gcloud/reference/run/services/delete) | `--project`, `--quiet`, `--region` |
 | [`run services describe`](https://cloud.google.com/sdk/gcloud/reference/run/services/describe) | `--format`, `--project`, `--region` |
 | [`run services update-traffic`](https://cloud.google.com/sdk/gcloud/reference/run/services/update-traffic) | `--project`, `--quiet`, `--region`, `--to-latest` |
+| [`scheduler jobs pause`](https://cloud.google.com/sdk/gcloud/reference/scheduler/jobs/pause) | `--location`, `--project`, `--quiet` |
+| [`scheduler jobs resume`](https://cloud.google.com/sdk/gcloud/reference/scheduler/jobs/resume) | `--location`, `--project`, `--quiet` |
+| [`scheduler jobs run`](https://cloud.google.com/sdk/gcloud/reference/scheduler/jobs/run) | `--format`, `--location`, `--project`, `--quiet` |
+| [`secrets add-iam-policy-binding`](https://cloud.google.com/sdk/gcloud/reference/secrets/add-iam-policy-binding) | `--condition`, `--member`, `--project`, `--quiet`, `--role` |
+| [`secrets create`](https://cloud.google.com/sdk/gcloud/reference/secrets/create) | `--labels`, `--project`, `--quiet`, `--replication-policy` |
+| [`secrets delete`](https://cloud.google.com/sdk/gcloud/reference/secrets/delete) | `--project`, `--quiet` |
+| [`secrets describe`](https://cloud.google.com/sdk/gcloud/reference/secrets/describe) | `--format`, `--project` |
+| [`secrets versions add`](https://cloud.google.com/sdk/gcloud/reference/secrets/versions/add) | `--data-file`, `--project`, `--quiet` |
+| [`secrets versions list`](https://cloud.google.com/sdk/gcloud/reference/secrets/versions/list) | `--format`, `--project` |
 | [`services disable`](https://cloud.google.com/sdk/gcloud/reference/services/disable) | `--project`, `--quiet` |
 | [`services enable`](https://cloud.google.com/sdk/gcloud/reference/services/enable) | `--project`, `--quiet` |
 | [`services list`](https://cloud.google.com/sdk/gcloud/reference/services/list) | `--enabled`, `--format`, `--project` |
