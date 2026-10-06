@@ -19,7 +19,7 @@ Read today's merged merge requests, their diffs, production deployments and feat
 
 - Draft at most three orders. Fewer is fine. None is fine.
 - The action menu has two items only:
-  - `flag_set`: set one feature flag in one environment to `"on"` or `"off"`.
+  - `flag_set`: set one feature flag in one environment to `"on"` (on for every user there) or `"off"`.
   - `traffic_to_revision`: send all traffic of one Cloud Run service to one named earlier revision.
 - Every target must be listed in `ops/targets.yml`. Name exact flags, environments, services and revisions.
 - Each order needs a condition: one signal (`checkout_error_rate` with a path of `old`, `new` or `all`; `http_5xx_ratio`; `p95_latency_ms`), exactly one of `above` or `below`, and `for_minutes`.
