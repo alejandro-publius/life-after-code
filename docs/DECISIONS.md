@@ -30,3 +30,7 @@ The Official Rules say they win over any other hackathon material. Codex read th
 ## 2026-10-06: Codex deploy branch merged
 
 Codex's `codex/deploy-skeleton` branch (keyless Cloud Run deploy, setup and teardown scripts, placeholder app) was reviewed and merged. Its 9 mocked tests pass here. One follow-up was sent back to Codex: `gcloud run deploy` in gcloud 530 has `--min` but no `--max` flag, so `--max=1` may fail; `--max-instances=1` alone is enough. A second follow-up: the job reads its Google Cloud values from CI/CD settings, which need the Maintainer role; since none of them are secrets, they should also be settable in the CI file.
+
+## 2026-10-06: CLI audit runs in the pinned CI image
+
+`deploy/tests/test_cli_flags.py` checks every gcloud flag the deploy scripts use against the real help text. Run on this machine's gcloud 530 it fails two subtests (`alpha projects update`, `beta services identity create`) only because the alpha and beta components are not installed here. Run inside the pinned CI image (`gcr.io/google.com/cloudsdktool/google-cloud-cli@sha256:be4876b4...`, Google Cloud SDK 587.0.0 with alpha and beta 2026.09.25) it passes: 2 tests, OK. The audit stays as written and becomes a CI job in that image, so it runs on every pipeline.
