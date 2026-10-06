@@ -78,3 +78,39 @@ The relay and the shop are each deployed from their own folder with a `main.py`,
 ## 2026-10-06: every thumbs-up is checked
 
 The relay's builder found that taking only the first thumbs-up on a page note let a teammate's reaction block the on-call person's own approval. Now code checks every thumbs-up, oldest first: a refused one is noted once and the suggestion keeps waiting, and a suggestion nobody approves within 60 minutes of the page is dropped with nothing changed.
+
+## 2026-10-06 (later): feature branches and Codex review replace pushing to main
+
+Supersedes "push to both main and the session branch" above. Work now goes on a `claude/<task>` or `codex/<task>` branch with a draft pull request. Codex reviews the pushed commits and answers READY, CHANGES REQUIRED or NOT VERIFIED for one exact SHA; only a READY SHA is merged. Nothing is pushed straight to main and nothing is force-pushed. The rules are in [AGENTS.md](../AGENTS.md#branches-and-review).
+
+## 2026-10-06 (later): primary sources read again; differences from earlier notes
+
+Read between 07:35 and 07:50 UTC; details and links in [refresh_2026-10-06.md](research/refresh_2026-10-06.md). The rules have not changed. Differences that matter:
+
+| Topic | Earlier note | Primary source today | Choice |
+|---|---|---|---|
+| What counts as Duo use | [RULES_CHECK.md](codex/RULES_CHECK.md) states that a standalone Claude API integration does not satisfy the requirement | The [rules](https://gitlab-transcend.devpost.com/rules) give examples only (agents, flows, MCP clients) and a "reasonably uses" gate; nothing is excluded by name | Treat that sentence as our inference. Still put a real Duo flow at the core, because Stage One is pass or fail. |
+| External agents | Not covered | No hackathon source mentions them; [GitLab's docs](https://docs.gitlab.com/user/duo_agent_platform/agents/external/) list the managed Claude Code and Codex agents as a Duo Agent Platform feature (Premium or Ultimate, flag for verified customers, Maintainer to enable) | Do not depend on them. |
+| Licence | MIT for our work, OSI for third parties | The [rules](https://gitlab-transcend.devpost.com/rules) also put our agent YAML under MIT and require GitLab's DCO v1.1 | Add the DCO to the submission checklist. |
+| Autonomy level | Unknown how it is assigned | The unpublished [gallery](https://gitlab-transcend.devpost.com/project-gallery) filters by "Path and Autonomy level", which suggests the entrant selects it (inference) | Pick the level that matches the demonstrated control points. |
+| Participants | 621 (unverified) | 725 on the [home page](https://gitlab-transcend.devpost.com/) | Participants are not submissions; no track is assumed empty. |
+| Updates and discussions | Blocked | Both pages read: nothing posted | Recheck before submission. |
+| Field and winner reasons | Search excerpts | Organizer posts read directly ([June](https://about.gitlab.com/blog/gitlab-transcend-hackathon-orbit/), [February](https://about.gitlab.com/blog/gitlab-ai-hackathon-2026-meet-the-winners/)) | Use organizer statements, not inferred reasons. |
+
+## 2026-10-06 (later): Duo capabilities the existing flows assume but the docs do not support
+
+From the [refresh](research/refresh_2026-10-06.md#2-gitlab-duo-agent-platform), checked against docs.gitlab.com today:
+
+- Flow tokens carry only the `ai_workflows` and `mcp` scopes. GitLab's source shows the Feature flags, Deployments and Environments APIs do not accept them, so `flows/dusk.yml` and `flows/dawn.yml` most likely cannot read flags or deployments as written. Code has to place that evidence where a flow can read it (an issue, a note or a file).
+- Triggers fire only on a person's action, have no schedule form, and need Maintainer to create. The Flows API is generally available for starting a flow from code, but a start with a Developer account in the hackathon group is untested.
+- A HumanInputComponent is a documented approval step. Its outputs are the conversation and `context:<name>.approval`; `context:ask_oncall.response` in `flows/dusk.yml` is not one of them.
+- Signing by merging needs Maintainer on a protected default branch, and by default the author of a flow-created merge request cannot approve it.
+- These affect any concept, and are inputs to the [concept review](IDEAS.md#0-reopened-selection-6-oct-2026). No flow was changed in this batch.
+
+## 2026-10-06 (later): what the code audit found in Night Orders
+
+Every one of the ten concerns listed in the 6 Oct handoff was checked against the code on main at `484c411`: eight are confirmed and two partly. The most visible: `/healthz` answers ok while `/tick` fails on blank flow settings; two overlapping ticks can open two incidents and send two pages; the morning reversal covers flag changes only (traffic is listed for a person, and a no-op night action is still reversed); turning a flag back on gives every user the flag, not the earlier rollout. The README, DEVPOST and relay README claimed that code undoes every change that is not kept; that wording was corrected in this batch to match the code. No code was changed.
+
+## 2026-10-06 (later): concept selection reopened; recommendation pending Codex review
+
+Supersedes "build Night Orders" above, which rested on AI persona scores and on platform assumptions that the [refresh](research/refresh_2026-10-06.md) no longer supports. Four candidates were rewritten to documented capabilities and attacked by AI critics ([panel appendix](research/ideas/concept_panel_2026-10-06.md)). The lead recommends **No Mouse** (revised), with **Forget Me** as the closest alternative, Path A Best Supervised Agent and Most Creative ([IDEAS.md, section 0](IDEAS.md#0-reopened-selection-6-oct-2026)). The choice is not final until Codex reviews it and a local feasibility experiment shows the model beating a strong no-model baseline. The Night Orders code stays on main, unchanged, until a replacement is selected and the transition is reviewed.

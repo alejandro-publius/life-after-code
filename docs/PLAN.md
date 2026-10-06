@@ -1,5 +1,7 @@
 # Plan
 
+> **On hold, 6 Oct 2026.** Concept selection was reopened ([IDEAS.md, section 0](IDEAS.md#0-reopened-selection-6-oct-2026)). This plan describes Night Orders and stays as written until Codex reviews the recommendation; a new plan follows the decision. Two points apply to any concept: the live Duo probe moves to within 48 hours of workspace access, and work goes through feature branches and Codex review ([AGENTS.md](../AGENTS.md#branches-and-review)), not straight to main.
+
 Night Orders, from today to the deadline. Written Tue 6 Oct 2026. Times are Pacific unless marked UTC.
 
 Goal: build done Sat 24 Oct; video and Devpost submission done Mon 26 Oct, 9:00 PM. The hard deadline is Tue 27 Oct, 13:00 UTC (6:00 AM Pacific) ([RULES_CHECK.md](codex/RULES_CHECK.md), [DECISIONS.md](DECISIONS.md)).

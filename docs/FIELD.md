@@ -1,5 +1,7 @@
 # Field: who else is building for Life After Code
 
+> **Refreshed 6 Oct 2026, 07:35 to 07:50 UTC.** Primary sources were read again for the field and past-winner reasons. Where [the refresh note](research/refresh_2026-10-06.md#4-field-and-past-winners) differs from this file, the refresh note controls.
+
 Compiled 2026-10-06 at about 01:50 UTC for Alex Velazquez (solo entrant, Path A). This is day 2 of Life After Code, the GitLab Transcend Hackathon on Devpost: submissions opened 2026-10-05 at 10:00 UTC and close on 2026-10-27 ([transcendDates.ts](https://gitlab.com/gitlab-org/developer-relations/contributor-success/contributors-gitlab-com/-/blob/main/contributors/app/javascript/pages/transcend-hackathon-page/transcendDates.ts)). The Bangalore keynote, where Devpost said the "full reveal (paths, prizes, judges)" would happen, had not started yet ([x.com/devpost](https://x.com/devpost/status/2104984062469308626), search-result title, unverified).
 
 This file condenses four research notes from this session, plus one fresh count of the October group:

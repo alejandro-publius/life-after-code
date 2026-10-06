@@ -31,7 +31,7 @@ The dusk drafter reads the day's changes and proposes at most three orders. Each
 
 In the intended GitLab workflow, the on-call engineer reviews and merges the orders request. That merge is the signature. During the night, code checks the signature, expiry, measured threshold, exact action and first use. The watch flow must also name the order and explain why the evidence fits. The action comes from the signed file, never from the agent's free text. If either key fails, the engineer receives a short page and, when available, one suggestion requiring approval.
 
-The grant ends at 07:00. Expiry stops new automatic actions; it does not automatically revert previous changes. The morning countersign says which changes to keep. Code undoes the others and records the result.
+The grant ends at 07:00. Expiry stops new automatic actions; it does not automatically revert previous changes. The morning countersign says which changes to keep. Code reverses flag changes that are not kept and records the result; a traffic change that is not kept is listed for a person to undo.
 
 ## The working demonstration
 

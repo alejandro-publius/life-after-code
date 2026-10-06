@@ -1,5 +1,7 @@
 # Sponsors: GitLab, Anthropic, Google Cloud
 
+> **Refreshed 6 Oct 2026, 07:35 to 07:50 UTC.** Primary sources were read again for Duo Agent Platform capabilities and workspace limits. Where [the refresh note](research/refresh_2026-10-06.md#2-gitlab-duo-agent-platform) differs from this file, the refresh note controls.
+
 Written 2026-10-06 for Alex Velazquez's solo entry in Life After Code, the GitLab Transcend Hackathon (October 2026). Judges come from GitLab, Google and Anthropic. Path A: a new AI project on GitLab that automates the post-code lifecycle with agents. It must use GitLab Duo Agent Platform, and deploying on Google Cloud earns an optional bonus ([RULES.md](RULES.md)).
 
 How to read this file:

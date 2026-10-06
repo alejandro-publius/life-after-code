@@ -1,5 +1,7 @@
 # GitLab hackathon guide and reference
 
+> **Refreshed 6 Oct 2026, 07:35 to 07:50 UTC.** Primary sources were read again for Duo Agent Platform capabilities (some flow keys recommended below are rejected by the schema). Where [the refresh note](refresh_2026-10-06.md#2-gitlab-duo-agent-platform) differs from this file, the refresh note controls.
+
 Research for Life After Code (GitLab Transcend Hackathon, Path A). Researched on 2026-10-06. Data was pulled from GitLab between 00:30 and 01:30 UTC that day, so counts are a snapshot.
 
 How to read this file:
