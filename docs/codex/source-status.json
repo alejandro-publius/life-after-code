@@ -1,0 +1,62 @@
+[
+  {
+    "name": "main",
+    "requested_url": "https://gitlab-transcend.devpost.com/?amp=1",
+    "canonical_source": "https://gitlab-transcend.devpost.com/",
+    "resolved_url": "https://gitlab-transcend.devpost.com/?amp=1",
+    "status": 200,
+    "bytes": 112501,
+    "plain_url_status": 403,
+    "retrieved_at_utc": "2026-10-06",
+    "failed_attempts": [],
+    "sha256_html": "48e25da837a879931c9be83829ae26c93e3fa4f64f1c0a81caf3fa8b185a6dc0"
+  },
+  {
+    "name": "rules",
+    "requested_url": "https://gitlab-transcend.devpost.com/rules?amp=1",
+    "canonical_source": "https://gitlab-transcend.devpost.com/rules",
+    "resolved_url": "https://gitlab-transcend.devpost.com/rules?amp=1",
+    "status": 200,
+    "bytes": 124679,
+    "plain_url_status": 403,
+    "retrieved_at_utc": "2026-10-06",
+    "failed_attempts": [],
+    "sha256_html": "6c3a5c90328e01bddb3082e8ba741e87d5f6ee31fb2ecbe7f3e66e3ad774c99a"
+  },
+  {
+    "name": "resources",
+    "requested_url": "https://gitlab-transcend.devpost.com/resources?amp=1",
+    "canonical_source": "https://gitlab-transcend.devpost.com/resources",
+    "resolved_url": "https://gitlab-transcend.devpost.com/resources?amp=1",
+    "status": 200,
+    "bytes": 86436,
+    "plain_url_status": 403,
+    "retrieved_at_utc": "2026-10-06",
+    "failed_attempts": [],
+    "sha256_html": "a8bb9151ed82777c8f9ab15779029768846912b8da5316b9bdef4eb7f57a0ca5"
+  },
+  {
+    "name": "dates",
+    "requested_url": "https://gitlab-transcend.devpost.com/details/dates?amp=1",
+    "canonical_source": "https://gitlab-transcend.devpost.com/details/dates",
+    "resolved_url": "https://gitlab-transcend.devpost.com/details/dates?amp=1",
+    "status": 200,
+    "bytes": 70504,
+    "plain_url_status": 403,
+    "retrieved_at_utc": "2026-10-06",
+    "failed_attempts": [],
+    "sha256_html": "585e606f1ae6d8b34522a7551cb8c19d926a9d5e0e1b4a5c4e7bf8a742d49c21"
+  },
+  {
+    "name": "updates",
+    "requested_url": "https://gitlab-transcend.devpost.com/updates?amp=1",
+    "canonical_source": "https://gitlab-transcend.devpost.com/updates",
+    "resolved_url": "https://gitlab-transcend.devpost.com/updates?amp=1",
+    "status": 200,
+    "bytes": 69447,
+    "plain_url_status": 403,
+    "retrieved_at_utc": "2026-10-06",
+    "failed_attempts": [],
+    "sha256_html": "100c3484798ce6b56d3d65e7b059da44add7d6bb356e59d4b5f139e651076294"
+  }
+]
