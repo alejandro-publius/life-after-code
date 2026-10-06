@@ -52,12 +52,15 @@ import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from functools import lru_cache
+from pathlib import Path
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import FastAPI, Header
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from nightorders import morning, state
 from nightorders.dawn import render_watch_log
@@ -85,6 +88,21 @@ PAGE_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
     "X-Content-Type-Options": "nosniff",
 }
+DEMO_PAGE_HEADERS = {
+    "Cache-Control": "no-store",
+    "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; "
+                               "connect-src 'self'; img-src 'self'; base-uri 'none'; "
+                               "form-action 'none'; frame-ancestors 'none'",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
+}
+
+
+@lru_cache(maxsize=4)
+def demo_replay(signed: bool, approved: bool) -> dict:
+    from nightorders.browser_demo import replay
+
+    return replay(signed=signed, approved=approved)
 
 
 @dataclass(frozen=True)
@@ -366,10 +384,12 @@ def render_status(doc: dict | None, now: datetime, unavailable: bool = False) ->
     status = relay_doc.get("status")
     body = [
         f'<p class="demo">{_e(DEMO_LABEL)}. The shop, its traffic and its faults are simulated. '
-        "The decisions, the GitLab incidents and the pages are real.</p>",
-        "<h1>Night Orders relay</h1>",
+        "This status page shows only results reported by the connected night watch.</p>",
+        "<h1>Night Orders</h1>",
         "<p>Before bed, the on-call engineer signs what the agent may do alone tonight. "
         "Everything else wakes them. This page is read-only.</p>",
+        '<p><a class="try-demo" href="/demo">Try one night with Priya</a></p>',
+        '<p class="quiet">A guided demo replay with recorded agent replies. No setup needed.</p>',
     ]
     if unavailable:
         body.append("<p>The relay's state cannot be read right now.</p>")
@@ -420,7 +440,10 @@ def render_status(doc: dict | None, now: datetime, unavailable: bool = False) ->
         "body{font:16px/1.5 system-ui,sans-serif;max-width:46rem;margin:0 auto;padding:16px;color:#1b1b1b;"
         "background:#fff}"
         ".demo{background:#fff3cd;border:1px solid #c9a227;padding:8px 12px;font-weight:600}"
-        "pre{white-space:pre-wrap;background:#f4f4f4;padding:12px}"
+        "pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f4f4;padding:12px}"
+        ".try-demo{display:inline-block;background:#1f4036;color:#fff;padding:12px 18px;"
+        "border-radius:8px;text-decoration:none;font-weight:700}"
+        ".quiet{color:#686868;font-size:14px}"
         "@media (prefers-color-scheme:dark){body{color:#e8e8e8;background:#121212}"
         ".demo{background:#3b3000;border-color:#8a7000}pre{background:#1e1e1e}}"
     )
@@ -443,6 +466,20 @@ def create_app(make_store: Callable[[Config], Any] = make_store,
     now = clock or (lambda: datetime.now(timezone.utc))
     # The public page is cached briefly, so a burst of views cannot crowd out the tick.
     cached: dict = {"until": 0.0, "page": ""}
+    demo_files = Path(__file__).with_name("demo_web")
+
+    @app.get("/demo", response_class=HTMLResponse)
+    @app.get("/demo/", response_class=HTMLResponse, include_in_schema=False)
+    def guided_demo() -> FileResponse:
+        return FileResponse(demo_files / "index.html", media_type="text/html", headers=DEMO_PAGE_HEADERS)
+
+    @app.get("/demo/replay")
+    def replay_night(signed: bool = True, approved: bool = True) -> JSONResponse:
+        # Fixed fixture selectors only. This route never reads runtime credentials,
+        # GitLab, a production state store or the tick's action ports.
+        return JSONResponse(demo_replay(signed, approved), headers=DEMO_PAGE_HEADERS)
+
+    app.mount("/demo/assets", StaticFiles(directory=demo_files, check_dir=False), name="demo-assets")
 
     @app.get("/healthz")
     def healthz() -> dict:

@@ -1,0 +1,18 @@
+# The relay's own alert rules. An alert opens an incident; whether anything is done about it is
+# decided by tonight's signed orders. In production a Cloud Monitoring policy can raise the same alerts.
+rules:
+  - key: checkout_error_rate.new
+    above: 0.05
+    for_minutes: 5
+  - key: checkout_error_rate.old
+    above: 0.05
+    for_minutes: 5
+  - key: payment_error_rate
+    above: 0.05
+    for_minutes: 5
+  - key: http_5xx_ratio
+    above: 0.05
+    for_minutes: 5
+  - key: p95_latency_ms
+    above: 1500
+    for_minutes: 10

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f4f0e7">
+    <meta name="description" content="Walk through a labelled Night Orders replay: Priya sets limits before bed, the code checks them, and she reviews the changes in the morning.">
+    <title>Night Orders | Priya's demo night</title>
+    <link rel="stylesheet" href="/demo/assets/style.css">
+    <script src="/demo/assets/app.js" defer></script>
+  </head>
+  <body class="no-js">
+    <header class="site-header">
+      <a class="brand" href="/demo" aria-label="Night Orders demo home">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" width="32" height="32"><path d="M24 23.5A12 12 0 0 1 9 7a11 11 0 1 0 15 16.5Z" fill="currentColor"/><circle cx="24" cy="8" r="1.5" fill="currentColor"/></svg></span>
+        <span class="brand-name">Night Orders<span>A night with clear limits</span></span>
+      </a>
+      <div class="demo-notice">
+        <p class="demo-label">Demo replay. Simulated shop. Recorded agent replies.</p>
+        <p class="safety-note">Your choices stay in this demo.</p>
+      </div>
+    </header>
+
+    <div class="page-shell">
+      <section class="intro" aria-labelledby="intro-title">
+        <p class="eyebrow">Recorded demo night · 20 October</p>
+        <h1 class="intro-title" id="intro-title">Priya wants to sleep.</h1>
+        <p class="intro-copy">Before bed, she decides what may happen without her. Follow one night to see where that permission ends.</p>
+      </section>
+
+      <nav class="journey-nav" aria-label="Replay chapters">
+        <button class="step-button active" data-step="dusk" aria-current="step" type="button"><span class="step-number">1</span><span><span class="step-label">Before bed</span><span class="step-status">22:06 · Set the limits</span></span></button>
+        <button class="step-button" data-step="night" type="button" disabled><span class="step-number">2</span><span><span class="step-label">During the night</span><span class="step-status">A wake-up, then a check</span></span></button>
+        <button class="step-button" data-step="dawn" type="button" disabled><span class="step-number">3</span><span><span class="step-label">Over coffee</span><span class="step-status">07:42 · Keep or undo</span></span></button>
+      </nav>
+
+      <p id="replay-status" class="screen-reader-only" role="status" aria-live="polite" aria-atomic="true"></p>
+      <div id="replay-root" data-view="dusk" data-scene="dusk" aria-busy="true">
+        <main class="journey-panel loading" id="journey-content">
+          <p class="eyebrow">Getting the demo ready</p>
+          <h2 class="chapter-title">Loading Priya's night...</h2>
+          <p class="chapter-copy">Preparing the recorded demo night.</p>
+        </main>
+      </div>
+
+      <noscript>
+        <div class="error-state">
+          <h2>This guided replay needs JavaScript.</h2>
+          <p>You can read and run the same labelled demo from the repository. From its relay folder, run <code>python -m nightorders.demo_night ../demo/night-2026-10-20</code>.</p>
+          <a class="button secondary" href="https://github.com/alejandro-publius/life-after-code/tree/main/demo/night-2026-10-20">Read the demo files</a>
+        </div>
+      </noscript>
+      <footer class="footer-note">The agent suggests where to look. The code checks the permission. Priya decides what matters.</footer>
+    </div>
+  </body>
+</html>

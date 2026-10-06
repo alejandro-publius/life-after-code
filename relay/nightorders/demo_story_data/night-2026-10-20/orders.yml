@@ -1,0 +1,27 @@
+# DEMO DATA. Tonight's orders as drafted at dusk and signed by Priya (Alex) at 22:06.
+night: "2026-10-20"
+expires: "07:00"
+drafted_by: dusk flow (demo)
+orders:
+  - id: 1
+    because: MR !31 turned on new_checkout in production at 16:20; its price rounding is new code.
+    when:
+      signal: checkout_error_rate
+      path: new
+      above: 0.05
+      for_minutes: 5
+    do:
+      action: flag_set
+      flag: new_checkout
+      environment: production
+      to: "off"
+  - id: 2
+    because: MR !33 deployed revision shop-00042 at 18:40 with a larger image cache; latency is the risk.
+    when:
+      signal: p95_latency_ms
+      above: 1500
+      for_minutes: 10
+    do:
+      action: traffic_to_revision
+      service: shop
+      revision: shop-00041

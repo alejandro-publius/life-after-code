@@ -1,0 +1,9 @@
+{
+ "_label": "DEMO DATA. In production this is a thumbs-up reaction on the page note, read through the GitLab emoji reactions API.",
+ "incidents": {
+  "1": {
+   "user": "alex-velazquez",
+   "at": "2026-10-21T01:53:00-07:00"
+  }
+ }
+}

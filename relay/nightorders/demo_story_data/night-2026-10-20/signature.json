@@ -1,0 +1,7 @@
+{
+  "_label": "DEMO DATA. In production this is read from GitLab: who merged or approved the MR that changed ops/night-orders.yml.",
+  "method": "merge",
+  "user": "alex-velazquez",
+  "at": "2026-10-20T22:06:00-07:00",
+  "commit": "demo0000000000000000000000000000000000000"
+}

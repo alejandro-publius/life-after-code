@@ -1,0 +1,75 @@
+{
+ "_label": "DEMO DATA. What the dusk flow reads from GitLab on the demo evening: merged MRs, deployments, flags.",
+ "date": "2026-10-20",
+ "timezone": "America/Los_Angeles",
+ "merged_today": [
+  {
+   "iid": 31,
+   "title": "New checkout: price rounding per region",
+   "merged_at": "16:12",
+   "author": "teammate-dana",
+   "files": [
+    "checkout/new_rounding.py",
+    "checkout/routes.py"
+   ],
+   "note": "Ships behind the new_checkout flag; flag turned on in production at 16:20.",
+   "diff_excerpt": "+ def round_price(amount, region):\n+     return Decimal(amount).quantize(REGION_STEP[region])"
+  },
+  {
+   "iid": 33,
+   "title": "Raise image cache to 512 MB",
+   "merged_at": "18:31",
+   "author": "teammate-sam",
+   "files": [
+    "shop/settings.py"
+   ],
+   "note": "Deployed to production as revision shop-00042 at 18:40. Previous revision: shop-00041.",
+   "diff_excerpt": "- IMAGE_CACHE_MB = 128\n+ IMAGE_CACHE_MB = 512"
+  },
+  {
+   "iid": 34,
+   "title": "Add gift_note column to carts",
+   "merged_at": "19:05",
+   "author": "teammate-dana",
+   "files": [
+    "migrations/0042_gift_note.py"
+   ],
+   "note": "Migration ran in production at 19:20.",
+   "diff_excerpt": "+ op.add_column('carts', sa.Column('gift_note', sa.Text()))"
+  },
+  {
+   "iid": 35,
+   "title": "Fix typo in README",
+   "merged_at": "20:02",
+   "author": "teammate-sam",
+   "files": [
+    "README.md"
+   ],
+   "note": "",
+   "diff_excerpt": "- recieve\n+ receive"
+  }
+ ],
+ "deployments": [
+  {
+   "environment": "production",
+   "service": "shop",
+   "revision": "shop-00042",
+   "at": "18:40",
+   "previous_revision": "shop-00041"
+  }
+ ],
+ "flags": [
+  {
+   "name": "new_checkout",
+   "environment": "production",
+   "state": "on",
+   "changed_at": "16:20"
+  },
+  {
+   "name": "stock_from_cache",
+   "environment": "production",
+   "state": "off",
+   "changed_at": "2026-10-02"
+  }
+ ]
+}

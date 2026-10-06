@@ -13,6 +13,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
+from time import monotonic
 
 from .countersign import parse_state, plan_morning
 from .dawn import loose_ends, render_watch_log
@@ -25,6 +26,8 @@ from .signals import Metrics
 from .watch import Watch, parse_alert_rules
 
 REPO = Path(__file__).resolve().parents[2]
+MAX_DEMO_STEPS = 960
+MAX_DEMO_SECONDS = 10
 
 
 @dataclass
@@ -67,6 +70,8 @@ class RecordingPorts:
     log: list[str] = field(default_factory=list)
     asked_at: dict[int, datetime] = field(default_factory=dict)
     next_incident: int = 1
+    samples: list[dict] = field(default_factory=list)
+    actions: list[dict] = field(default_factory=list)
 
     def _t(self, at: datetime) -> str:
         return at.astimezone(self.oncall_tz).strftime("%H:%M")
@@ -82,7 +87,7 @@ class RecordingPorts:
 
     def start_watch_flow(self, incident: int, goal: str, at: datetime) -> None:
         self.asked_at[incident] = at
-        self.log.append(f"{self._t(at)}  watch flow started for #{incident} (Flows API)")
+        self.log.append(f"{self._t(at)}  recorded watch reply requested for #{incident} (demo, no API call)")
 
     def request_note(self, incident: int, at: datetime) -> str | None:
         if incident not in self.notes or incident not in self.asked_at:
@@ -95,8 +100,11 @@ class RecordingPorts:
         return None
 
     def apply(self, action: Action, at: datetime) -> None:
+        before = dict(self.shop.flags)
         if action.kind == "flag_set":
             self.shop.flags[action.flag] = action.to  # type: ignore[index]
+        self.actions.append({"at": at.isoformat(), "action": action.as_dict(),
+                             "flags_before": before, "flags_after": dict(self.shop.flags)})
         self.log.append(f"{self._t(at)}  APPLY {action.describe()}")
 
     def page(self, incident: int, lines: tuple[str, ...], at: datetime) -> None:
@@ -114,7 +122,12 @@ def _local(text: str, tz) -> datetime:
     return datetime.fromisoformat(text).replace(tzinfo=tz)
 
 
-def run(folder: Path | str, ops: Path | str | None = None) -> tuple[RecordingPorts, Night]:
+def run(folder: Path | str, ops: Path | str | None = None, *, signed: bool = True,
+        approved: bool = True, collect_samples: bool = False) -> tuple[RecordingPorts, Night]:
+    """Replay files with optional human choices. All side effects stay in memory."""
+    for name, value in (("signed", signed), ("approved", approved), ("collect_samples", collect_samples)):
+        if type(value) is not bool:
+            raise TypeError(f"{name} must be a boolean")
     folder = Path(folder)
     ops = Path(ops) if ops else REPO / "ops"
     oncall = parse_oncall(load_yaml(ops / "oncall.yml"))
@@ -127,9 +140,11 @@ def run(folder: Path | str, ops: Path | str | None = None) -> tuple[RecordingPor
         orders = parse_orders(load_yaml(folder / "orders.yml"), targets, oncall)
     except OrdersError as error:
         orders, problems = None, tuple(error.problems)
-    sig = json.loads((folder / "signature.json").read_text())
-    signature = Signature(method=sig["method"], user=sig["user"], at=datetime.fromisoformat(sig["at"]),
-                          commit=sig["commit"])
+    signature = None
+    if signed:
+        sig = json.loads((folder / "signature.json").read_text())
+        signature = Signature(method=sig["method"], user=sig["user"], at=datetime.fromisoformat(sig["at"]),
+                              commit=sig["commit"])
     night = Night(oncall=oncall, targets=targets, orders=orders, orders_problems=problems,
                   signature=signature, ledger=Ledger())
 
@@ -148,7 +163,7 @@ def run(folder: Path | str, ops: Path | str | None = None) -> tuple[RecordingPor
                           declined_id=declined.get("id"), declined_why=declined.get("why"),
                           page=tuple(r.get("page") or ()), suggest=r.get("suggest"))
         notes[int(number)] = (int(item["arrives_after_minutes"]), render_request(request))
-    raw_reactions = json.loads((folder / "reactions.json").read_text())["incidents"]
+    raw_reactions = json.loads((folder / "reactions.json").read_text())["incidents"] if approved else {}
     reactions = {int(k): (v["user"], datetime.fromisoformat(v["at"])) for k, v in raw_reactions.items()}
 
     ports = RecordingPorts(oncall_tz=tz, shop=shop, notes=notes, reactions=reactions)
@@ -156,11 +171,27 @@ def run(folder: Path | str, ops: Path | str | None = None) -> tuple[RecordingPor
     metrics = Metrics()
     now = _local(scenario["start"], tz)
     end = _local(scenario["end"], tz)
-    while now <= end:
+    steps = int((end - now).total_seconds() // 60) + 1
+    if not 1 <= steps <= MAX_DEMO_STEPS:
+        raise ValueError(f"A demo night must contain between 1 and {MAX_DEMO_STEPS} minute steps")
+    deadline = monotonic() + MAX_DEMO_SECONDS
+    for minute in range(steps):
+        if monotonic() >= deadline:
+            raise TimeoutError(f"Demo replay exceeded {MAX_DEMO_SECONDS} seconds")
         # The minute that just ended, as the shop experienced it with the flags of that minute.
-        for key, value in shop.minute_metrics(now - timedelta(minutes=1)).items():
+        sampled_at = now - timedelta(minutes=1)
+        values = shop.minute_metrics(sampled_at)
+        before = dict(shop.flags)
+        for key, value in values.items():
             metrics.put(key, now - timedelta(minutes=1), value)
         watch.tick(metrics, now)
+        if collect_samples:
+            ports.samples.append({
+                "minute": minute, "at": now.isoformat(), "sampled_at": sampled_at.isoformat(),
+                "time": ports._t(now), "old_rate": values["checkout_error_rate.old"],
+                "new_rate": values["checkout_error_rate.new"], "all_rate": values["checkout_error_rate.all"],
+                "flags_before": before, "flags_after": dict(shop.flags),
+            })
         now += timedelta(minutes=1)
     return ports, night
 

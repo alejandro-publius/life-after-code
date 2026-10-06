@@ -1,0 +1,25 @@
+# Everything an order may touch or measure. Code rejects orders that name anything else.
+flags:
+  - name: new_checkout
+    environments: [production, staging]
+  - name: stock_from_cache
+    environments: [production, staging]
+services:
+  - name: shop
+    environment: production
+  - name: shop-staging
+    environment: staging
+signals:
+  checkout_error_rate:
+    paths: [old, new, all]
+    unit: ratio
+  http_5xx_ratio:
+    unit: ratio
+  p95_latency_ms:
+    unit: ms
+  payment_error_rate:
+    unit: ratio
+# Alerts on these signals always wake the on-call person. Code adds payment_error_rate even if
+# this list is edited, so the floor can only be raised here, never lowered.
+always_wake:
+  - payment_error_rate
