@@ -10,7 +10,7 @@ How to read this file:
 - Quotes are word for word, except that any em dash or en dash in a source is replaced with " - " ([DECISIONS.md](DECISIONS.md)).
 - No new web research was done for this file. One gitlab.com file was fetched to settle a contradiction (section 6, row 1).
 
-Contents: [1. Summary](#1-summary), [2. GitLab](#2-gitlab), [3. Anthropic](#3-anthropic), [4. Google Cloud](#4-google-cloud), [5. Combined](#5-combined-what-a-winning-entry-would-show-off), [6. Contradictions](#6-contradictions-between-notes-and-how-they-were-resolved), [7. Moved links and blocked hosts](#7-moved-links-and-blocked-hosts).
+Contents: [1. Summary](#1-summary), [2. GitLab](#2-gitlab), [3. Anthropic](#3-anthropic), [4. Google Cloud](#4-google-cloud), [5. Combined](#5-combined-what-a-winning-entry-would-show-off), [6. Contradictions](#6-contradictions-between-notes-and-how-they-were-resolved), [7. Moved links and blocked hosts](#7-moved-links-and-blocked-hosts). For a quick read, sections 1, 5 and 6 carry the conclusions; sections 2 to 4 hold the exact syntax, tables and steps.
 
 ## 1. Summary
 
@@ -26,7 +26,6 @@ The eight facts that most shape the build:
 6. **Keyless Google Cloud works with the Developer role.** Plain `id_tokens` plus Workload Identity Federation needs no GitLab project settings and no CI/CD variables. Use the issuer `https://gitlab.com` with no trailing slash, put an attribute condition on the project's own `project_id`, and request Google tokens only on `main`, because `google.subject` "Cannot exceed 127 bytes" ([section 4.3](#43-keyless-workload-identity-federation-from-gitlab-ci-exact-steps)).
 7. **Cloud Run can cost nothing, but budgets do not cap spending.** The free tier is 2 million requests, 180,000 vCPU-seconds and 360,000 GiB-seconds a month per billing account ([Cloud Run pricing](https://cloud.google.com/run/pricing)). Budgets only alert; Cloud Run billing caps were "coming soon" in April 2026 ([Cloud Run at Next '26](https://cloud.google.com/blog/products/serverless/whats-new-for-cloud-run-at-next26)). Stay on the $300 Free Trial ("You will not be billed for any Google Cloud usage during your Free Trial", [Free Trial FAQ](https://cloud.google.com/signup-faqs)), set `--max-instances=2`, and keep anonymous visitors from triggering model calls.
 8. **Claude Code runs headless in GitLab CI and can stop for a person.** The official page is in beta and "maintained by GitLab" ([GitLab CI/CD doc](https://code.claude.com/docs/en/gitlab-ci-cd)). `--max-turns` and `--max-budget-usd` time-box a `claude -p` run; a `PreToolUse` hook that returns `"defer"` stops before a risky tool call, and `claude -p --resume <session-id>` continues after a person decides ([hooks](https://code.claude.com/docs/en/hooks), [CLI reference](https://code.claude.com/docs/en/cli-reference)). Current models: `claude-opus-5-5` ($4 / $20 per million tokens), `claude-sonnet-5-5` ($2 / $10), `claude-haiku-4-5` ($1 / $5) ([models overview](https://platform.claude.com/docs/en/models/overview)).
-
 
 ## 2. GitLab
 
@@ -230,7 +229,7 @@ tools:
   - create_issue_note
 ```
 
-Agent keys: `name` (3 to 255 chars), `description` (max 1024), `public`, `delete`, `system_prompt` (required), `user_prompt`, `tools`, `mcp_tools`, `mcp_servers`, `consumers` ([component README][comp]). A flow file wraps the YAML from section 1 under `definition:` next to `name`, `description`, `public`, `consumers` ([component README][comp]).
+Agent keys: `name` (3 to 255 chars), `description` (max 1024), `public`, `delete`, `system_prompt` (required), `user_prompt`, `tools`, `mcp_tools`, `mcp_servers`, `consumers` ([component README][comp]). A flow file wraps flow YAML (like the skeleton above) under `definition:` next to `name`, `description`, `public`, `consumers` ([component README][comp]).
 
 ```yaml
 # .gitlab-ci.yml (latest component release is 0.0.31, 2026-09-03; README shows 0.0.1)
@@ -301,7 +300,7 @@ The judges' reference project shows the shape of `mr-review-instructions.yaml` (
 1. Open the agent in the AI Catalog ([item 2337][cat-2337]), select **Enable**, pick the project, add triggers (Maintainer or Owner role).
 2. A service account `ai-<agent>-<group>` is created and added to the project as Developer.
 3. In an issue, epic or MR, mention, assign, or request a review from that account: `@service-account-username Can you help analyze this code change?`
-4. The agent "Runs a CI/CD pipeline and responds inside GitLab with either a ready-to-merge change or an inline comment." The docs say branch rules may be needed for agent-created branches matching `^duo/(fix|feature|refactor|docs/).*`, while the Claude prompt above asks for `feature/<short description of feature>` branches (an inconsistency in the docs).
+4. The agent "Runs a CI/CD pipeline and responds inside GitLab with either a ready-to-merge change or an inline comment." The docs say branch rules may be needed for agent-created branches matching `^duo/(fix|feature|refactor|docs/).*`, while GitLab's Claude prompt asks for `feature/<short description of feature>` branches (an inconsistency in the docs).
 
 GitLab's Claude Code configuration, excerpt with the lines that matter (the long `glab` install and config lines and the rest of the prompt are left out; the full text is in [gitlab_duo.md](research/sponsors/gitlab_duo.md#4-an-external-agent-claude-code) and the [external agent examples][extex] / [src][extex-src]):
 
@@ -351,7 +350,6 @@ More facts:
 
 - Models allowed with GitLab-managed credentials, through `https://cloud.gitlab.com/ai/v1/proxy/anthropic`: `claude-haiku-4-5-20251001`, `claude-opus-4-5-20251101`, `claude-opus-4-6`, `claude-sonnet-4-20250514`, `claude-sonnet-4-5-20250929`, `claude-sonnet-4-6`. No 5.x model is on that list ([external agents][ext] / [src][ext-src], [examples][extex] / [src][extex-src]).
 - "GitLab implements third-party prompt scanning to lower the risk of prompt injections. This scanning is not available for external agents." The page also lists "Limited isolation" ([external agents][ext] / [src][ext-src]).
-- The docs say branch rules may be needed for agent branches matching `^duo/(fix|feature|refactor|docs/).*`, while the Claude prompt asks for `feature/<short description of feature>` branches, an inconsistency in the docs ([external agents][ext] / [src][ext-src]).
 
 #### Models
 
@@ -516,7 +514,6 @@ What the postcode note could infer about the group's tier and limits ([gitlab_po
 
 Day-one checks (from the [guide's checklist](research/gitlab_guide_and_reference.md#gotchas-checklist-for-our-build)): push to `main` and merge an MR into `main`; open **AI** > **Flows** > **New flow**, **AI** > **Agents** > **New agent** and **AI** > **Triggers** > **New flow trigger**; try to add a CI/CD variable; run one pipeline; complete identity verification. If something is blocked, ask in Discord `#transcend-hackathon` or @-mention `gitlab-org/developer-relations/contributor-success`.
 
-
 ### 2.2 Post-code features
 
 The rows come from [gitlab_postcode.md](research/sponsors/gitlab_postcode.md#feature-table), which read the docs source at commit `4f2a68658f43ab122b2edaea1d1bde3db7612ecf` (the `master` branch on 2026-10-06). "Tier" is the `Tier:` badge GitLab prints on the page or section. "Free on GitLab.com?" means a GitLab.com Free namespace can use it without buying anything; "Partial" means only part of it works on Free. The stage column is the note's mapping onto GitLab's nine stages, not a GitLab label. "Hook" names are the `X-Gitlab-Event` header values from [docs](https://docs.gitlab.com/user/project/integrations/webhook_events/) ([src](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/user/project/integrations/webhook_events.md)).
@@ -668,7 +665,7 @@ Which stages are post-code: GitLab's wording for this hackathon is "any part of 
 
 Product categories under each stage, from GitLab's categories marked `marketing: true` in [data/categories.yml](https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/master/data/categories.yml) (updated 2026-09-21). The placement under the nine stages is the postcode note's, not GitLab's:
 
-| Stage | Post-code? | GitLab product categories (marketing: true), my placement |
+| Stage | Post-code? | GitLab product categories (marketing: true), placed by the postcode note |
 |---|---|---|
 | Plan | No | Team Planning, Planning Views, Portfolio Management, Wiki, Pages, Service Desk |
 | Create | Partly (code review) | Source Code Management, Workspaces, Code Review Workflow, Code Suggestions, GitLab CLI |
@@ -685,14 +682,14 @@ GitLab's internal product hierarchy no longer uses the names Secure, Release, Co
 
 ### 2.4 Launches 2025-2026
 
-Merged from both GitLab notes. Dates are GitLab release dates from the release notes in `doc/releases/` and the "What's new" data files in [data/whats_new](https://gitlab.com/gitlab-org/gitlab/-/tree/master/data/whats_new). The [GitLab 19.x release tag](https://gitlab.com/gitlab-org/gitlab/-/tags) `v19.4.0-ee` is dated 2026-09-16, the day before the 19.4 release notes.
+Merged from both GitLab notes. Dates are GitLab release dates from the release notes in `doc/releases/` and the "What's new" data files in [data/whats_new](https://gitlab.com/gitlab-org/gitlab/-/tree/master/data/whats_new). GitLab's [tags](https://gitlab.com/gitlab-org/gitlab/-/tags) date `v19.4.0-ee` to 2026-09-16, the day before the 19.4 release notes.
 
 | Version, date | Launch | Why it matters here | Source |
 |---|---|---|---|
-| 17.8, 2025-01-16 | See all deployments related to a release on the release page (Free) | Release evidence for an agent | [17.8](https://gitlab.com/gitlab-org/gitlab/-/blob/master/data/whats_new/202501160001_17_08.yml) |
+| 17.8, 2025-01-16 | See all deployments related to a release on the release page (Free) | | [17.8](https://gitlab.com/gitlab-org/gitlab/-/blob/master/data/whats_new/202501160001_17_08.yml) |
 | 17.9, 2025-02-20 | Automatic CI/CD pipeline cleanup (Free) | | [17.9](https://gitlab.com/gitlab-org/gitlab/-/blob/master/data/whats_new/202502200001_17_09.yml) |
 | 17.10, 2025-03-20 | Duo Code Review beta; change the severity of a vulnerability (Ultimate) | | [17.10](https://gitlab.com/gitlab-org/gitlab/-/blob/master/data/whats_new/202503200001_17_10.yml) |
-| 17.11, 2025-04-17 | Vulnerability webhook events generally available (Ultimate in practice) | A security event an agent can listen to | [docs](https://docs.gitlab.com/user/project/integrations/webhook_events/#vulnerability-events) ([src](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/user/project/integrations/webhook_events.md)) |
+| 17.11, 2025-04-17 | Vulnerability webhook events generally available (Ultimate in practice) | | [docs](https://docs.gitlab.com/user/project/integrations/webhook_events/#vulnerability-events) ([src](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/user/project/integrations/webhook_events.md)) |
 | 18.0, 2025-05-15 | Duo included in Premium and Ultimate; automatic Duo Code Review; `release-cli` deprecated (removal planned for 20.0) | Use `glab` for releases | [18.0](https://gitlab.com/gitlab-org/gitlab/-/blob/master/data/whats_new/202505150001_18_00.yml), [docs](https://docs.gitlab.com/user/project/releases/release_cli/) ([src](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/user/project/releases/release_cli.md)) |
 | 18.1, 2025-06-19 | GitLab Observability as an experiment for all users; Duo Code Review GA; SLSA level 1 provenance with a CI/CD component (Free) | Free telemetry for the Monitor stage | [docs](https://docs.gitlab.com/operations/observability/observability/) ([src](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/operations/observability/observability.md)), [18.1](https://gitlab.com/gitlab-org/gitlab/-/blob/master/data/whats_new/202506190001_18_01.yml) |
 | 18.2, 2025-07-17 | DAP public beta in VS Code and JetBrains: agentic chat, agent flows, MCP client support | MCP clients are one of the three DAP features the hackathon rules name ("agents, flows, or MCP clients", quoted in [RULES.md](RULES.md) from the [Devpost page](https://gitlab-transcend.devpost.com/)) | [18.2 notes][rel-18-2] |
@@ -731,7 +728,6 @@ Merged from both GitLab notes. These are things GitLab's own 2026 release notes,
 10. **`AGENTS.md`, `skills/<name>/SKILL.md` and `mr-review-instructions.yaml` in the repo**, as the judges' reference project does ([customize][cust] / [src][cust-src], [hello-world-showcase][hws]).
 11. **Quiet features brought back to life, on Free (my reading).** Incident management and Service Desk carry the note "This feature is not under active development, but community contributions are welcome." ([docs](https://docs.gitlab.com/operations/incident_management/) ([src](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/operations/incident_management/_index.md))). A core loop built on Free features can be copied by any GitLab.com user, with paid features as optional layers.
 12. **No deprecated paths**: `glab` instead of `release-cli`; GraphQL instead of the REST Vulnerabilities API; plan for the Unleash Proxy end of life on 2026-11-26; no compliance pipelines (removal in 20.0) ([docs](https://docs.gitlab.com/user/project/releases/release_cli/) ([src](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/user/project/releases/release_cli.md)), [docs](https://docs.gitlab.com/api/vulnerabilities/) ([src](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/api/vulnerabilities.md)), [docs](https://docs.gitlab.com/operations/feature_flags/#maximum-supported-clients-in-application-nodes) ([src](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/operations/feature_flags.md)), [docs](https://docs.gitlab.com/update/deprecations/#compliance-pipelines) ([src](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/update/deprecations.md))).
-
 
 ## 3. Anthropic
 
@@ -786,7 +782,7 @@ claude:
 
 Builder notes:
 
-- Install alternative: `npm install -g @anthropic-ai/claude-code`, which needs Node.js 22 or later ([setup](https://code.claude.com/docs/en/setup)). GitLab's own Claude agent config uses npm on `node:22-slim` (below).
+- Install alternative: `npm install -g @anthropic-ai/claude-code`, which needs Node.js 22 or later ([setup](https://code.claude.com/docs/en/setup)). GitLab's own Claude agent config uses npm on `node:22-slim` (section 2.1).
 - `/bin/gitlab-mcp-server` is only "if your setup provides one". The page does not say where that binary comes from (unverified).
 - `mcp__gitlab` "matches any tool provided by" an MCP server named `gitlab` ([permissions](https://code.claude.com/docs/en/permissions)). The CLI reference shows `--allowedTools` values as comma-separated or as separate quoted values; whether one space-separated string is split the same way is (unverified) ([CLI reference](https://code.claude.com/docs/en/cli-reference)).
 - Trigger gotcha: the rules allow only `web` and `merge_request_event`. A pipeline started with a trigger token has `CI_PIPELINE_SOURCE` = `trigger`, and one started with the pipelines API has `api` ([GitLab doc source](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/ci/jobs/job_rules.md)). Add a rule for whichever one your listener uses.
@@ -811,8 +807,6 @@ curl --request POST \
 (The `variables[key]=value` form is from the GitLab doc; the `AI_FLOW_INPUT` name in it is our substitution.)
 
 In this workspace, both steps that need settings (a masked CI/CD variable and a project access token) probably need the Maintainer role, and `CI_JOB_TOKEN` cannot create issues or comments (section 6, rows 4 and 5). The keyless Google Cloud job below needs neither.
-
-The `AI_FLOW_*` variables:
 
 The Claude page names `AI_FLOW_INPUT`, `AI_FLOW_CONTEXT` and `AI_FLOW_EVENT`. These are the same names GitLab Duo Agent Platform injects into external agents. GitLab's definitions ([examples doc source](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/duo_agent_platform/agents/external_examples.md), [external agents doc source](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/duo_agent_platform/agents/external.md)):
 
@@ -899,7 +893,7 @@ claude-vertex:
     ANTHROPIC_VERTEX_PROJECT_ID: "$GCP_PROJECT_ID"
 ```
 
-To reuse the Workload Identity pool from [section 4.3](#43-keyless-workload-identity-federation-from-gitlab-ci-exact-steps) on gitlab.com, the job's `aud` must match the provider's `--allowed-audiences`, which section 4.3 sets to `https://gitlab.com`; the page's `https://gitlab.example.com` is a placeholder (my reading). The service account the job impersonates also needs permission to call Claude on Agent Platform, for example the Vertex AI user role `roles/aiplatform.user` (role name after the rename unverified, [google_cloud.md](research/sponsors/google_cloud.md#step-1-one-time-setup-in-google-cloud-run-in-cloud-shell-or-a-local-gcloud)). The page also has an Amazon Bedrock job with the same shape.
+To reuse the Workload Identity pool from [section 4.3](#43-keyless-workload-identity-federation-from-gitlab-ci-exact-steps) on gitlab.com, the job's `aud` must match the provider's `--allowed-audiences`, which section 4.3 sets to `https://gitlab.com`; the page's `https://gitlab.example.com` is a placeholder (my reading). The service account the job impersonates also needs permission to call Claude on Agent Platform. The Google note names the Vertex AI user role `roles/aiplatform.user` for calling Gemini, and the same role should cover Claude (inference; role name after the rename unverified, [google_cloud.md](research/sponsors/google_cloud.md#step-1-one-time-setup-in-google-cloud-run-in-cloud-shell-or-a-local-gcloud)). The page also has an Amazon Bedrock job with the same shape.
 
 Provider notes:
 
@@ -1223,7 +1217,7 @@ Environment variables (sources: [env vars](https://code.claude.com/docs/en/env-v
 
 #### Claude Managed Agents (beta)
 
-From the [overview](https://platform.claude.com/docs/en/managed-agents/overview), [quickstart](https://platform.claude.com/docs/en/managed-agents/quickstart) and [pricing](https://platform.claude.com/docs/en/about-claude/pricing). It is one way to host an agent, but it runs only on Anthropic's own platform, not on Google Cloud:
+From the [overview](https://platform.claude.com/docs/en/managed-agents/overview), [quickstart](https://platform.claude.com/docs/en/managed-agents/quickstart) and [pricing](https://platform.claude.com/docs/en/about-claude/pricing). It is one way to host an agent, but it is "Not available on partner-operated cloud platforms", so not on Google Cloud:
 
 - "Pre-built, configurable agent harness that runs in managed infrastructure". All endpoints need the `managed-agents-2026-04-01` beta header (the SDK sets it). Access is "enabled by default for all API accounts".
 - Concepts: Agent (model, system prompt, tools, MCP servers, skills), Environment (cloud sandbox or self-hosted), Session, Events (streamed over SSE).
@@ -1273,7 +1267,7 @@ Release notes: [platform release notes](https://platform.claude.com/docs/en/rele
 | What | Date | Link | Why it would showcase well |
 |---|---|---|---|
 | Web search tool in the API | 2025-05-07 | [release notes](https://platform.claude.com/docs/en/release-notes/overview#may-7-2025) | Agent can check current advisories or docs. $10 per 1,000 searches ([pricing](https://platform.claude.com/docs/en/about-claude/pricing)). |
-| Claude Opus 4 and Sonnet 4; Files API, code execution tool and MCP connector betas | 2025-05-22 | [news](https://www.anthropic.com/news/claude-4), [release notes](https://platform.claude.com/docs/en/release-notes/overview#may-22-2025) | Start of the API agent toolkit used below. Opus 4 and Sonnet 4 are now retired on the API (2026-06-15). |
+| Claude Opus 4 and Sonnet 4; Files API, code execution tool and MCP connector betas | 2025-05-22 | [news](https://www.anthropic.com/news/claude-4), [release notes](https://platform.claude.com/docs/en/release-notes/overview#may-22-2025) | Start of the API agent toolkit described in section 3.6. Opus 4 and Sonnet 4 are now retired on the API (2026-06-15). |
 | "Our framework for developing safe and trustworthy agents" | 2025-08-04 | [news](https://www.anthropic.com/news/our-framework-for-developing-safe-and-trustworthy-agents) | Anthropic's own yardstick: human control before high-stakes decisions, transparency, privacy, security. |
 | Web fetch tool (beta) | 2025-09-10 | [release notes](https://platform.claude.com/docs/en/release-notes/overview#september-10-2025) | Read a runbook, status page or changelog URL. No charge beyond tokens. |
 | Claude Sonnet 4.5; Claude Agent SDK ("formerly the Claude Code SDK") with subagents and hooks; Claude Code 2.0 with checkpoints; memory tool and context editing betas | 2025-09-29 | [Sonnet 4.5](https://www.anthropic.com/news/claude-sonnet-4-5), [Claude Code update](https://www.anthropic.com/news/enabling-claude-code-to-work-more-autonomously), [release notes](https://platform.claude.com/docs/en/release-notes/overview#september-29-2025) | The Agent SDK is Claude Code as a library: a natural core for a custom post-code agent. |
@@ -1330,7 +1324,6 @@ The anthropic note's reading of what Anthropic publishes and promotes. Each poin
 9. Good tools for the agent. Follow [Writing effective tools for AI agents](https://www.anthropic.com/engineering/writing-tools-for-agents), [Effective context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents) and [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents).
 10. Correct branding: "{YourAgentName} Powered by Claude", never "Claude Code Agent" ([Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview)).
 11. A three-sponsor story that is true: Claude running on Google Cloud, inside GitLab pipelines, the same combination GitLab Duo uses for its defaults ([GitLab doc source](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/gitlab_duo/model_selection.md)). GitLab's case study on claude.com reports "25-50% productivity gains across internal workflows with Claude" ([case study](https://claude.com/customers/gitlab); the page shows no date).
-
 
 ## 4. Google Cloud
 
@@ -1414,7 +1407,7 @@ Deploying from source or from an image:
 ### 4.2 How to avoid surprise charges
 
 1. Stay on the Free Trial and do not click "Upgrade". During the trial "You will not be billed for any Google Cloud usage" ([FAQ](https://cloud.google.com/signup-faqs)). If the $300 runs out, workloads stop instead of billing you. Plan for the 90-day end date.
-2. Know that budgets do not cap spending. Two signs from Google itself: on 2026-04-22 Google said of Cloud Run billing caps, "Soon, you'll be able to define your maximum spend per month. If your bill reaches this amount, your Cloud Run resources will be de-activated" ([Cloud Run at Next '26](https://cloud.google.com/blog/products/serverless/whats-new-for-cloud-run-at-next26)), and project "Spend Caps" were "In private preview" ([Next '26 recap item 139](https://cloud.google.com/blog/topics/google-cloud-next/google-cloud-next-2026-wrap-up)). I found no general-availability announcement for either in the recent Cloud Run posts (unverified that they are still unlaunched). Google's "Disable billing usage with notifications" page warns that notifications arrive with a delay, so even an automatic shutoff does not guarantee you stay under budget (search excerpt; [page](https://docs.cloud.google.com/billing/docs/how-to/disable-billing-with-notifications) blocked).
+2. Know that budgets do not cap spending. Two signs from Google itself: on 2026-04-22 Google said of Cloud Run billing caps, "Soon, you'll be able to define your maximum spend per month. If your bill reaches this amount, your Cloud Run resources will be de-activated" ([Cloud Run at Next '26](https://cloud.google.com/blog/products/serverless/whats-new-for-cloud-run-at-next26)), and project "Spend Caps" were "In private preview" ([Next '26 recap item 139](https://cloud.google.com/blog/topics/google-cloud-next/google-cloud-next-2026-wrap-up)). The Google note found no general-availability announcement for either in the recent Cloud Run posts (unverified that they are still unlaunched). Google's "Disable billing usage with notifications" page warns that notifications arrive with a delay, so even an automatic shutoff does not guarantee you stay under budget (search excerpt; [page](https://docs.cloud.google.com/billing/docs/how-to/disable-billing-with-notifications) blocked).
 3. Create a budget that sends alerts to email and to a Pub/Sub topic. Flags verified in [gcloud help: billing budgets create](https://docs.cloud.google.com/sdk/gcloud/reference/billing/budgets/create). `exclude-all-credits` makes the budget count usage before the trial credit, so you see how fast the $300 is going:
 
    ```bash
@@ -1696,7 +1689,7 @@ Dates are the publication date of the linked source. "SDK date" means the day th
 | 2026-02-26 | `gemini-3.1-pro-preview` (SDK date) | Listed as "Gemini 3.1 Pro Preview" on the pricing page today | Strongest Gemini Pro model listed | [Gen AI SDK CHANGELOG](https://github.com/googleapis/python-genai/blob/main/CHANGELOG.md), [Agent Platform generative AI pricing](https://cloud.google.com/gemini-enterprise-agent-platform/generative-ai/pricing) |
 | 2026-03-12 | A2A spec v1.0.0 (v1.0.1 on 2026-05-26); Python `a2a-sdk` 1.0.0 on 2026-04-20, latest 1.2.2 on 2026-10-05. A2A is "an open source project under the Linux Foundation, contributed by Google" | Stable 1.x | If our agents talk to other agents, A2A is the Google-backed standard | [A2A CHANGELOG](https://github.com/a2aproject/A2A/blob/main/CHANGELOG.md), [A2A README](https://github.com/a2aproject/A2A/blob/main/README.md), [PyPI a2a-sdk](https://pypi.org/project/a2a-sdk/#history) [PyPI] |
 | 2026-03-13 | Identity-Aware Proxy (IAP) integration with Cloud Run | Post published (status not read) | One way to protect an admin page without writing auth code | [IAP with Cloud Run](https://cloud.google.com/blog/products/serverless/iap-integration-with-cloud-run) |
-| 2026-03-18 | All 7 `google-gitlab-components` projects archived (Cloud Run, Artifact Registry, Cloud Deploy, Cloud SDK, GKE, App Engine, Cloud Storage) | Archived | Do not depend on them | [cloud-run component](https://gitlab.com/google-gitlab-components/cloud-run), see the GitLab section |
+| 2026-03-18 | All 7 `google-gitlab-components` projects archived (Cloud Run, Artifact Registry, Cloud Deploy, Cloud SDK, GKE, App Engine, Cloud Storage) | Archived | Do not depend on them | [cloud-run component](https://gitlab.com/google-gitlab-components/cloud-run), see section 4.4 |
 | 2026-04-09 | Cloud Run worker pools | GA | Pull-based workers, for example an agent consuming a queue | [Worker pools at Estee Lauder](https://cloud.google.com/blog/products/serverless/cloud-run-worker-pools-at-estee-lauder-companies) |
 | 2026-04-22 | Gemini Enterprise Agent Platform, "the evolution of Vertex AI": Agent Studio, upgraded ADK (graph-based), re-engineered Agent Runtime (multi-day agents, Memory Bank, Sessions), Agent Identity, Agent Registry, Agent Gateway, Agent Simulation, Agent Evaluation, Agent Observability, Agent Optimizer, Agent Sandbox; 200+ models including Anthropic Claude Opus, Sonnet and Haiku | Announced at Next '26 | Use the new names. "Moving forward, all Vertex AI services and roadmap evolutions will be delivered exclusively through the Agent Platform" | [Agent Platform announcement](https://cloud.google.com/blog/products/ai-machine-learning/introducing-gemini-enterprise-agent-platform), [product page](https://cloud.google.com/products/gemini-enterprise-agent-platform) |
 | 2026-04-22 | Cloud Run at Next '26: remote Cloud Run MCP server (GA), AI Studio full-stack deploys (GA), RTX PRO 6000 (GA); Cloud Run instances, SSH, ephemeral disk (preview); sandboxes, billing caps, service bindings ("coming soon") | Mixed | Billing caps would solve the "no surprise charges" problem once live | [Cloud Run at Next '26](https://cloud.google.com/blog/products/serverless/whats-new-for-cloud-run-at-next26) |
@@ -1739,10 +1732,9 @@ The Google note's reading of what Google publishes as good practice, not a state
 9. DORA thinking. Google's DORA research says "AI is an amplifier" and lists capabilities that make AI help, including "Strong version control practices", "Working in small batches" and "User-centric focus" ([DORA AI Capabilities Model post](https://cloud.google.com/blog/products/ai-machine-learning/from-adoption-to-impact-putting-the-dora-ai-capabilities-model-to-work)). Small MRs, easy rollback, and a stated user benefit fit our project rules.
 10. Prompt-injection care. Our agents will read issue and MR text written by strangers. Google's Model Armor screens prompts and is now integrated with Agent Gateway and Agent Runtime in preview ([Next '26 recap item 210](https://cloud.google.com/blog/topics/google-cloud-next/google-cloud-next-2026-wrap-up)). Even a simple allow-list of agent actions shows awareness.
 
-
 ## 5. Combined: what a winning entry would show off
 
-The aim is one flow run that visibly touches all three sponsors. One run that fits every fact above: a person merges to `main`; GitLab CI deploys the service to Cloud Run with keyless auth; the smoke test fails; a **Pipeline events: Failed** trigger starts a Duo flow whose model is Claude served from Google Cloud; the flow diagnoses the failure and stops for approval; the person approves; the flow opens the incident and a ready-made rollback job; the person presses play and Cloud Run moves traffic back. Nothing below has been run yet; each point says which facts it rests on (my reading of the notes).
+The aim is one flow run that visibly touches all three sponsors. A run that fits every fact above: a person merges to `main`; GitLab CI builds the image, deploys a new Cloud Run revision with keyless auth, smoke-tests it on a tagged URL and moves traffic; a post-deploy check job then reads error rates and fails the pipeline; the **Pipeline events: Failed** trigger starts a Duo flow whose model is Claude served from Google Cloud; the flow reads the failed job log, diagnoses the failure and stops for approval; the person approves; the flow opens an incident issue that names the revision to roll back to; the person runs the manual rollback job and Cloud Run moves traffic back. Nothing below has been run yet; each point says which facts it rests on (my reading of the notes).
 
 1. **The flow's brain is Claude on Google Cloud, by default.** A custom Duo flow (GitLab) runs on Claude Sonnet 4.6 hosted on Gemini Enterprise Agent Platform (Anthropic's model on Google's platform), because that is the default for agents; Code Review Flow uses Claude Sonnet 5.5 on the same platform. Alex cannot pick the model (Owner only, and custom flows reject `model`), so the README and video should say that plainly rather than claim a choice ([DAP models][dmodels] / [src][dmodels-src], [custom flow schema][cschema] / [src][cschema-src]).
 2. **A real post-code event starts it, and a human fires it.** Merging to `main` is a human action, so the pipeline it starts should be able to fire a **Pipeline events** trigger (inference; it needs merge rights, see section 2.1). The flow gets the full pipeline webhook payload as `context:goal`. A **Work item: Status changed** trigger is a second human-driven entry point ([triggers][trig] / [src][trig-src], [custom flow schema doc][cschema] / [src][cschema-src]).
@@ -1754,7 +1746,6 @@ The aim is one flow run that visibly touches all three sponsors. One run that fi
 8. **Guardrails you can read.** `.gitlab/duo/agent-config.yml` with a `network_policy` that adds only the Google hosts the flow needs (`sts.googleapis.com`, `iamcredentials.googleapis.com`, `run.googleapis.com`), `id_tokens` instead of secrets, and Code Owners on the file; Claude Code in `dontAsk` mode with exact allow rules; Cloud Run with its own runtime identity and a short role list. Put the lists in the README ([sandbox][sbx] / [src][sbx-src], [security considerations][xsec] / [src][xsec-src], [permission modes](https://code.claude.com/docs/en/permission-modes)). If the hackathon group runs strict mode, the flow cannot reach Google at all, so keep Google calls in CI jobs and let the flow read GitLab only (inference).
 9. **Everything as code, on open standards.** Flows and agents in `flows/` and `agents/`, validated in MR pipelines; one skill format for both tools (`skills/<name>/SKILL.md` for Duo, `.claude/skills/<name>/SKILL.md` for Claude Code); `AGENTS.md` and `mr-review-instructions.yaml`; and the GitLab MCP server, so Claude Code can call `start_duo_session` and answer the flow's approval with `send_duo_session_input` (19.5 tools). Brand the agent "{YourAgentName} Powered by Claude", never "Claude Code Agent" ([component README][comp], [MCP server tools][mcptools] / [src][mcptools-src], [Agent SDK overview](https://code.claude.com/docs/en/agent-sdk/overview)).
 10. **Every run leaves a receipt, and touches many stages.** Post on the issue: the session link, the evidence, the GitLab Credits used (per-event export), Claude Code's `total_cost_usd` and the Cloud Run revision; keep a Google budget with Pub/Sub alerts. One run touches Verify (pipeline), Package (image), Secure (scan), Release (environment and release), Configure (the Workload Identity and Cloud Run setup kept as infrastructure as code), Monitor (alert and incident) and Govern (approval and audit trail), which lines up with "Most Stages Covered" ("touching the stage counts", [RULES.md](RULES.md)) ([19.4 export][rel-19-4-export], [headless](https://code.claude.com/docs/en/headless), [section 4.2](#42-how-to-avoid-surprise-charges)).
-
 
 ## 6. Contradictions between notes and how they were resolved
 
@@ -1782,7 +1773,6 @@ The aim is one flow run that visibly touches all three sponsors. One run that fi
 | 18 | Name of Google's AI platform | Google: "Gemini Enterprise Agent Platform", "the evolution of Vertex AI" (2026-04-22). Claude docs: "Google Cloud's Agent Platform, formerly Vertex AI", with `/google-vertex-ai` URLs and `CLAUDE_CODE_USE_VERTEX`. GitLab docs: "Gemini Enterprise Agent Platform" since 2026-06-10, with model IDs ending in `_vertex`. Google's free page and the ADK README still say "Agent Engine" for what is now Agent Runtime. | Same products. Use Google's current names in prose and keep the old names where variables and IDs require them. |
 | 19 | Branch names from the managed Claude agent | GitLab's docs suggest branch rules for agent branches matching `^duo/(fix\|feature\|refactor\|docs/).*`, while the managed Claude prompt asks for `feature/<short description of feature>` ([external agents][ext] / [src][ext-src]). | A GitLab docs inconsistency. Expect `feature/` branches from the Claude agent and `duo/` branches from Duo's own flows. |
 | 20 | GitLab 19.4 date | Release notes: 2026-09-17. The guide: tag `v19.4.0-ee` on 2026-09-16 ([tags](https://gitlab.com/gitlab-org/gitlab/-/tags)). | No conflict: the tag is cut the day before the release. |
-
 
 ## 7. Moved links and blocked hosts
 
