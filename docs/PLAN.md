@@ -51,7 +51,7 @@ Also settled by the day-one test: whether Alex can merge to the default branch. 
 
 | When | Who | What |
 |---|---|---|
-| Mon 12 to Wed 14 | Claude Code | Real GitLab feature flags read by the shop; the relay changes them with the token. Real incidents and notes. The watch flow started at night (or the D1 fallback). |
+| Mon 12 to Wed 14 | Claude Code | Real GitLab feature flags read by the shop; the relay changes them with the token. Real incidents and notes, with the shop's recent error log lines from Cloud Logging in the evidence pack. The watch flow started at night (or the D1 fallback). |
 | Wed 14 to Fri 16 | Claude Code | The dusk flow on a real watch issue, drafting from merge requests really merged that day. The dawn flow, the countersign merge request and `apply_state`. |
 | Sat 17 or Sun 18 | Alex, phone, 20 min | First full test night (compressed clock, about 25 minutes): merge or approve the orders, then one thumbs-up when paged. |
 
