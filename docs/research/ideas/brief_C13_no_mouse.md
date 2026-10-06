@@ -12,7 +12,7 @@ Maria (a persona) cannot pay. After Friday's redesign, the Pay button on her cof
 
 ## B. Closest past winner, and the concrete difference in behavior
 
-**Closest: Moonwalk,** winner of the UI Navigator category at Google's Gemini Live Agent Challenge, March 2026 ([repo](https://github.com/OactoDev/Moonwalk), [winners post](https://cloud.google.com/blog/topics/developers-practitioners/winners-and-highlights-of-the-gemini-live-agent-challenge), notes in [PAST_WINNERS.md](../../PAST_WINNERS.md) 3.8). Moonwalk is "a conversational, hands-free desktop assistant" that drives a Mac through the macOS Accessibility APIs, AppleScript and a Chrome extension. It runs a Sense, Plan, Act, Verify loop, speaks through Google Cloud Text-to-Speech from a Cloud Run backend, and makes the user click "Proceed" before any risky plan ([core_v2.py](https://github.com/OactoDev/Moonwalk/blob/main/backend/agent/core_v2.py)). It is the closest past winner because it is an agent that works a real interface through the accessibility layer, with the same Google pieces, and a Google judge will remember it.
+**Closest: Moonwalk,** winner of the UI Navigator category at Google's Gemini Live Agent Challenge (Feb 16 to Mar 16, 2026; winners announced May 15, 2026) ([repo](https://github.com/OactoDev/Moonwalk), [winners post](https://cloud.google.com/blog/topics/developers-practitioners/winners-and-highlights-of-the-gemini-live-agent-challenge), notes in [PAST_WINNERS.md](../../PAST_WINNERS.md) 3.8). Moonwalk is "a conversational, hands-free desktop assistant" that drives a Mac through the macOS Accessibility APIs, AppleScript and a Chrome extension. It runs a Sense, Plan, Act, Verify loop, speaks through Google Cloud Text-to-Speech from a Cloud Run backend, and makes the user click "Proceed" before any risky plan ([core_v2.py](https://github.com/OactoDev/Moonwalk/blob/main/backend/agent/core_v2.py)). It is the closest past winner because it is an agent that works a real interface through the accessibility layer, with the same Google pieces, and a Google judge will remember it.
 
 | | Moonwalk | No Mouse |
 |---|---|---|
@@ -73,7 +73,13 @@ No route ships anything. Production waits for a code replay in plain CI, whateve
 
 The browser always runs under code control, either inside the flow's own workload job (itself a CI job on a GitLab runner) or in a plain job.
 
-**YAML sketch.** It uses only fields that [SPONSORS.md](../../SPONSORS.md) section 2 lists as accepted by GitLab's schema: no `max_cycles`, no `model`, `environment: ambient`, no top-level `name`. It has not been validated or run. Keep it ASCII only, because dashes are corrupted in the editor. Two points are unverified:
+**YAML sketch.** It uses only fields that [SPONSORS.md](../../SPONSORS.md) section 2 lists as accepted by GitLab's schema: no `max_cycles`, no `model`, `environment: ambient`, no top-level `name`. Checked locally today:
+
+- it passes GitLab's [flow_v2.json](https://gitlab.com/gitlab-org/gitlab/-/blob/master/app/validators/json_schemas/ai_catalog/flow_v2.json) with 0 errors (with the `yaml_definition` key GitLab adds itself);
+- every tool name is in the AI Catalog [tools.json](https://gitlab.com/components/ai-catalog/-/blob/main/schemas/component/tools.json);
+- it is ASCII only (dashes are corrupted in the editor) and 6,093 bytes, against a 40 KiB limit.
+
+It has not run on GitLab. Two points are unverified:
 
 - `run_command` takes `program` and `args` in its classic form, but newer clients replace it with a shell form that takes `command` ([command.py](https://gitlab.com/gitlab-org/modelops/applied-ml/code-suggestions/ai-assist/-/raw/main/duo_workflow_service/tools/command.py)).
 - It is not known whether a non-zero exit sets `execution_result` to `failed`.
