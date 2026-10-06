@@ -6,7 +6,7 @@ Rules for every AI agent working in this repo: Claude Code, Codex, and GitLab Du
 
 An entry for Life After Code, the GitLab Transcend Hackathon: https://gitlab-transcend.devpost.com/
 
-Path A: a new AI project on GitLab that automates the post-code lifecycle with agents, with a human in control of anything that matters. Builder: Alex Velazquez, solo. The concept is being chosen; see docs/IDEAS.md once it exists.
+Path A: a new AI project on GitLab that automates the post-code lifecycle with agents, with a human in control of anything that matters. Builder: Alex Velazquez, solo. The concept is Night Orders: before bed, the on-call engineer signs what the agent may do alone tonight, and everything else wakes them (README.md, docs/IDEAS.md, docs/PLAN.md).
 
 ## Project rules
 
