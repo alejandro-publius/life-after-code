@@ -135,7 +135,7 @@ if owns_resource source-bucket && describe_optional gcloud storage buckets descr
 fi
 export BUCKET_READY=false
 if [[ "$(state get project_label_added)" == true ]]; then
-  gcloud projects update "$GCP_PROJECT_ID" --remove-labels=lac-owner --quiet >/dev/null
+  gcloud alpha projects update "$GCP_PROJECT_ID" --remove-labels=lac-owner --quiet >/dev/null
 fi
 state set teardown_resources_removed true
 fi

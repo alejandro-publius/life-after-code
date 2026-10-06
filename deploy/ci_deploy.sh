@@ -5,6 +5,9 @@ umask 077
 
 die() { printf '%s\n' "$*" >&2; exit 1; }
 [[ ${CI_DEBUG_TRACE:-false} != true ]] || die 'Disable CI debug tracing before using credentials.'
+# shellcheck source=deploy/gcp_config.sh
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/gcp_config.sh"
+load_gcp_config "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/gcp.env"
 for name in GCP_PROJECT_ID GCP_PROJECT_NUMBER GCP_REGION GCP_WIF_POOL GCP_WIF_PROVIDER \
   GCP_SERVICE_ACCOUNT GCP_BUILD_SERVICE_ACCOUNT GCP_RUNTIME_SERVICE_ACCOUNT \
   GCP_ARTIFACT_REPOSITORY GCP_SOURCE_BUCKET GCP_RUN_SERVICE GITLAB_PROJECT_ID \
@@ -59,7 +62,7 @@ immutable_image="${image%:*}@$digest"
 gcloud run deploy "$GCP_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
   --image="$immutable_image" --service-account="$GCP_RUNTIME_SERVICE_ACCOUNT" \
   --port=8080 --cpu=1 --memory=256Mi --concurrency=20 --timeout=30s \
-  --min=0 --max=1 --min-instances=0 --max-instances=1 \
+  --min=0 --min-instances=0 --max-instances=1 \
   --cpu-throttling --no-cpu-boost --ingress=all \
   --update-env-vars="CI_COMMIT_SHORT_SHA=$CI_COMMIT_SHORT_SHA" \
   --labels="lac-owner=$GITLAB_PROJECT_ID,lac-commit=$CI_COMMIT_SHORT_SHA" --quiet

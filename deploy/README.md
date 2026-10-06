@@ -2,6 +2,8 @@
 
 This folder is a concept-independent placeholder. A human starts one manual GitLab job on the protected default branch. That job exchanges a short-lived GitLab ID token for a Google identity, builds with Cloud Build, deploys the image by digest to Cloud Run, and checks the served commit. No Google service account key is created or stored.
 
+Public Google identifiers live in the committed `deploy/gcp.env`. A Developer can propose that file through a merge request without access to CI/CD variable settings. Existing CI/CD variables override file values. Secrets and the runtime OIDC token must never go in this file.
+
 The default GitLab environment is `staging`. This is one public service, not separate staging and production services. Claude owns the real app, its safety gates and the root pipeline. Local checks are recorded in [DEPLOY_CHECK.md](../docs/codex/DEPLOY_CHECK.md). A successful local build is not evidence of a live Google deployment.
 
 ## Why this authentication route
@@ -16,13 +18,13 @@ The issuer is exactly `https://gitlab.com`, matching GitLab's live [OIDC discove
 
 1. Open [Devpost](https://gitlab-transcend.devpost.com/) and click **Join Hackathon**. Open [GitLab Contributor registration](https://contributors.gitlab.com/transcend-hackathon), complete registration, and follow the welcome onboarding issue in the provisioned GitLab project. The [rules](https://gitlab-transcend.devpost.com/rules) require Duo Agent Platform and describe approval taking about 24 business hours. Use that project's actual namespace, not a guessed personal path.
 2. Open that project's **Settings > General**. Copy its numeric project ID. Copy its full `namespace/project` path from its URL. With the project visible, open `https://gitlab.com/api/v4/projects/PROJECT_ID` in the browser, replacing `PROJECT_ID`, and record `namespace.id` and `default_branch`. This endpoint is documented in the [Projects API](https://docs.gitlab.com/api/projects/#get-a-single-project). For a private project, get these details through the authenticated GitLab UI or an authenticated API request without pasting a token into this repository.
-3. In the project, open **Settings > Repository > Branch rules**. Add or edit the default branch rule and protect it. Permit Alex to merge and run its manual deployment. The WIF provider also rejects unprotected branches, other branches, other project paths, other numeric project IDs, and other namespace IDs. See [protected branches](https://docs.gitlab.com/user/project/repository/branches/protected/).
+3. Check whether the default branch is protected. A Developer cannot edit branch protection or project CI/CD variables. If the welcome project needs a branch rule or permission to merge and run deployment, ask its organizer or Maintainer to set that up under **Settings > Repository > Branch rules**. The committed config removes the need to create project variables; branch protection still matters. The WIF provider rejects unprotected branches, other branches, other project paths, other numeric project IDs, and other namespace IDs. See [protected branches](https://docs.gitlab.com/user/project/repository/branches/protected/) and [CI/CD variables](https://docs.gitlab.com/ci/variables/).
 4. Open [Google Cloud Free Program](https://cloud.google.com/free). If eligible, start the free trial and complete Google's account and payment verification. An unupgraded trial is not billed, but its resources stop when the credit or 90 days run out. A paid account bills usage beyond credits and allowances. See [trial terms and limits](https://docs.cloud.google.com/free/docs/free-cloud-features). Do not upgrade just to run this setup unless you accept paid overages.
 5. Open [Create a project](https://console.cloud.google.com/projectcreate). Create a new, separate project for this entry. Copy the **Project ID**, not its display name. Open [Billing: My Projects](https://console.cloud.google.com/billing/projects), find that exact project, and link it to your billing account. Do not use a project containing another app or production data. Alex needs project Owner access and Billing Account Administrator or Billing Account Costs Manager access on the billing account to create the budget. Project ownership alone is insufficient for billing-account budgets. See [budget permissions](https://cloud.google.com/billing/docs/how-to/budgets).
-6. Open [Cloud Shell](https://shell.cloud.google.com/), authorize it for your own Google account, and paste the following. Replace the four `REPLACE_` values with the IDs from steps 2 and 5. Set the default branch to its actual name if it differs from `main`.
+6. Open [Cloud Shell](https://shell.cloud.google.com/), authorize it for your own Google account, and paste the following. Cloud Shell needs gcloud's alpha and beta commands: project labels use `alpha projects update`, and service identity creation uses `beta services identity create`. The job image includes these components. [CLI_FLAGS.md](CLI_FLAGS.md) records actual help checks, including the reported gcloud 530 behavior. Replace the four `REPLACE_` values with the IDs from steps 2 and 5. Set the default branch to its actual name if it differs from `main`.
 
 ```bash
-git clone --branch codex/deploy-skeleton https://github.com/alejandro-publius/life-after-code.git life-after-code-deploy
+git clone --branch codex/deploy-fixes https://github.com/alejandro-publius/life-after-code.git life-after-code-deploy
 cd life-after-code-deploy
 export GCP_PROJECT_ID='REPLACE_GOOGLE_PROJECT_ID'
 export GITLAB_PROJECT_ID='REPLACE_NUMERIC_GITLAB_PROJECT_ID'
@@ -34,10 +36,10 @@ export GCP_DEDICATED_PROJECT='true'
 bash deploy/setup_gcp.sh
 ```
 
-The setup enables the required APIs, creates three service accounts, an Artifact Registry repository, a private source bucket and a restricted WIF provider. It creates a public Cloud Run service using Google's hello image, then grants CI permission to update only that existing service. It creates a project-filtered USD 5 monthly alert at 50%, 90% and 100%. Setup prints identifiers, not credentials. Verify **Billing > Budgets & alerts** and confirm billing notification emails reach Alex. The initial Google hello image is only bootstrap, not our FastAPI app.
+The setup enables the required APIs, creates three service accounts, an Artifact Registry repository, a private source bucket and a restricted WIF provider. It creates a public Cloud Run service using Google's hello image, then grants CI permission to update only that existing service. It creates a project-filtered USD 5 monthly alert at 50%, 90% and 100%. Its final block is the exact public `NAME=value` file content to paste, not credentials. Verify **Billing > Budgets & alerts** and confirm billing notification emails reach Alex. The initial Google hello image is only bootstrap, not our FastAPI app.
 
 7. Keep `deploy/.life-after-code-bootstrap.json`. It records resource ownership, enabled APIs and the budget ID. It is gitignored and backed up privately in `gs://SOURCE_BUCKET/bootstrap/state.json`. Rerunning setup with the same inputs updates existing owned resources. A resource with conflicting ownership stops setup. If an interrupted creation leaves an unmarked resource, inspect it before removing that resource and rerunning; setup never adopts it silently. Do not edit the ownership file to bypass these checks.
-8. In GitLab, open **Settings > CI/CD > Variables > Add variable**. Add each exact `NAME=value` pair printed by setup as a **Variable**, with **Protect variable** enabled, expansion disabled, and the environment scope set to `staging` or `*`. These are nonsecret identifiers and may remain visible. There is no `GOOGLE_APPLICATION_CREDENTIALS` secret and no stored OIDC token. The job receives its token at runtime. See [CI/CD variables](https://docs.gitlab.com/ci/variables/).
+8. In the GitLab project, open **Code > Repository**, find `deploy/gcp.env`, and select **Edit > Edit single file**. Replace its blank values with the final `NAME=value` block printed by setup. Keep plain values without quotes. Commit the change or propose a merge request, according to the default branch's permissions. The file is deliberately tracked and contains only public identifiers. The CI helper loads it before authentication. There is no `GOOGLE_APPLICATION_CREDENTIALS` secret and no stored OIDC token. The job receives its token at runtime. If a Maintainer already set an identically named CI/CD variable, that value wins, including an explicitly empty value. Remove a stale variable override or ask the Maintainer to correct it. See [Web Editor](https://docs.gitlab.com/user/project/repository/web_editor/) and [CI/CD variables](https://docs.gitlab.com/ci/variables/).
 9. Claude reviews this branch and adds the include below to the root pipeline, with `deploy` in its existing stages. Keep app tests and security gates ahead of deployment. Claude also ensures the submitted GitLab repository is public and MIT licensed. Do not create or replace the root pipeline from this folder.
 
 ```yaml
@@ -50,9 +52,9 @@ include:
 
 If the job is absent, check that the branch is the protected default branch. If WIF rejects the token, check the project path, project ID, namespace ID and default branch against the setup inputs. If Google IAM propagation causes the first attempt to fail, wait briefly and manually retry once after checking the error. Do not broaden the condition or grant Owner to CI.
 
-## CI/CD variables
+## Public deployment configuration
 
-Setup prints all required names. The example values below are labels, not real account data.
+Setup prints all required names for `deploy/gcp.env`. The example values below are labels, not real account data. The parser accepts only these keys and plain identifier characters; it never sources or evaluates the data file. Duplicate keys, secret keys, quotes and shell expressions fail before authentication. An absent file can still use existing CI/CD variables, while missing required values fail clearly.
 
 | Name | Meaning |
 | --- | --- |
@@ -109,7 +111,7 @@ Checked on 2026-10-06. Google requires an active billing account. Allowances do 
 
 Source conflict: the Free Program marketing page advertises 120 Cloud Build minutes per day; the product pricing page and detailed free limits state 2,500 `e2-standard-2` minutes per month. This skeleton follows the product-specific terms. Recheck before submission.
 
-Cloud Run uses request billing, min instances 0, service max instances 1, revision max instances 1, 1 CPU, 256 MiB, concurrency 20 and a 30 second request timeout. CPU is throttled outside requests and startup CPU boost is disabled. Build time is bounded at 10 minutes and the manual CI job at 20 minutes. These reduce costs but do not cap them. Cloud Run may temporarily exceed an instance limit during some operations; see [maximum instances](https://cloud.google.com/run/docs/configuring/max-instances).
+Cloud Run uses request billing, min instances 0, revision max instances 1, 1 CPU, 256 MiB, concurrency 20 and a 30 second request timeout. The deployment sends traffic entirely to the latest revision. `--max-instances=1` applies per revision, so overlapping revisions can run more than one instance in total. We remove the newer service-level `--max` flag for compatibility with the reported gcloud 530 behavior. CPU is throttled outside requests and startup CPU boost is disabled. Build time is bounded at 10 minutes and the manual CI job at 20 minutes. These reduce costs but do not cap them. Cloud Run may temporarily exceed an instance limit during some operations; see [maximum instances](https://cloud.google.com/run/docs/configuring/max-instances).
 
 ## No surprise charges
 
@@ -139,6 +141,7 @@ In addition to the linked sources above:
 - [Create a project-filtered budget and thresholds](https://cloud.google.com/sdk/gcloud/reference/billing/budgets/create).
 - [Create a private bucket and disable source soft delete](https://cloud.google.com/sdk/gcloud/reference/storage/buckets/create).
 - [Create Google-managed service identities](https://cloud.google.com/sdk/gcloud/reference/beta/services/identity/create).
+- [Update project ownership labels through the supported alpha command](https://cloud.google.com/sdk/gcloud/reference/alpha/projects/update).
 - [GitLab dotenv report artifacts](https://docs.gitlab.com/ci/yaml/artifacts_reports/#artifactsreportsdotenv).
 
 No live account setup, OIDC exchange, remote build, budget email, GitLab environment URL or cloud teardown has been tested yet. Alex's account and GitLab project are needed for those checks.

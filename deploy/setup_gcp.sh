@@ -40,7 +40,7 @@ backup_state
 if [[ -z "$existing_owner" ]]; then
   state set project_label_added true
   backup_state
-  gcloud projects update "$GCP_PROJECT_ID" --update-labels="lac-owner=$GITLAB_PROJECT_ID" --quiet >/dev/null
+  gcloud alpha projects update "$GCP_PROJECT_ID" --update-labels="lac-owner=$GITLAB_PROJECT_ID" --quiet >/dev/null
 fi
 
 gcloud services list --enabled --project="$GCP_PROJECT_ID" --format=json >"$WORK_DIRECTORY/apis.json"
@@ -221,7 +221,7 @@ else
   gcloud run deploy "$GCP_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
     --image=us-docker.pkg.dev/cloudrun/container/hello \
     --service-account="$GCP_RUNTIME_SERVICE_ACCOUNT" --labels="lac-owner=$GITLAB_PROJECT_ID" \
-    --no-invoker-iam-check --min=0 --max=1 --min-instances=0 --max-instances=1 \
+    --no-invoker-iam-check --min=0 --min-instances=0 --max-instances=1 \
     --cpu=1 --memory=256Mi --concurrency=20 --timeout=30 \
     --cpu-throttling --no-cpu-boost --quiet >/dev/null
 fi
@@ -254,5 +254,6 @@ state set teardown_complete false
 state set teardown_resources_removed false
 backup_state
 printf '%s\n' 'Setup complete. The budget sends alerts; it does not cap spending.' \
-  'Protect the default branch in GitLab. Paste these values into protected CI/CD variables:'
+  'Keep the default branch protected. Paste the following public identifiers into deploy/gcp.env and commit the file:' \
+  '# Public deployment identifiers. Never put a key or token in this file.'
 print_variables
