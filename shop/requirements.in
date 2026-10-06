@@ -1,0 +1,6 @@
+# Runtime dependencies of the demo shop, pinned to the versions in uv.lock so tests and the image match.
+# Regenerate requirements.txt from the repository root:
+#   uv pip compile shop/requirements.in --python-version 3.12 --generate-hashes --output-file shop/requirements.txt
+fastapi==0.142.2
+uvicorn==0.54.0
+httpx==0.28.1
