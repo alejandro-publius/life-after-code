@@ -1,26 +1,21 @@
-# Claude includes this file and adds deploy to the root pipeline's stages.
-deploy_cloud_run:
+# Root CI includes this file and supplies the deploy stage.
+.deploy_cloud_run:
   stage: deploy
   # Google Cloud SDK 587.0.0, audited with local command help.
   image: gcr.io/google.com/cloudsdktool/google-cloud-cli@sha256:be4876b4311056bf3ce236a14a7dea1288e70b7cfea2454ea15e4165c819921f
   timeout: 20m
-  resource_group: google-cloud-run
+  interruptible: false
+  resource_group: google-cloud-run-$GCP_DEPLOY_TARGET
   id_tokens:
     GITLAB_OIDC_TOKEN:
       aud: https://gitlab.com
-  variables:
-    GCP_ENVIRONMENT: staging
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"'
       when: manual
       allow_failure: false
     - when: never
   script:
-    - bash deploy/ci_deploy.sh
-  environment:
-    name: $GCP_ENVIRONMENT
-    url: $DYNAMIC_ENVIRONMENT_URL
-    deployment_tier: staging
+    - bash deploy/ci_deploy.sh "$GCP_DEPLOY_TARGET"
   artifacts:
     when: on_success
     reports:
@@ -28,3 +23,30 @@ deploy_cloud_run:
     paths:
       - deploy/result.json
     expire_in: 30 days
+
+deploy_shop:
+  extends: .deploy_cloud_run
+  variables:
+    GCP_DEPLOY_TARGET: shop
+  environment:
+    name: production
+    url: $DYNAMIC_ENVIRONMENT_URL
+    deployment_tier: production
+
+deploy_shop_staging:
+  extends: .deploy_cloud_run
+  variables:
+    GCP_DEPLOY_TARGET: shop-staging
+  environment:
+    name: staging
+    url: $DYNAMIC_ENVIRONMENT_URL
+    deployment_tier: staging
+
+deploy_relay:
+  extends: .deploy_cloud_run
+  variables:
+    GCP_DEPLOY_TARGET: relay
+  environment:
+    name: relay
+    url: $DYNAMIC_ENVIRONMENT_URL
+    deployment_tier: other

@@ -2,8 +2,13 @@
 # Delete owned bootstrap resources. Never delete the parent project.
 
 set -euo pipefail
+set +x
 # shellcheck source=deploy/lib.sh
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+# shellcheck source=deploy/bootstrap_secrets.sh
+source "$DEPLOY_DIRECTORY/bootstrap_secrets.sh"
+# shellcheck source=deploy/bootstrap_ops.sh
+source "$DEPLOY_DIRECTORY/bootstrap_ops.sh"
 
 require_tools
 configure_names
@@ -29,12 +34,7 @@ if ! state equals teardown_resources_removed true; then
 gcloud projects describe "$GCP_PROJECT_ID" --format=json >"$RESOURCE_JSON"
 assert_owned labels.lac-owner "$GITLAB_PROJECT_ID"
 
-owns_resource() {
-  python3 - "$STATE_FILE" "$1" <<'PY'
-import json, sys
-raise SystemExit(0 if sys.argv[2] in json.load(open(sys.argv[1]))['resources'] else 1)
-PY
-}
+teardown_service_ops
 
 # Builds use only the dedicated builder identity. Do not cancel anyone else's builds.
 if owns_resource sa-build; then
@@ -53,11 +53,29 @@ PY
   done <"$WORK_DIRECTORY/build-ids.txt"
 fi
 
-if owns_resource run-service && describe_optional gcloud run services describe "$GCP_RUN_SERVICE" \
-    --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json; then
-  assert_owned metadata.labels.lac-owner "$GITLAB_PROJECT_ID"
-  gcloud run services delete "$GCP_RUN_SERVICE" --project="$GCP_PROJECT_ID" \
-    --region="$GCP_REGION" --quiet >/dev/null
+for target in relay shop staging; do
+  case "$target" in
+    shop) service="$GCP_SHOP_SERVICE" ;;
+    staging) service="$GCP_STAGING_SERVICE" ;;
+    relay) service="$GCP_RELAY_SERVICE" ;;
+  esac
+  if owns_resource "run-$target" && describe_optional gcloud run services describe "$service" \
+      --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json; then
+    assert_owned metadata.labels.lac-owner "$GITLAB_PROJECT_ID"
+    gcloud run services delete "$service" --project="$GCP_PROJECT_ID" \
+      --region="$GCP_REGION" --quiet >/dev/null
+  fi
+done
+teardown_service_secrets
+# Remove the previous single-service placeholder if its original journal exists.
+if owns_resource run-service; then
+  legacy_service="$(state get config.GCP_RUN_SERVICE)"
+  if describe_optional gcloud run services describe "$legacy_service" \
+      --project="$GCP_PROJECT_ID" --region="$GCP_REGION" --format=json; then
+    assert_owned metadata.labels.lac-owner "$GITLAB_PROJECT_ID"
+    gcloud run services delete "$legacy_service" --project="$GCP_PROJECT_ID" \
+      --region="$GCP_REGION" --quiet >/dev/null
+  fi
 fi
 if owns_resource artifact-repository && describe_optional gcloud artifacts repositories describe "$GCP_ARTIFACT_REPOSITORY" \
     --project="$GCP_PROJECT_ID" --location="$GCP_REGION" --format=json; then
@@ -96,11 +114,12 @@ if owns_resource wif-pool && describe_optional gcloud iam workload-identity-pool
   fi
 fi
 
-# Delete only the three exact project bindings added by this bootstrap.
+# Delete only the exact project bindings added by this bootstrap.
 gcloud projects get-iam-policy "$GCP_PROJECT_ID" --format=json >"$WORK_DIRECTORY/policy.json"
 for binding in "$GCP_SERVICE_ACCOUNT roles/cloudbuild.builds.editor" \
     "$GCP_SERVICE_ACCOUNT roles/serviceusage.serviceUsageConsumer" \
-    "$GCP_BUILD_SERVICE_ACCOUNT roles/logging.logWriter"; do
+    "$GCP_BUILD_SERVICE_ACCOUNT roles/logging.logWriter" \
+    "$GCP_RELAY_SERVICE_ACCOUNT roles/logging.viewer"; do
   read -r account role <<<"$binding"
   owns_resource "project-binding:$account:$role" || continue
   if python3 - "$WORK_DIRECTORY/policy.json" "$account" "$role" <<'PY'
@@ -115,7 +134,7 @@ PY
       --member="serviceAccount:$account" --role="$role" --condition=None --quiet >/dev/null
   fi
 done
-for kind in deploy build runtime; do
+for kind in deploy build shop staging relay runtime; do
   if owns_resource "sa-$kind"; then
     account_email="lac-${GITLAB_PROJECT_ID}-${kind}@$GCP_PROJECT_ID.iam.gserviceaccount.com"
     if describe_optional gcloud iam service-accounts describe "$account_email" \
@@ -125,6 +144,14 @@ for kind in deploy build runtime; do
     fi
   fi
 done
+if owns_resource state-bucket && describe_optional gcloud storage buckets describe "gs://$STATE_BUCKET" \
+    --project="$GCP_PROJECT_ID" --format=json; then
+  assert_owned labels.lac-owner "$GITLAB_PROJECT_ID"
+  # Teardown intentionally deletes the relay's saved night state along with its owned bucket.
+  gcloud storage buckets update "gs://$STATE_BUCKET" --soft-delete-duration=0 \
+    --project="$GCP_PROJECT_ID" --quiet >/dev/null
+  gcloud storage rm --recursive "gs://$STATE_BUCKET" --project="$GCP_PROJECT_ID" --quiet >/dev/null
+fi
 if owns_resource source-bucket && describe_optional gcloud storage buckets describe "gs://$GCP_SOURCE_BUCKET" \
     --project="$GCP_PROJECT_ID" --format=json; then
   assert_owned labels.lac-owner "$GITLAB_PROJECT_ID"

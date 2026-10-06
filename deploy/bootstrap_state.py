@@ -32,12 +32,13 @@ def main():
             "GITLAB_PROJECT_ID", "GITLAB_PROJECT_PATH", "GITLAB_NAMESPACE_ID",
             "GITLAB_DEFAULT_BRANCH", "GCP_WIF_POOL", "GCP_WIF_PROVIDER",
             "GCP_SERVICE_ACCOUNT", "GCP_BUILD_SERVICE_ACCOUNT",
-            "GCP_RUNTIME_SERVICE_ACCOUNT", "GCP_ARTIFACT_REPOSITORY",
-            "GCP_SOURCE_BUCKET", "GCP_RUN_SERVICE", "GCP_BILLING_ACCOUNT_ID",
+            "GCP_SHOP_SERVICE_ACCOUNT", "GCP_STAGING_SERVICE_ACCOUNT", "GCP_RELAY_SERVICE_ACCOUNT",
+            "GCP_ARTIFACT_REPOSITORY", "GCP_SOURCE_BUCKET", "GCP_SHOP_SERVICE",
+            "GCP_STAGING_SERVICE", "GCP_RELAY_SERVICE", "STATE_BUCKET", "GCP_BILLING_ACCOUNT_ID",
         )
         write(path, {"version": 1, "config": {key: os.environ[key] for key in keys},
                      "enabled_apis": [], "resources": [], "project_label_added": False,
-                     "budget_name": None, "complete": False})
+                     "budget_name": None, "ops": {}, "complete": False})
         return
     state = read(path)
     if command == "verify":

@@ -1,149 +1,205 @@
 #!/usr/bin/env python3
 """Demo cloud responses for destructive-script tests. No Google calls occur."""
-import json, os, pathlib, sys
-args = sys.argv[1:]
-p = pathlib.Path(os.environ['LAC_MOCK_REMOTE'])
-s = json.loads(p.read_text()) if p.exists() else {'project': {'projectNumber': '123456789012', 'labels': {}}, 'apis': ['storage.googleapis.com', 'cloudresourcemanager.googleapis.com', 'serviceusage.googleapis.com'], 'resources': {}, 'budgets': [], 'bindings': [], 'commands': [], 'backup': None}
-s['commands'].append(args)
+
+import hashlib
+import json
+import os
+from pathlib import Path
+import stat
+import sys
+
+
+ARGS = sys.argv[1:]
+REMOTE = Path(os.environ["LAC_MOCK_REMOTE"])
+STATE = json.loads(REMOTE.read_text()) if REMOTE.exists() else {
+    "project": {"projectNumber": "123456789012", "labels": {}},
+    "apis": ["storage.googleapis.com", "cloudresourcemanager.googleapis.com",
+             "serviceusage.googleapis.com"],
+    "resources": {}, "budgets": [], "bindings": [], "commands": [], "objects": {},
+}
+STATE["commands"].append(ARGS)
+
 
 def save():
-    p.write_text(json.dumps(s))
+    REMOTE.write_text(json.dumps(STATE))
+
 
 def out(value):
     save()
     print(json.dumps(value))
-    sys.exit(0)
+    raise SystemExit(0)
+
 
 def flag(key, default=None):
-    return next((a.split('=', 1)[1] for a in args if a.startswith('--' + key + '=')), default)
+    return next((arg.split("=", 1)[1] for arg in ARGS
+                 if arg.startswith("--" + key + "=")), default)
 
-def denied():
+
+def error(message, status=1):
     save()
-    print('ERROR: (PERMISSION_DENIED) permission rejected', file=sys.stderr)
-    sys.exit(1)
+    print(message, file=sys.stderr)
+    raise SystemExit(status)
+
 
 def missing():
-    save()
-    print('ERROR: (NOT_FOUND) resource was not found', file=sys.stderr)
-    sys.exit(1)
+    error("ERROR: (NOT_FOUND) resource was not found")
 
-def key(prefix):
-    return prefix + ':' + next((a for a in args[len(prefix.split()) + 1:] if not a.startswith('--')), '')
-if args[:2] == ['billing', 'budgets'] and 'billingbudgets.googleapis.com' not in s['apis']:
-    save()
-    print('ERROR: (SERVICE_DISABLED) budget API disabled', file=sys.stderr)
-    sys.exit(1)
-if args[:3] == ['billing', 'projects', 'describe'] and 'cloudbilling.googleapis.com' not in s['apis']:
-    save()
-    print('ERROR: (SERVICE_DISABLED) billing API disabled', file=sys.stderr)
-    sys.exit(1)
-if os.environ.get('LAC_MOCK_PERMISSION') and os.environ['LAC_MOCK_PERMISSION'] in ' '.join(args):
-    denied()
-if args[:2] == ['projects', 'describe']:
-    out(s['project'])
-if args[:3] == ['billing', 'projects', 'describe']:
-    out({'billingEnabled': True, 'billingAccountName': 'billingAccounts/ABCDEF-123456-UVWXYZ'})
-if args[:3] == ['billing', 'budgets', 'list']:
-    out(s['budgets'])
-if args[:3] == ['billing', 'budgets', 'create']:
-    b = {'name': 'billingAccounts/ABCDEF-123456-UVWXYZ/budgets/demo', 'displayName': flag('display-name'), 'budgetFilter': {'projects': [flag('filter-projects')]}}
-    s['budgets'].append(b)
-    out(b)
-if args[:3] == ['billing', 'budgets', 'update']:
+
+def labels(value):
+    return dict(item.split("=", 1) for item in value.split(",")) if value else {}
+
+
+def add_binding(scope):
+    binding = {"scope": scope, "role": flag("role"), "members": [flag("member")]}
+    if binding not in STATE["bindings"]:
+        STATE["bindings"].append(binding)
     out({})
-if args[:3] == ['billing', 'budgets', 'delete']:
-    s['budgets'] = []
+
+
+def remove_resource(identity):
+    STATE["resources"].pop(identity, None)
+    STATE["bindings"] = [binding for binding in STATE["bindings"]
+                         if binding["scope"] != identity]
+
+
+if ARGS[:2] == ["billing", "budgets"] and "billingbudgets.googleapis.com" not in STATE["apis"]:
+    error("ERROR: (SERVICE_DISABLED) budget API disabled")
+if ARGS[:3] == ["billing", "projects", "describe"] and "cloudbilling.googleapis.com" not in STATE["apis"]:
+    error("ERROR: (SERVICE_DISABLED) billing API disabled")
+if os.environ.get("LAC_MOCK_PERMISSION") and os.environ["LAC_MOCK_PERMISSION"] in " ".join(ARGS):
+    error("ERROR: (PERMISSION_DENIED) permission rejected")
+if ARGS[:2] == ["projects", "describe"]:
+    out(STATE["project"])
+if ARGS[:3] == ["billing", "projects", "describe"]:
+    out({"billingEnabled": True, "billingAccountName": "billingAccounts/ABCDEF-123456-UVWXYZ"})
+if ARGS[:3] == ["billing", "budgets", "list"]:
+    out(STATE["budgets"])
+if ARGS[:3] == ["billing", "budgets", "create"]:
+    value = {"name": "billingAccounts/ABCDEF-123456-UVWXYZ/budgets/demo",
+             "displayName": flag("display-name"),
+             "budgetFilter": {"projects": [flag("filter-projects")]}}
+    STATE["budgets"].append(value)
+    out(value)
+if ARGS[:3] == ["billing", "budgets", "update"]:
     out({})
-if args[:2] == ['services', 'list']:
-    out([{'config': {'name': a}} for a in s['apis']])
-if args[:2] == ['services', 'enable']:
-    s['apis'] = sorted(set(s['apis']) | {a for a in args[2:] if not a.startswith('--')})
+if ARGS[:3] == ["billing", "budgets", "delete"]:
+    STATE["budgets"] = []
     out({})
-if args[:2] == ['services', 'disable']:
-    s['apis'] = [a for a in s['apis'] if a not in args[2:]]
+if ARGS[:2] == ["services", "list"]:
+    out([{"config": {"name": api}} for api in STATE["apis"]])
+if ARGS[:2] == ["services", "enable"]:
+    STATE["apis"] = sorted(set(STATE["apis"]) | {arg for arg in ARGS[2:] if not arg.startswith("--")})
     out({})
-if args[:3] == ['alpha', 'projects', 'update']:
-    if flag('update-labels'):
-        k, v = flag('update-labels').split('=')
-        s['project']['labels'][k] = v
-    if flag('remove-labels'):
-        s['project']['labels'].pop(flag('remove-labels'), None)
+if ARGS[:2] == ["services", "disable"]:
+    STATE["apis"] = [api for api in STATE["apis"] if api not in ARGS[2:]]
     out({})
-if args[:3] == ['beta', 'services', 'identity']:
+if ARGS[:3] == ["alpha", "projects", "update"]:
+    STATE["project"]["labels"].update(labels(flag("update-labels")))
+    if flag("remove-labels"):
+        STATE["project"]["labels"].pop(flag("remove-labels"), None)
     out({})
-if args[:2] == ['projects', 'add-iam-policy-binding']:
-    b = {'role': flag('role'), 'members': [flag('member')]}
-    if b not in s['bindings']:
-        s['bindings'].append(b)
+if ARGS[:3] == ["beta", "services", "identity"]:
     out({})
-if args[:2] == ['projects', 'get-iam-policy']:
-    out({'bindings': s['bindings']})
-if args[:2] == ['projects', 'remove-iam-policy-binding']:
-    s['bindings'] = [b for b in s['bindings'] if not (b['role'] == flag('role') and flag('member') in b['members'])]
+if ARGS[:2] == ["projects", "add-iam-policy-binding"]:
+    add_binding("project")
+if ARGS[:2] == ["projects", "get-iam-policy"]:
+    out({"bindings": [binding for binding in STATE["bindings"] if binding["scope"] == "project"]})
+if ARGS[:2] == ["projects", "remove-iam-policy-binding"]:
+    STATE["bindings"] = [binding for binding in STATE["bindings"]
+                         if not (binding["scope"] == "project" and binding["role"] == flag("role")
+                                 and flag("member") in binding["members"])]
     out({})
-if args[:2] == ['builds', 'list']:
+if ARGS[:2] == ["builds", "list"]:
     out([])
-if args[:2] == ['storage', 'cp']:
-    src, dst = args[2:4]
-    if src.startswith('gs://'):
-        if s['backup'] is None:
+if ARGS[:2] == ["storage", "cp"]:
+    source, destination = ARGS[2:4]
+    if source.startswith("gs://"):
+        if source not in STATE["objects"]:
             missing()
-        pathlib.Path(dst).write_text(json.dumps(s['backup']))
+        Path(destination).write_text(json.dumps(STATE["objects"][source]))
     else:
-        s['backup'] = json.loads(pathlib.Path(src).read_text())
+        STATE["objects"][destination] = json.loads(Path(source).read_text())
     out({})
-if args[:3] == ['storage', 'objects', 'describe']:
-    if s['backup'] is None:
+if ARGS[:3] == ["storage", "objects", "describe"]:
+    if ARGS[3] not in STATE["objects"]:
         missing()
-    out({'name': 'bootstrap/state.json'})
-if args[:2] == ['storage', 'rm']:
-    s['resources'].pop('bucket', None)
-    s['backup'] = None
+    out({"name": ARGS[3]})
+if ARGS[:2] == ["storage", "rm"]:
+    bucket = next(arg for arg in ARGS[2:] if arg.startswith("gs://"))
+    remove_resource("bucket:" + bucket)
+    STATE["objects"] = {name: value for name, value in STATE["objects"].items()
+                        if not name.startswith(bucket + "/")}
     out({})
-for prefix, typ in [(['storage', 'buckets'], 'bucket'), (['iam', 'service-accounts'], 'sa'), (['iam', 'workload-identity-pools', 'providers'], 'provider'), (['iam', 'workload-identity-pools'], 'pool'), (['artifacts', 'repositories'], 'artifact'), (['run', 'services'], 'run')]:
-    if args[:len(prefix)] != prefix:
+if ARGS[:3] == ["secrets", "versions", "list"]:
+    identity = "secret:" + ARGS[3]
+    if identity not in STATE["resources"]:
+        missing()
+    out(STATE["resources"][identity].get("versions", []))
+if ARGS[:3] == ["secrets", "versions", "add"]:
+    identity = "secret:" + ARGS[3]
+    if identity not in STATE["resources"]:
+        missing()
+    path = Path(flag("data-file"))
+    if stat.S_IMODE(path.stat().st_mode) != 0o600:
+        error("Demo mock refused a secret file without mode 0600", 2)
+    value = path.read_bytes()
+    if not value:
+        error("Demo mock refused an empty secret version", 2)
+    # This is intentionally only metadata. Never persist the private value.
+    version = {"name": identity + "/versions/1", "state": "ENABLED",
+               "length": len(value), "sha256": hashlib.sha256(value).hexdigest(), "mode": "0600"}
+    STATE["resources"][identity].setdefault("versions", []).append(version)
+    out(version)
+
+for prefix, kind in [
+    (["storage", "buckets"], "bucket"), (["iam", "service-accounts"], "sa"),
+    (["iam", "workload-identity-pools", "providers"], "provider"),
+    (["iam", "workload-identity-pools"], "pool"),
+    (["artifacts", "repositories"], "artifact"), (["run", "services"], "run"),
+    (["secrets"], "secret"),
+]:
+    if ARGS[:len(prefix)] != prefix:
         continue
-    op = args[len(prefix)]
-    if op in ('add-iam-policy-binding',):
-        out({})
-    name = args[len(prefix) + 1] if len(args) > len(prefix) + 1 else ''
-    identity = typ + ':' + name if typ == 'sa' else typ
-    if op == 'describe':
-        if identity not in s['resources']:
+    operation = ARGS[len(prefix)]
+    name = ARGS[len(prefix) + 1] if len(ARGS) > len(prefix) + 1 else ""
+    identity = kind + ":" + name if kind not in ("pool", "provider", "artifact") else kind
+    if operation == "add-iam-policy-binding":
+        add_binding(identity)
+    if operation == "describe":
+        if identity not in STATE["resources"]:
             missing()
-        out(s['resources'][identity])
-    if op in ('create', 'create-oidc'):
-        value = {'description': flag('description'), 'labels': {}}
-        if flag('labels'):
-            k, v = flag('labels').split('=')
-            value['labels'][k] = v
-        if typ == 'artifact':
-            value['format'] = 'DOCKER'
-        if typ == 'sa':
-            identity = 'sa:' + name + '@demo-project-123.iam.gserviceaccount.com'
-        if typ in ('pool', 'provider'):
-            value['state'] = 'ACTIVE'
-        s['resources'][identity] = value
+        out(STATE["resources"][identity])
+    if operation in ("create", "create-oidc"):
+        value = {"description": flag("description"), "labels": labels(flag("labels"))}
+        if kind == "artifact":
+            value["format"] = "DOCKER"
+        if kind == "sa":
+            identity = "sa:" + name + "@demo-project-123.iam.gserviceaccount.com"
+        if kind in ("pool", "provider"):
+            value["state"] = "ACTIVE"
+        if kind == "secret":
+            value["versions"] = []
+        STATE["resources"][identity] = value
         out(value)
-    if op in ('update', 'update-oidc'):
-        if identity not in s['resources']:
+    if operation in ("update", "update-oidc"):
+        if identity not in STATE["resources"]:
             missing()
-        if flag('update-labels'):
-            k, v = flag('update-labels').split('=')
-            s['resources'][identity]['labels'][k] = v
+        STATE["resources"][identity]["labels"].update(labels(flag("update-labels")))
         out({})
-    if op == 'delete':
-        if typ in ('pool', 'provider'):
-            s['resources'][identity]['state'] = 'DELETED'
+    if operation == "delete":
+        if kind in ("pool", "provider"):
+            STATE["resources"][identity]["state"] = "DELETED"
         else:
-            s['resources'].pop(identity, None)
+            remove_resource(identity)
         out({})
-    if op == 'undelete':
-        s['resources'][identity]['state'] = 'ACTIVE'
+    if operation == "undelete":
+        STATE["resources"][identity]["state"] = "ACTIVE"
         out({})
-if args[:2] == ['run', 'deploy']:
-    k, v = flag('labels').split('=')
-    s['resources']['run'] = {'metadata': {'labels': {k: v}}}
+if ARGS[:2] == ["run", "deploy"]:
+    name = ARGS[2]
+    STATE["resources"]["run:" + name] = {
+        "metadata": {"labels": labels(flag("labels"))},
+        "status": {"url": "https://" + name + "-demo.run.app"},
+    }
     out({})
-print('Unknown mock command: ' + repr(args), file=sys.stderr)
-sys.exit(2)
+error("Unknown mock command: " + repr(ARGS), 2)

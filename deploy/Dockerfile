@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1
 FROM python:3.12-slim-bookworm@sha256:9901e0a8d75037d8242ed43155cbcb2d1f61be1356383d8054afb59fd50e39c4
 
-# Change this one line to the real folder containing main.py and requirements.txt.
-ARG APP_DIR=deploy/hello
+# Each deployment chooses shop or relay through this build argument.
+ARG APP_DIR=shop
 ARG CI_COMMIT_SHORT_SHA=local
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PORT=8080 CI_COMMIT_SHORT_SHA=${CI_COMMIT_SHORT_SHA}
 WORKDIR /app

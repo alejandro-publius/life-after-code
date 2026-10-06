@@ -2,6 +2,10 @@
 # Shared setup helpers. No account keys are read or created here.
 
 set -euo pipefail
+set +x
+umask 077
+export CLOUDSDK_CORE_LOG_HTTP=false
+export CLOUDSDK_CORE_VERBOSITY=warning
 
 DEPLOY_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 STATE_HELPER="$DEPLOY_DIRECTORY/bootstrap_state.py"
@@ -36,12 +40,18 @@ configure_names() {
   [[ "$GCP_REGION" =~ ^[a-z]+-[a-z]+[0-9]$ ]] || fail 'Invalid Google Cloud region.'
   export GCP_WIF_POOL="lac-${GITLAB_PROJECT_ID}-pool"
   export GCP_WIF_PROVIDER='gitlab'
-  export GCP_RUN_SERVICE="lac-${GITLAB_PROJECT_ID}"
+  export GCP_SHOP_SERVICE=shop
+  export GCP_STAGING_SERVICE=shop-staging
+  export GCP_RELAY_SERVICE=relay
   export GCP_ARTIFACT_REPOSITORY="lac-${GITLAB_PROJECT_ID}"
   export GCP_SOURCE_BUCKET="${GCP_PROJECT_ID}-lac-${GITLAB_PROJECT_ID}-source"
   export GCP_SERVICE_ACCOUNT="lac-${GITLAB_PROJECT_ID}-deploy@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
   export GCP_BUILD_SERVICE_ACCOUNT="lac-${GITLAB_PROJECT_ID}-build@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
-  export GCP_RUNTIME_SERVICE_ACCOUNT="lac-${GITLAB_PROJECT_ID}-runtime@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+  export GCP_SHOP_SERVICE_ACCOUNT="lac-${GITLAB_PROJECT_ID}-shop@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+  export GCP_STAGING_SERVICE_ACCOUNT="lac-${GITLAB_PROJECT_ID}-staging@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+  export GCP_RELAY_SERVICE_ACCOUNT="lac-${GITLAB_PROJECT_ID}-relay@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+  export STATE_BUCKET="${GCP_PROJECT_ID}-night-orders-state"
+  export GCP_RELAY_KEY_SECRET=relay-key
   export OWNER_DESCRIPTION="Life After Code bootstrap: GitLab $GITLAB_PROJECT_PATH, project $GITLAB_PROJECT_ID."
   export BUDGET_DISPLAY="LAC $GITLAB_PROJECT_ID $GCP_PROJECT_ID"
   [[ "${#OWNER_DESCRIPTION}" -le 256 ]] || fail 'GitLab path is too long for the ownership description.'
@@ -87,6 +97,10 @@ journal_resource() {
   backup_state
 }
 
+owns_resource() {
+  state contains resources "$1"
+}
+
 restore_state() {
   if [[ -f "$STATE_FILE" ]]; then
     state verify
@@ -117,8 +131,21 @@ project_binding() {
 print_variables() {
   local key
   for key in GCP_PROJECT_ID GCP_PROJECT_NUMBER GCP_REGION GCP_WIF_POOL GCP_WIF_PROVIDER \
-      GCP_SERVICE_ACCOUNT GCP_BUILD_SERVICE_ACCOUNT GCP_RUNTIME_SERVICE_ACCOUNT \
-      GCP_ARTIFACT_REPOSITORY GCP_SOURCE_BUCKET GCP_RUN_SERVICE GITLAB_PROJECT_ID GITLAB_PROJECT_PATH; do
+      GCP_SERVICE_ACCOUNT GCP_BUILD_SERVICE_ACCOUNT GCP_SHOP_SERVICE_ACCOUNT \
+      GCP_STAGING_SERVICE_ACCOUNT GCP_RELAY_SERVICE_ACCOUNT GCP_ARTIFACT_REPOSITORY \
+      GCP_SOURCE_BUCKET GCP_SHOP_SERVICE GCP_STAGING_SERVICE GCP_RELAY_SERVICE \
+      STATE_BUCKET GITLAB_PROJECT_ID GITLAB_PROJECT_PATH; do
     printf '%s=%s\n' "$key" "${!key}"
   done
+}
+
+print_service_variables() {
+  printf '%s\n' \
+    'GITLAB_URL=https://gitlab.com' \
+    "SHOP_URL=$SHOP_URL" "SHOP_STAGING_URL=$SHOP_STAGING_URL" "RELAY_URL=$RELAY_URL" \
+    "FLOW_CONSUMER_ID=${FLOW_CONSUMER_ID:-}" "FLOW_SERVICE_ACCOUNT=${FLOW_SERVICE_ACCOUNT:-}" \
+    "DAWN_FLOW_CONSUMER_ID=${DAWN_FLOW_CONSUMER_ID:-}" "WATCH_ISSUE_IID=${WATCH_ISSUE_IID:-}" \
+    "SHOP_METRICS_URL=$SHOP_URL/metrics.json" \
+    'STATE_OBJECT=night-orders/state.json' \
+    "UNLEASH_URL=https://gitlab.com/api/v4/feature_flags/unleash/$GITLAB_PROJECT_ID"
 }
