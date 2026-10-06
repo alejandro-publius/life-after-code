@@ -150,3 +150,40 @@ Copied from [score_table.md](research/ideas/score_table.md), ranked by total. "C
 
 Spread of autonomy levels (the most common of the three judges' calls per concept): 34 Supervised, 15 Assisted, 8 Hands-off. Seven concepts were called Hands-off by all three judges and one (No Mouse) by two. Night Orders has the highest total of them, 18 points above the next unanimous one, Night Nurse (70.6), which only decides whether to wake someone and changes nothing.
 
+## 5. The five finalists against the five official criteria
+
+The rules judge on five equally weighted criteria and nothing else (apart from the Google Cloud bonus of up to 0.2), so this ranking leaves out our extra dimensions. The numbers are the three judges' means from [scores_combined.json](research/ideas/scores_combined.json). Ties are broken the way the rules break them: "the tied Submission with the highest score in the first applicable criterion listed above will be considered the higher scoring Submission" ([RULES_CHECK.md](codex/RULES_CHECK.md#multiple-prize-eligibility-and-tie-breaking)), and Technological Implementation is listed first.
+
+| Rank | Concept | Technological Implementation | Design | Potential Impact | Innovation/Idea | Presentation | Mean | Mean after the brief | Total, then brief-adjusted |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | Night Orders (C01) | 8.7 | 9.0 | 8.0 | 8.3 | 8.7 | 8.53 | 8.53 | 88.6, then 88.6 |
+| 2 | No Mouse (C13) | 7.7 | 7.7 | 8.7 | 9.0 | 9.7 | 8.53 | 8.48 | 85.6, then 84.8 |
+| 3 | Forget Me (C37) | 7.7 | 7.3 | 8.0 | 8.3 | 7.0 | 7.67 | 7.80 | 80.0, then 81.7 |
+| 4 | Front Row (C12) | 7.0 | 8.7 | 7.7 | 7.3 | 7.7 | 7.67 | 7.58 | 75.0, then 76.7 |
+| 5 | Writeback (C27) | 8.0 | 7.7 | 7.3 | 6.3 | 7.3 | 7.33 | 7.36 | 77.0, then 80.1 |
+
+**The ranking.**
+
+1. **Night Orders**, mean 8.53. It is equal to No Mouse to the last digit and wins the tie-break on Technological Implementation (8.7 against 7.7).
+2. **No Mouse**, mean 8.53. The best Presentation (9.7) and Innovation (9.0) in the pool.
+3. **Forget Me**, mean 7.67. Equal to Front Row; it wins the same tie-break (7.7 against 7.0).
+4. **Front Row**, mean 7.67. The second-best Design score of the five (8.7).
+5. **Writeback**, mean 7.33. Strong on Technological Implementation (8.0), the weakest of the five on Innovation (6.3).
+
+On the five criteria alone, Front Row moves above Writeback; on our total it is the other way round, because Writeback scores higher on stages and feasibility. After the briefs' reviews the order on the criteria stays the same, and the tie at the top opens: Night Orders 8.53, No Mouse 8.48.
+
+**How each brief's review moved it.**
+
+1. **Night Orders** ([brief, section 13](research/ideas/brief_C01_night_orders.md#13-verdict)). No change to the five criteria. Stages 6 to 7.5 (the rehearsal on staging, the image check, the refused prompt injection, and the agent-written orders and countersign MRs make verify, package, secure and create real); novelty 7 to 6.5 (PagerDuty's SRE agent and industry advice on "pre-approved, narrowly-scoped actions" sit close); feasibility 7 to 6.5 (three flows, a relay, a rehearsal job, and the signature needs merge or approval rights). Net zero: the total stays 88.6. The brief folds in Dress Rehearsal (the rehearsal moves to a calm dusk, away from that concept's trap) and Loose Ends (the morning ledger is the relay's own record, not one rebuilt from audit logs). If the night start fails and the code-only Standing Orders form is built: about 86.5.
+2. **No Mouse** ([brief, section 13](research/ideas/brief_C13_no_mouse.md#13-verdict)). Innovation 9.0 to 8.3 (prior art: a 2026 U.S. patent application, Perforce, Evinced's "screen reader agent", Apple's AXNav research, GitLab's own Pa11y template, and Moonwalk among past winners) and design 7.7 to 8.0 (replay first, model only on failure, a re-walk of the fix and a production walk make one loop), so the criteria mean falls to 8.48. Stages 4.7 to 6.0; autonomy 7.0 to 6.5 (the honest level is Supervised); novelty 7.0 to 6.5; feasibility 7.0 to 6.5. Total 85.6 to 84.8. If only the scripted form survives its day-one test: about 79.
+3. **Forget Me** ([brief, section 13](research/ideas/brief_C37_forget_me.md#13-verdict)). Technological Implementation 7.7 to 8.0, design 7.3 to 7.5, impact 8.0 to 8.5 (this exact bug class is documented: the FTC's 2023 case over children's Alexa recordings, and Meta's DELF), innovation 8.3 to 8.0 (canary deletion checks are patented and sold), so the criteria mean rises to 7.8. Stages 5.7 to 7.0, autonomy 5.7 to 6.0, novelty 8.7 to 8.0, sponsors 7.7 to 8.0. Total 80.0 to 81.7. The brief also replaced the persona (Laila, leaving an abusive partner) with a parent who deleted her son's homework-app account, because a 2:40 DevSecOps video cannot treat abuse with care. If only the local fallback works: 3 to 4 points less.
+4. **Front Row** ([brief, section 18](research/ideas/brief_C12_front_row.md#18-verdict)). Innovation 7.3 to 6.8 (fix-first flags and close-the-loop tools are commercial practice, and the past winner BugFlow already owns "mention a customer's bug and the agents take it from there"), so the criteria mean falls to 7.58. Stages 5.7 to 7.0, human 8.3 to 8.7 (a "still wrong" reply that holds the release is a second, stronger beat), novelty 5.7 to 5.0, feasibility 6 to 6.5 (Service Desk is on by default and Developers can manage flags and user lists). Total 75.0 to 76.7.
+5. **Writeback** ([brief, section 13](research/ideas/brief_C27_writeback.md#13-verdict)). Impact 7.3 to 7.7 and presentation 7.3 to 7.7 (open on the outage coming back), innovation 6.3 to 5.7 (driftctl, env0, Firefly, StackGuardian and AWS's drift-aware change sets already do parts of it), so the criteria mean is 7.36. Stages 7.7 to 8, human 6 to 6.5, novelty 6.3 to 6, wow 7 to 7.5, feasibility 7 to 8 (no flow has to start at night or without a person). Total 77.0 to 80.1. If the flow can only start from a comment: about 77.6.
+
+**Where the briefs and the scores disagree.**
+
+- **No Mouse's autonomy level.** Two judges called it Hands-off; its brief says the honest level is Supervised (a person merges the fix and presses Play on production) and moves its prize target to Best Supervised plus Most Creative.
+- **Third place.** Each brief compared itself with the other concepts' first-pass totals. Writeback's brief claims third (80.1 against Forget Me's 80.0), but Forget Me's own brief raised it to 81.7, and Front Row's brief compares itself with 77.0 and 80.0. With every brief's own adjustment applied, the order is 88.6, 84.8, 81.7, 80.1, 76.7: the same as the table.
+- **Night Orders' fallback.** Its brief says Standing Orders (about 86.5) would be "level with C13"; that uses No Mouse's first-pass 85.6. Against No Mouse's adjusted 84.8, the fallback still leads.
+- **Stages.** Every brief found more stage coverage than the first scores credited. All five now touch all nine stages, at different depths.
+
