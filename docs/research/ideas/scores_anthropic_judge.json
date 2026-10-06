@@ -132,7 +132,7 @@
       "autonomy_level": "Hands-off",
       "human": 3,
       "novelty": 5,
-      "sponsors": 5,
+      "sponsors": 4,
       "wow": 4,
       "note": "A sound rule (nothing risky moves while its people sleep), but code does almost everything, so the model is close to decoration, and days of rollout must be compressed on video."
     },
@@ -152,7 +152,7 @@
       "note": "The model checking the expert's answer against the diff (rollback is not safe, 0042 drops a column) is exactly the visible capability I reward, and Ana's wedding is a real scene. Lower for overlap with organizational memory (LORE) and the need for a second account and user status."
     },
     "C11": {
-      "tech": 8,
+      "tech": 7,
       "design": 6,
       "impact": 7,
       "innovation": 6,
@@ -218,11 +218,11 @@
       "innovation": 3,
       "presentation": 3,
       "stages": 6,
-      "autonomy": 5,
+      "autonomy": 4,
       "autonomy_level": "Hands-off",
       "human": 4,
       "novelty": 6,
-      "sponsors": 5,
+      "sponsors": 4,
       "wow": 3,
       "note": "Safe hands-off (it can only keep images) on the rare package stage, but the model's share is thin and the human moment is a non-event that only a counterfactual can show."
     },
@@ -368,7 +368,7 @@
       "innovation": 5,
       "presentation": 4,
       "stages": 2,
-      "autonomy": 5,
+      "autonomy": 4,
       "autonomy_level": "Assisted",
       "human": 5,
       "novelty": 3,
@@ -447,7 +447,7 @@
       "autonomy_level": "Assisted",
       "human": 5,
       "novelty": 2,
-      "sponsors": 5,
+      "sponsors": 4,
       "wow": 4,
       "note": "A nice moment for the author, but it lives next to Proof of Fix and June's Stayed Shipped, needs seven days of telemetry, and the model mostly writes prose around numbers code computed."
     },
@@ -707,7 +707,7 @@
       "note": "Shielding responders and replying personally to every user is kind. Lower because answering @shield ETA questions is one step from the excluded incident chatbot, and Service Desk setup is uncertain."
     },
     "C48": {
-      "tech": 7,
+      "tech": 6,
       "design": 6,
       "impact": 4,
       "innovation": 6,
@@ -818,7 +818,7 @@
       "innovation": 5,
       "presentation": 5,
       "stages": 3,
-      "autonomy": 6,
+      "autonomy": 5,
       "autonomy_level": "Hands-off",
       "human": 5,
       "novelty": 4,
@@ -833,7 +833,7 @@
       "innovation": 5,
       "presentation": 4,
       "stages": 6,
-      "autonomy": 5,
+      "autonomy": 4,
       "autonomy_level": "Hands-off",
       "human": 3,
       "novelty": 4,
