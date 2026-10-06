@@ -1,58 +1,42 @@
-# Morning
+# Morning handoff
 
-For Alex, Wed 7 Oct 2026. One page.
+For Alex, updated **5 Oct 2026 (Pacific Time)**.
 
-## The concept in one sentence
+**Night Orders: before bed, the on-call engineer signs what the agent may do alone tonight. Everything else wakes them, and the orders end at 07:00.**
 
-**Night Orders: before bed, the on-call engineer signs what the agent may do alone tonight; everything else wakes them, and the orders end at 07:00.**
+## What you can review now
 
-## Why it beats past winners and the field
+One guided browser demo now shows the human workflow using the existing decision core. It has phone and laptop layouts, a chart of the actual simulated samples, and expandable decision evidence. The local suite has **256 passing tests**. No GitLab.com, Google Cloud or live model run has been demonstrated. The public demo URL is **pending**.
 
-- **It does what past GitLab winners did, in a new place.** One job, real runs inside our own GitLab project, and one human decision built in code: the merge at dusk is the signature ([PATTERNS.md](PATTERNS.md#7-ten-rules-for-our-entry)). It meets all ten of our rules from 102 past winners.
-- **Nobody in October is doing on-call at night** ([FIELD.md](FIELD.md#6-open-spaces-nobody-seems-to-be-in-them-yet)). It stays out of the crowded spaces: release gatekeepers, security review, pre-merge review.
-- **It answers GitLab's October theme**, "Hands Off. How far can your agents go without you?": as far as you signed, for tonight only.
-- **The closest past winner behaves differently.** StregEnt (Feb 2026 honorable mention) messages the developer on every failure. Night Orders sends nothing when a signed order covers the failure, and one three-line page when it does not.
-- Prize plan: Path A Best Hands-off Agent plus Most Stages Covered (one path prize and one special prize is the most one entry can win).
+From the repository root:
 
-## The top three
+```sh
+uv sync --locked
+cd relay
+uv run --project .. uvicorn main:app --host 127.0.0.1 --port 8080
+```
 
-| Rank | Concept | One line | Criteria mean | Total (of 110) |
-|---|---|---|---|---|
-| 1 | **Night Orders** | Sign tonight's few reversible actions; everything else wakes you | 8.53 | 88.6 |
-| 2 | No Mouse (backup) | An agent with no mouse and no screen must buy something on staging by ear, or the release is held | 8.48 | 84.8 |
-| 3 | Forget Me | A made-up user signs up, uses the new feature and asks to be forgotten; a release that cannot forget that user is held | 7.80 | 81.7 |
+Open [http://localhost:8080/demo](http://localhost:8080/demo). Sign the demo orders, approve the demo fallback, review the checkout change, then read the morning brief. The default path reports 1 wake-up, 1 incident handled automatically and 1 approved action. Replay without signing to see the boundary hold. These counts describe the planted demo night.
 
-Full reasoning: [IDEAS.md](IDEAS.md).
+The sign and approval buttons select recorded fixture inputs for an isolated replay. The morning countersign is recorded too. No button signs a real order, changes GitLab or pages a phone. At 07:00 permission ends; existing changes remain until a morning keep-or-undo decision.
 
-## What was built, and how to see it
+## Public materials ready for review
 
-All of it runs offline and in CI: 218 tests pass. **Nothing has run on GitLab.com or Google Cloud yet.**
+- [README](../README.md): browser quickstart, local screenshots and plain limits.
+- [Judge guide](GUIDE.md): five criteria, each 20%, with inspectable evidence.
+- [Devpost draft](DEVPOST.md): English description with pending links and live proof identified.
+- [Video script](VIDEO.md): a 2:40 browser recording plan that can be filmed now.
+- [Status](STATUS.md): the verified state and integration gaps.
 
-- The decision code, with one test per reason it refuses to act: [relay/nightorders/](../relay/nightorders/), [tests/](../tests/).
-- The agent's first job, the dusk drafter (today's changes in, tonight's orders out): [agent/dusk.py](../agent/dusk.py).
-- A labelled demo night replayed through the real code: run `cd relay && uv run --project .. python -m nightorders.demo_night ../demo/night-2026-10-20`, or open the `demo_night` job's artifact in CI.
-- Three Duo flows, checked against GitLab's own flow schema: [flows/](../flows/).
-- The relay service, which runs the night on Cloud Run: [relay/](../relay/). The demo shop (demo data): [shop/](../shop/).
-- The pipeline (tests, demo night, flow and orders checks, SAST, secret detection, the gcloud audit in the pinned image, manual keyless deploy): [.gitlab-ci.yml](../.gitlab-ci.yml).
-- What a judge reads first: [README.md](../README.md). The dated plan: [PLAN.md](PLAN.md).
+## The next account and integration steps
 
-## Your steps, with exact links
+| Step | Where | Result needed |
+|---|---|---|
+| Join the event and request the hackathon workspace | [Devpost](https://gitlab-transcend.devpost.com/) and [GitLab contributor registration](https://contributors.gitlab.com/transcend-hackathon) | Access to the required GitLab Duo Agent Platform workspace. Official rules say approval takes about 24 business hours. |
+| Make the project public in that workspace | [Official repository requirements](https://gitlab-transcend.devpost.com/rules) | Public GitLab repository URL, detected MIT licence and visible pipeline history showing automation running. |
+| Configure credentials securely | [Relay setup](../relay/README.md) | Required tokens in protected environment or CI variables, never pasted into chat or committed. |
+| Run the actual Duo night start | [Plan, decision D1](PLAN.md) and [three flows](../flows/) | A real flow session and relay-to-flow result. Schema validation alone does not meet the required live integration proof. |
+| Set up Google Cloud if pursuing the bonus | [Deployment setup](../deploy/README.md) | A public working Google Cloud URL and a verified deployment. Deployment code alone earns no demonstrated bonus. |
+| Film and submit | [Video](VIDEO.md), [Devpost draft](DEVPOST.md), [official rules](https://gitlab-transcend.devpost.com/rules) | Public YouTube video below 3:00 and completed submission before 27 Oct 2026, 06:00 Pacific Time (13:00 UTC). |
 
-| # | When | Link | What to do | Time |
-|---|---|---|---|---|
-| 1 | Today | https://gitlab-transcend.devpost.com/ | Click **Join Hackathon**. | 2 min |
-| 2 | Today | https://contributors.gitlab.com/transcend-hackathon | Sign in with GitLab, click **Get started**, enter your Devpost username, submit. Approval is manual, about one business day. | 3 min |
-| 3 | Today | https://cloud.google.com/free | Click **Get started for free** and finish the card check (a trial is not billed unless you upgrade). Then at https://console.cloud.google.com/projectcreate create a project named `night-orders` and keep its Project ID. | 10 min |
-| 4 | Today | (Codex) | Paste the Codex message from my last chat reply. | 1 min |
-| 5 | When GitLab approves you | https://gitlab.com/-/user_settings/personal_access_tokens | Click **Add new token**. Name `night-orders`, expiry `2026-11-20`, scopes `api` and `write_repository`. Create, copy. In this Claude Code environment's settings (the environment menu in the session title bar, then **Edit**), add it as an environment variable named `GITLAB_TOKEN`. Never paste it into a chat. Then start a new Claude Code session and say "workspace ready". If GitLab says "Identity verification is required", follow its prompt first. | 5 min |
-| 6 | After Codex's deploy branch is merged | https://shell.cloud.google.com/ | Paste the setup block from [deploy/README.md](../deploy/README.md), step 6. It prints a block of public IDs; paste that back to me. | 30 min |
-| 7 | Test nights, Sat 17 or Sun 18 Oct and Tue 20 or Wed 21 Oct | the orders merge request link I send | Merge (or approve) the orders, then give one thumbs-up when paged. | 20 min each |
-| 8 | Fri 23 to Mon 26 Oct | [PLAN.md](PLAN.md) | Walk-through, filming, Devpost form. | about 3 hours |
-
-## The first five things to do tomorrow
-
-1. Join on Devpost (step 1).
-2. Register for the GitLab workspace (step 2).
-3. Start the Google Cloud trial and create the project (step 3).
-4. Paste the Codex message (step 4).
-5. When the approval email comes, add the token and say "workspace ready" (step 5).
+Path A is the plan. **Supervised is the current recommendation, still tentative.** Nightly approval and morning review should be reconciled with the [official autonomy definitions](codex/RULES_CHECK.md#required-duo-use-and-autonomy-level) before selecting the category. Hands-off is not yet a supported claim. There is no measured sleep gain, customer result or sustainability gain to report.
