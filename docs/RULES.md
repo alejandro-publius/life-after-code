@@ -5,6 +5,7 @@ Compiled on 2026-10-06 (about 00:45 UTC) for Alex Velazquez (solo entrant, UC Be
 
 > **Read this first.**
 >
+> - Update, later on Oct 6: the official October pages were read directly by Codex and are quoted in [docs/codex/RULES_CHECK.md](codex/RULES_CHECK.md). See "Confirmed from the official pages" below. The notes in this box describe the first two passes.
 > - Every Devpost page (`gitlab-transcend.devpost.com/*` and `devpost.com`) is blocked by this environment's network policy (the proxy answered `403` to CONNECT, and WebFetch returned `EGRESS_BLOCKED`). All Devpost text below comes from the web search tool's excerpts of those pages, so its exact wording is **not confirmed**.
 > - GitLab's own copy of the hackathon guide (the source code of `contributors.gitlab.com/transcend-hackathon`, public on gitlab.com) was read directly on both passes and is quoted exactly. Nothing in it changed between the passes; the latest change, on Oct 5, renamed one link in the onboarding issue template (see Updates).
 > - **The "full reveal" had not happened yet when this was checked.** Devpost said paths, prizes and judges would be revealed "live from the Transcend Bangalore keynote" on Oct 6 [S]. The Bangalore keynotes run 6:45 PM to 9:30 PM IST, which is 13:15 to 16:00 UTC, or 6:15 AM to 9:00 AM Pacific on Oct 6 [S]. Search excerpts show the Devpost page already listing paths, prizes and judges, but the keynote may add or change details (for example, name the Anthropic judges).
@@ -16,6 +17,27 @@ Compiled on 2026-10-06 (about 00:45 UTC) for Alex Velazquez (solo entrant, UC Be
 | **[D]** | Read directly from the primary source file (on gitlab.com). Quoted word for word. |
 | **[S]** | Search excerpt, unverified wording: text the web search tool returned for the named page, which could not be opened from here (usually Devpost). The live wording may differ. |
 | **[J]** | From the **June 2026** edition of the Official Rules (the earlier "GitLab Orbit" Transcend hackathon, which used the same URL), as returned by search. The search index still holds that version of [/rules](https://gitlab-transcend.devpost.com/rules). Shown only as the likely template. Not confirmed for Life After Code (unverified). |
+
+## Confirmed from the official pages (Oct 6, 2026)
+
+Later on Oct 6, Codex (working from a different network) read the October Official Rules, home, resources, dates and updates pages directly, and saved the exact text in [docs/codex/RULES_CHECK.md](codex/RULES_CHECK.md) with content hashes in [docs/codex/source-status.json](codex/source-status.json). That file is now the primary record for Devpost wording. Where it differs from the [S] and [J] text further down, it wins. The points that change or settle things:
+
+| Topic | Official wording (quoted in RULES_CHECK.md) | Effect on this file |
+|---|---|---|
+| Deadline | "Submission Period: October 5, 2026 (10:00 am UTC) - October 27, 2026 (1:00 pm UTC)" | Confirms 13:00 UTC. GitLab's 14:00 UTC is wrong for Devpost. |
+| Judging | "Judging Period: October 28, 2026 (10:00 am UTC) - November 14, 2026 (5:00 pm UTC)" | GitLab's guide says Nov 11; the rules say Nov 14. Rules win. |
+| Duo | "build a project using GitLab Duo Agent Platform that fits within one of three levels of autonomy"; Stage One checks that it "reasonably uses GitLab Duo Agent Platform" | Duo Agent Platform use is a pass/fail gate. |
+| Path A | "The focus is on how many post-code steps your agents handle in the DevSecOps lifecycle including but not limited to: code review, security scanning, testing, compliance, deployment, monitoring, etc." | Breadth of post-code steps is the stated focus of Path A. |
+| Criteria | Five "equally-weighted" criteria: Technological Implementation, Design, Potential Impact, Innovation/Idea, Presentation | 20% each. Tie-breaks go criterion by criterion in that order. |
+| Google Cloud | "A maximum of 0.2 points will be added." Final score 1 to 5.2. The deployment code must be in the public repo and the live project public | Confirms the bonus. |
+| Video | "should be less than three (3) minutes. Judges are not required to watch beyond three minutes"; "made publicly visible on YouTube" | Aim for about 2:40, set to Public. |
+| Repo | Public GitLab repo, MIT licence file visible in About; "The project's CI/CD pipeline history must be visible and show the automation running." | Confirms. |
+| Judging without testing | "Judges are not required to test the Project and may choose to judge based solely on the text description, images, and video" | The video and write-up carry the score. |
+| Prize limit | "Each Project can win one (1) Prize from either Path A or Path B and one (1) Special Prize." | Answers the open question: at most one autonomy prize plus one special prize. |
+| Most Creative | "The Project from either Path which scores highest in the Innovation/Idea judging criteria" | Most Creative is simply the top Innovation score. |
+| Most Stages Covered | "The Projects from each Path which touch the most DevSecOps lifecycle steps ... in the most creative way." | One per path. |
+| After the deadline | FAQ: "leave everything alone until winners are announced. That includes your submission form, your code repository, your video" | Freeze the repo from Oct 27 to about Nov 16; keep building only in a fork. |
+| Staying live | FAQ: if the project goes down "you are not disqualified. But you may score lower" | Keep Cloud Run up until Nov 16. |
 
 ## What this means for us
 
