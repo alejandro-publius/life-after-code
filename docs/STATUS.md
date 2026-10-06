@@ -1,19 +1,25 @@
 # Status
 
-Last updated: 2026-10-06, about 01:50 UTC (session 1).
+Last updated: 2026-10-06, about 04:30 UTC (session 1).
 
 ## Progress
 
 | Part | File | State |
 |---|---|---|
-| Rules | docs/RULES.md | done, with open questions (Devpost blocked) |
-| 1. Past winners | docs/PAST_WINNERS.md | research notes in docs/research/winners/, write-up pending |
-| 2. Patterns | docs/PATTERNS.md | pending |
-| 3. Current field | docs/FIELD.md | notes in docs/research/field/, write-up pending |
-| 4. Sponsors | docs/SPONSORS.md | notes in progress in docs/research/sponsors/ |
-| 5. Ideas | docs/IDEAS.md | not started |
-| 6. Build and plan | code, docs/PLAN.md | not started (Codex is building deploy/ on branch codex/deploy-skeleton) |
-| Finish | docs/MORNING.md | not started |
+| Rules | docs/RULES.md | done; Codex checked the official pages directly ([RULES_CHECK.md](codex/RULES_CHECK.md)) |
+| 1. Past winners | docs/PAST_WINNERS.md | done: 102 winners across 15 events |
+| 2. Patterns | docs/PATTERNS.md | done: counts, anti-patterns, ten rules |
+| 3. Current field | docs/FIELD.md | done |
+| 4. Sponsors | docs/SPONSORS.md | done |
+| 5. Ideas | docs/IDEAS.md | done: 74 concepts, 57 scored, five briefs, Night Orders chosen |
+| 6. Build and plan | code, CI, docs/PLAN.md | first complete workflow done offline: decision code and tests, dusk drafter, demo night, morning countersign, three Duo flows, CI. Codex's keyless deploy merged. In progress: the relay service and the demo shop. |
+| Finish | docs/MORNING.md | done |
+
+## What has not run yet
+
+- Nothing has run on GitLab.com or Google Cloud. The GitLab workspace and the Google project need Alex (steps in [MORNING.md](MORNING.md)).
+- The dusk drafter has only run on its recorded answer (no API key in this session).
+- The day-one test of the night start ([PLAN.md](PLAN.md), decision D1) is the next real milestone.
 
 ## Blocked websites
 
