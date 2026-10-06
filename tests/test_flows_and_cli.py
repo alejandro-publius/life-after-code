@@ -17,7 +17,7 @@ def test_every_flow_passes_gitlab_schema_and_tools():
 
 
 def test_flow_validator_catches_a_long_dash(tmp_path):
-    text = (REPO / "flows" / "watch.yml").read_text().replace("You keep watch", "You keep watch —")
+    text = (REPO / "flows" / "watch.yml").read_text().replace("You keep watch", "You keep watch " + chr(0x2014))
     bad = tmp_path / "bad.yml"
     bad.write_text(text, encoding="utf-8")
     assert any("non-ASCII" in p for p in validate.check(bad))
