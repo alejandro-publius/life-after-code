@@ -1,6 +1,6 @@
 # C37 Forget Me: build brief and skeptical review
 
-Written 2026-10-06 for Alex Velazquez's solo Path A entry in Life After Code. Inputs: [CANDIDATES.md](CANDIDATES.md); the write-up in [lens_people_rituals.md](lens_people_rituals.md) (1.10) and its sibling Log Leak in [lens_oncall_inversion.md](lens_oncall_inversion.md) (2.8); the C37 notes in [scores_anthropic_judge.json](scores_anthropic_judge.json), [scores_gitlab_judge.json](scores_gitlab_judge.json), [scores_google_judge.json](scores_google_judge.json) and [scores_engineer.json](scores_engineer.json); [IDEATION_BRIEF.md](../IDEATION_BRIEF.md); [SPONSORS.md](../../SPONSORS.md) sections 1, 5 and 6; [RULES_CHECK.md](../../codex/RULES_CHECK.md); [gitlab_guide_and_reference.md](../gitlab_guide_and_reference.md); [FIELD.md](../../FIELD.md); [deploy/README.md](../../../deploy/README.md). Five web searches were used (section 11). The FTC, MediaPost, Willkie, USENIX, Meta, BigID, Justia and truto pages are blocked from this session, so facts from them come from search excerpts or from the coordinator, and say so.
+Written 2026-10-06 for Alex Velazquez's solo Path A entry in Life After Code. Inputs: [CANDIDATES.md](CANDIDATES.md); the write-up in [lens_people_rituals.md](lens_people_rituals.md) (1.10) and its sibling Log Leak in [lens_oncall_inversion.md](lens_oncall_inversion.md) (2.8); the C37 notes in [scores_anthropic_judge.json](scores_anthropic_judge.json), [scores_gitlab_judge.json](scores_gitlab_judge.json), [scores_google_judge.json](scores_google_judge.json) and [scores_engineer.json](scores_engineer.json); [IDEATION_BRIEF.md](../IDEATION_BRIEF.md); [SPONSORS.md](../../SPONSORS.md) sections 1, 5 and 6; [RULES_CHECK.md](../../codex/RULES_CHECK.md); [gitlab_guide_and_reference.md](../gitlab_guide_and_reference.md); [FIELD.md](../../FIELD.md); [deploy/README.md](../../../deploy/README.md). Five web searches were used (section 11). Sections A to E were added at Alex's request after the first draft; they also draw on [PAST_WINNERS.md](../../PAST_WINNERS.md), [feb_winners.md](../../codex/web/feb_winners.md) and Compliance Sentinel's repository, read through the public GitLab API on 2026-10-06. The FTC, MediaPost, Willkie, USENIX, Meta, BigID, Justia and truto pages are blocked from this session, so facts from them come from search excerpts or from the coordinator, and say so.
 
 ## 1. Name and one-line pitch
 
@@ -33,7 +33,7 @@ Dana (persona) pressed "Delete account" on her son's homework app and was told t
 | Who decides the verdict | The model's reading sets the label | Code: present before deletion, absent after; the model never says whether anything is deleted |
 | How it blocks | A label on the MR | `needs: forget_me` leaves the production job unable to run |
 | Who decides the fix | A person mentions its Auto Remediator with "auto-fix" on an issue, and the agent writes the fix branch and MR | The agent drafts two options; the privacy lead picks one at a `HumanInputComponent` before any fix is written; a person merges; the next pipeline re-runs the probe |
-| After release | Nothing; it reviews MRs and audits on request | A new canary goes through production every night |
+| After release | It audits the repository's code on request (its diagram also shows a scheduled audit); it never touches the running app or its data | A new canary goes through production every night |
 
 Other near winners, one line each. **DELTA Cyber Reasoning** (Sustainable Design bonus) has the same loop shape: it reads changed C code, builds a fuzz harness, runs it and commits patches to the MR branch ([repo](https://gitlab.com/gitlab-community/community-projects/2026-02-ai-hackathon/35701012), [PAST_WINNERS.md](../../PAST_WINNERS.md)); but its test runs inside the flow on the MR, and its patches land without a person choosing first. **SecurityMonkey** (Honorable Mention) shares the planted-item mechanism ("injects known vulnerabilities into a test branch and scores how well your security scanners catch them", [PAST_WINNERS.md](../../PAST_WINNERS.md)), but it plants flaws in code, while Forget Me plants a person in data. **TFGuardian** (Sustainable Design bonus) reviews Terraform with five static reviewers; it shares only a keyless Cloud Run deployment and a human decision on risky changes ([repo](https://gitlab.com/gitlab-community/community-projects/2026-02-ai-hackathon/159555)).
 
@@ -308,7 +308,7 @@ Count: **9 of 9 touched, 6 load-bearing** (create, verify, secure, release, moni
 - Change the deletion code before a person's choice, merge, deploy, run the probe, change the promise, or reclassify a store as `outside` or `never` unless a person merges that change.
 - Draft a third fix for the same gap.
 
-**Code decides:** the marker and its variants; that the canary reached each `kept` store before deletion (else gray, which blocks); that it is gone within the window (else red, which blocks); that `never` stores never held it; that no listed or listable store still holds it (code scans every top-level Firestore collection and every object under the listed bucket prefixes, so even a copy nobody mapped turns red); that the store list fits its schema; that retention fits the promise; and, through `needs: forget_me`, that production stays closed.
+**Code decides:** the marker and its variants; that the canary reached each `kept` store before deletion (else gray, which blocks); that it is gone within the window (else red, which blocks); that `never` stores never held it; that no listed or listable store still holds it (code scans every top-level Firestore collection and every object under the listed bucket prefixes, so even a copy nobody mapped turns red); that every collection that exists is in the store list (otherwise "unmapped", which blocks until a person maps it); that the store list fits its schema; that retention fits the promise; and, through `needs: forget_me`, that production stays closed.
 
 **A person decides, and how:**
 1. The developer and a reviewer merge the feature MR, including the agent's store-list commit (GitLab MR review).
@@ -435,7 +435,7 @@ Alex's time: about 90 minutes in all (Google setup, creating the flows and trigg
 
 **Yes, keep it in the top three, as third.** It trails C01 Night Orders (88.6) and C13 No Mouse (85.6) on the 30-second moment ([score_table.md](score_table.md)), but it depends least on unverified platform behavior: no flow start at night (C01's open question), no browser inside the flow sandbox (C13's), only human-started triggers, standard flow tools and the CI-to-Google path the deploy skeleton already uses. That makes it the safest third and a ready fallback if either leader fails its day-one test.
 
-Suggested adjustment: **+1.4, from 80.0 to about 81.4**, if the design above is adopted (Robin's before-and-after check, the transform menu, the nine-stage loop, the gentler story).
+Suggested adjustment: **+1.7, from 80.0 to about 81.7**, if the design above is adopted (Robin's before-and-after check, the transform menu, the nine-stage loop, the gentler story, the cold open).
 
 | Dimension | Now | Suggested | Reason |
 |---|---|---|---|
@@ -449,7 +449,7 @@ Suggested adjustment: **+1.4, from 80.0 to about 81.4**, if the design above is 
 | Human | 8.0 | 8.0 | Gentler story with a documented precedent; equal if told well |
 | Novelty | 8.7 | 8.0 | Prior art found: BigID, the patent, DELF, HoundDog |
 | Sponsors | 7.7 | 8.0 | Duo flows on Claude, five Google products, optional Claude Code |
-| Wow | 7.3 | 7.0 | The moment lands near 1:15, not in the first 30 seconds |
+| Wow | 7.3 | 7.3 | The cold open puts the red row on screen at 0:16, after 16 seconds of setup (section D) |
 | Feasibility | 7 | 7 | More Google setup than average, but three fallbacks |
 
-Criteria mean 7.8, so 3 x 7.8 + 7.0 + 6.0 + 8.0 + 8.0 + 8.0 + 7.0 + 2 x 7 = 81.4. If the day-one test fails and only the local fallback works, take off about 3 to 4 points (Tech, Sponsors, Stages, the bonus), which puts it level with C27 Writeback (77.0).
+Criteria mean 7.8, so 3 x 7.8 + 7.0 + 6.0 + 8.0 + 8.0 + 8.0 + 7.3 + 2 x 7 = 81.7. If the day-one test fails and only the local fallback works, take off about 3 to 4 points (Tech, Sponsors, Stages, the bonus), which puts it level with C27 Writeback (77.0).

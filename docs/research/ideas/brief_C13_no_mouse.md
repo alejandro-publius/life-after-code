@@ -47,7 +47,7 @@ No accessibility tester won any of the events in [PAST_WINNERS.md](../../PAST_WI
 | `path_writer` | AgentComponent | `create_commit`, `create_merge_request` | Opens an MR that records the new path, which becomes the replay test |
 | `investigator` | AgentComponent | `gitlab_api_get` (Deployments API: MRs in this deployment), `list_merge_request_diffs`, `get_commit`, `read_file` | Finds the line that removed the name |
 | `issue_writer` | OneOffComponent | `create_issue` | One issue: the code's verdict and transcript, the audio link, the WCAG criterion, the MR that caused it |
-| `fix_writer` | AgentComponent | `read_file`, `create_commit`, `create_merge_request` | One fix MR with the smallest change and "Closes #N" |
+| `fix_writer` | AgentComponent | `read_file`, `create_commit`, `create_merge_request` | One draft fix MR with the smallest change and "Closes #N" (a person marking it ready starts round two) |
 
 **Routers:**
 
@@ -77,7 +77,7 @@ The browser always runs under code control, either inside the flow's own workloa
 
 - it passes GitLab's [flow_v2.json](https://gitlab.com/gitlab-org/gitlab/-/blob/master/app/validators/json_schemas/ai_catalog/flow_v2.json) with 0 errors (with the `yaml_definition` key GitLab adds itself);
 - every tool name is in the AI Catalog [tools.json](https://gitlab.com/components/ai-catalog/-/blob/main/schemas/component/tools.json);
-- it is ASCII only (dashes are corrupted in the editor) and 6,093 bytes, against a 40 KiB limit.
+- it is ASCII only (dashes are corrupted in the editor) and about 6.1 KB, against a 40 KiB limit.
 
 It has not run on GitLab. Two points are unverified:
 
@@ -239,8 +239,9 @@ prompts:
     prompt_template:
       system: |
         Make the smallest change that gives the control a name. Prefer visible text or a
-        native button over aria-label. One branch, one commit, one merge request that says
-        "Closes #N". Never touch journeys/, holds/ or .gitlab-ci.yml.
+        native button over aria-label. One branch, one commit, one draft merge request
+        (title starts with "Draft:") that says "Closes #N".
+        Never touch journeys/, holds/ or .gitlab-ci.yml.
       user: |
         Project {{project_id}}. Cause: {{cause}} Issue: {{issue}}
     params:
@@ -295,6 +296,8 @@ flow:
 - `image`: a walker image with Playwright, Chromium, `git` and `curl` (GitLab requires both in custom images), with or without SRT;
 - `setup_script`: in variant 2, it starts the browser service outside the sandbox;
 - `network_policy.allowed_domains`: the exact staging host, needed only in variant 1.
+
+The three variants are defined in section 10.
 
 ## D. What judges see in the first 30 seconds
 
@@ -420,7 +423,7 @@ There are three kinds of model role and one walker, and code makes every decisio
 | Investigator (model) | Choose which MRs, diffs and files to read, and name the cause | Write anything |
 | Writers (`issue_writer`, `fix_writer`, `path_writer`) | Word the issue, choose the smallest fix, write the MR description | Change the verdict or transcript (code quotes them); touch `journeys/`, `holds/` or the CI file; merge, approve, deploy or lift a hold; contact anyone outside the project |
 
-The "reach the shop only through the walker" rule is a hard wall in variant 2 and in the CI fallback, where the model's sandbox cannot reach staging at all. In variant 1 it is a prompt rule plus a log check, and the wall that matters is the code replay in plain CI before production.
+The "reach the shop only through the walker" rule is a hard wall in variant 2 and in the CI fallback, where the model cannot reach staging at all (variants are defined in section 10). In variants 1 and 3 it is a prompt rule plus a log check, and the wall that matters is the code replay in plain CI before production.
 
 **Code decides:**
 
@@ -502,9 +505,15 @@ The official levels ([RULES_CHECK.md](../../codex/RULES_CHECK.md)):
 - **The platform:** a browser that the flow can drive and that can reach staging. That involves a custom image, the sandbox, a network allowlist on the default branch, and possibly strict mode, which ignores project allowlists ([sandbox doc source](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/user/duo_agent_platform/environment_sandbox.md)).
 - **The model:** whether text alone is enough to finish the clean checkout every time, without false holds (section E).
 
+**Where the browser can run inside the flow** (three variants, tried in this order):
+
+- **Variant 1:** inside the sandbox, launched by the walker CLI, with the exact staging host in `allowed_domains` and Playwright pointed at the sandbox's proxy.
+- **Variant 2:** outside the sandbox, as a local browser service started by `setup_script` (which runs outside the sandbox). The sandboxed listener reaches only that service and cannot reach staging itself.
+- **Variant 3:** a custom image without the sandbox runtime. GitLab says that without SRT "your flow can access any domain reachable from the runner and the full file system" ([images doc source](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/user/duo_agent_platform/flows/execution/images.md)), so only our code limits the browser to the staging host.
+
 **Fallbacks, in order:**
 
-1. **Same walker, browser outside the sandbox.** Start the browser from `setup_script`, which runs outside the sandbox, or use a custom image without the sandbox runtime. GitLab says that without SRT "your flow can access any domain reachable from the runner and the full file system" ([images doc source](https://gitlab.com/gitlab-org/gitlab/-/raw/master/doc/user/duo_agent_platform/flows/execution/images.md)), so our code must then limit the browser to the staging host.
+1. **Same walker, browser outside the sandbox:** variant 2, then variant 3, if variant 1 fails.
 2. **Listener in a CI job, with Claude on Google Cloud.** Code owns the loop and the browser, and the model gets only the action menu. The flow drops `listener` and reads the `listen-staging` log; it keeps the investigator and writers. Claude still chooses every key; Duo does the finding and fixing.
 3. **Last resort: no model in the walk.** A scripted replay produces the spoken transcript and audio (the Spoken Diff form), and the flow reports. This keeps the scene but costs about 6 points (section 13).
 
@@ -516,7 +525,7 @@ The official levels ([RULES_CHECK.md](../../codex/RULES_CHECK.md)):
 2. Create a one-component custom flow, `nomouse-probe`, with toolset `[run_command]` and the prompt: "Run `python -m nomouse probe --url <staging URL> --tabs 5` and paste its output exactly."
 3. Start it by mentioning the flow's service account in an issue comment (a human action).
 4. It passes if, within 5 minutes, the session's final answer shows the browser version, the page title and five announcements from five presses of Tab, and the job log says whether the sandbox was active. Record the seconds per step.
-5. If it fails inside the sandbox, rerun with the browser started from `setup_script` as a local service (fallback 1), then with an image that has no SRT. If all of these fail, run fallback 2's own check: one CI job with `id_tokens` gets a Google token through WIF and receives one valid action from Claude on Agent Platform.
+5. That first run is variant 1. If it fails, rerun with variant 2, then variant 3. If all three fail, run fallback 2's own check: one CI job with `id_tokens` gets a Google token through WIF and receives one valid action from Claude on Agent Platform.
 6. In the same session, check the DeterministicStepComponent: does `run_command` accept `program` and `args`, and does a non-zero exit route as `failed`?
 
 Decide by Oct 8: the first passing variant decides where the listener lives.
