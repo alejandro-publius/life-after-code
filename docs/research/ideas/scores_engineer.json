@@ -1,0 +1,503 @@
+{
+  "judge": "engineer",
+  "scores": {
+    "C01": {
+      "feasibility": 7,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Starting the night flow with nobody awake: the Flows API call from a Cloud Run relay with Alex's personal token is unverified for custom flows in the hackathon group.",
+      "fallback": "Use the merged Standing Orders form: the flow drafts the orders by day (assign trigger) and writes the watch log in the morning (mention), while at night plain code on Cloud Run checks the merged orders against the app's real metrics and runs only the signed action, so no model has to start at night.",
+      "mvd": "Alex assigns the watch issue, the flow opens a night-orders MR built from the day's real merges and he merges it; a planted fault trips order 2 and code turns the flag off with no page, a second fault that matches no order pushes a three-line page to his phone, and the morning log lands on the issue."
+    },
+    "C02": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Every alert must start the flow with no human action, which rests on the Flows API from a relay (unverified); GitLab alert integrations and on-call paging also need Maintainer setup.",
+      "fallback": "The relay computes the vital signs and the tag in code at night and pushes red pages itself with deploy and flag facts it reads deterministically; the flow runs in the morning on a person's mention to gather history and write the hand-off, and the video says the model did not run at night.",
+      "mvd": "Three planted alerts hit the live Cloud Run app in a labelled night window: code tags two green and yellow and the phone stays dark, the third crosses red and pages with the last deploy and flag change, and at 07:30 the flow writes the hand-off for each."
+    },
+    "C03": {
+      "feasibility": 4,
+      "trap": true,
+      "trap_reason": "The tested-fix menu needs several Cloud Run revisions and request replays within minutes of a page, which only works with a bug planted to replay cleanly, so it will likely look staged or run late.",
+      "blocker": "Applying each candidate fix to a no-traffic Cloud Run revision: Google tokens go only to pipelines on the protected default branch, and a flow cannot start pipelines or reach Google itself.",
+      "fallback": "Two prebuilt mitigation jobs on the main pipeline that a person plays; each deploys a tagged revision, replays recorded demo requests and prints error rates that the flow reads from the job log to rank the options.",
+      "mvd": "Alex acknowledges a planted pricing incident; two replay jobs show 'flag off: errors 37% to 0%' and 'previous revision: 0% but undoes two fixes', the flow posts the ranked menu, and he runs option A on production while the error graph falls."
+    },
+    "C04": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Customer emails become Service Desk issues created by a bot, which cannot fire a flow trigger, and enabling Service Desk may need Maintainer.",
+      "fallback": "A support person files the tickets as labelled demo issues (work item created, a human action); the flow clusters them, writes a synthetic sign-in check, runs it against the real Cloud Run URL, and code decides whether it reproduced.",
+      "mvd": "With /health green and a planted bug breaking /auth/callback, three labelled demo tickets arrive; the flow decides they are one problem, its synthetic check fails against production, it pages Alex with 'monitors green, 3 customers cannot sign in, reproduced', and opens the MR that adds the check."
+    },
+    "C05": {
+      "feasibility": 6,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Reading the history of temporary changes: flag history, alert snoozes and Cloud Run scaling are out of the flow token's reach, and audit events may need a higher role.",
+      "fallback": "A keyless CI job on main snapshots live state (flags, Cloud Run scaling, alert snoozes) into its job log; the flow pairs it with the incident timeline notes, and code checks whether the fix commit is already in the last production release tag.",
+      "mvd": "After a planted incident in which Alex turned a flag off, raised max instances and wrote 'silence the disk alert for an hour', he assigns the resolved incident to the flow, which lists the three leftovers with before and now state, confirms the fix is live, and opens one undo MR he merges."
+    },
+    "C06": {
+      "feasibility": 5,
+      "trap": true,
+      "trap_reason": "The proof is a replay over 30 days of alerts and metrics that cannot exist by Oct 24, so the headline number comes from history we generate ourselves.",
+      "blocker": "Weeks of real metric and paging history; the project and the Cloud Run app only exist from Oct 23.",
+      "fallback": "Run the real replay code on a clearly labelled synthetic month, in the Thymus form (an MR that changes an alert rule starts the replay), and apply the chosen rule to Cloud Monitoring from a keyless CI job.",
+      "mvd": "Alex opens an MR that changes a rule in monitoring/alerts.yaml; CI replays old and new rules over a labelled synthetic month and the MR shows 7 night pages under the old rule and 0 under the new one, with the one real outage still caught."
+    },
+    "C07": {
+      "feasibility": 7,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Arming the fault on the staging service: that needs a deploy from the protected default branch with keyless Google access, or a feature flag write.",
+      "fallback": "A GitLab feature flag scoped to staging that the lead turns on in the UI arms the drill (a person's action), and the app enforces the 45-minute expiry from the merged drill plan in code; hints and debrief need only mentions.",
+      "mvd": "Alex assigns a 'Drill for Kofi' issue, the flow picks a fault tied to a real recent MR and opens a drill plan MR; once armed, staging starts failing with a hard 45-minute expiry, the trainee asks for hints by mention and fixes it, and the flow posts a short debrief and a runbook fix MR."
+    },
+    "C08": {
+      "feasibility": 3,
+      "trap": true,
+      "trap_reason": "It needs a second real teammate in the project, their time zone and busy status read from inside a flow, a night start and an outside timer, and adding members needs Maintainer.",
+      "blocker": "A second real project member whose reply counts as the accept; adding members needs Maintainer, and reading profile time zone and status from a flow is unverified.",
+      "fallback": "A labelled team clock file in the repo for working hours, a second account commenting on the public project, Alex's mention to process the reply, and a Cloud Tasks timer that pages the on-call person if nobody accepts.",
+      "mvd": "A planted low-severity alert opens an incident; the flow picks the reviewer of the related change whose labelled clock says daytime and asks them on the incident, and their 'on it' reassigns the incident while the on-call phone stays dark."
+    },
+    "C09": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Unattended steps: a person-owned pipeline schedule must start each step and wake the flow, schedule pipelines are not verified to count as human, and flag writes from CI need an API token.",
+      "fallback": "A Cloud Scheduler job on Cloud Run runs the daylight and criteria checks in code and moves the GitLab flag with Alex's token from Secret Manager; the flow writes the plan by day (assign) and the notes when a person mentions it; the clock is compressed and labelled.",
+      "mvd": "Alex assigns the rollout issue and merges the flow's plan; code moves the real flag from 5 to 25 percent inside the labelled daylight window, holds when it closes and posts the overnight note with the off switch, and stops on a planted red signal to ask both owners."
+    },
+    "C10": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "A second real person to play the expert, and reading her GitLab status and out-of-office message from inside the flow (unverified).",
+      "fallback": "A labelled release calendar file says who is away; a second account (or Alex, labelled as the expert) answers in the thread; Alex mentions the flow to process each answer; the card is committed as a file that the deploy job checks.",
+      "mvd": "Alex assigns the release issue; the flow finds the migration only one person touched and that she is away during the window, asks her three questions, pushes back once when an answer contradicts the diff, and posts the Plane Mode card that later tops a planted 02:00 incident."
+    },
+    "C11": {
+      "feasibility": 6,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "A Postgres service container in CI on hosted runners and enough CI minutes to run the previous release's tests against the new schema on every release MR.",
+      "fallback": "Plain SQL migrations on SQLite instead of an ORM, one rehearsed migration, and the ticket recorded in the MR and in a release created with the job token.",
+      "mvd": "Alex marks ready a release MR whose migration drops a column; CI runs the last release's tests on the new schema (14 of 40 fail), the release shows a red one-way ticket with the line, the flow's expand-and-contract split MR is merged, and the ticket turns green."
+    },
+    "C12": {
+      "feasibility": 6,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "The reporter loop through Service Desk email (Maintainer setup and outgoing mail) and writing the flag's user list, which needs an API token.",
+      "fallback": "Tickets are labelled demo issues; Alex applies the proposed user list in the GitLab flag UI (a person's action); the reporter sees the fix and a plain in-app note when they sign in to the real Cloud Run app as a labelled demo user, and their 'works' click is posted back to the ticket.",
+      "mvd": "Alex merges a fix behind a flag; the flow names the three demo reporters (one never linked), Alex replies go and puts them on the user list, one demo customer signs in, sees the fix first with a plain note and clicks 'works', and the reply reaches the ticket before Alex widens to 50 percent."
+    },
+    "C13": {
+      "feasibility": 7,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "A browser inside the flow sandbox: a Playwright image set in agent-config.yml on the default branch and network access to the staging host (strict mode unverified).",
+      "fallback": "A CI job runs the keyboard-only walk with Playwright and code renders the spoken transcript and audio (the Spoken Diff form); the flow, started by the pipeline event, reads the transcript, names the barrier and opens the one-line fix MR.",
+      "mvd": "After a staging deploy with a planted unlabelled Pay button, the keyboard-only check cannot finish the purchase, the transcript and audio say 'button, button, button', the production job stays manual, and the aria-label fix MR makes the replay say 'Pay now, button'."
+    },
+    "C14": {
+      "feasibility": 8,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Fetching changelogs and packages from outside GitLab inside the flow sandbox, which needs network_policy domains that strict mode would ignore.",
+      "fallback": "A CI job with full network downloads both versions and their changelogs into a job log or artifact the flow reads; the proof still comes from CI running the new tests on the old and new lockfiles.",
+      "mvd": "Alex assigns the flow as reviewer on a real dependency bump whose changelog changes a behavior our code uses (for example PyYAML 6.0 making yaml.load require a Loader); it commits a pinning test that passes on the old lockfile and fails on the new one in CI, then posts the verdict and a fix commit that turns the pipeline green."
+    },
+    "C15": {
+      "feasibility": 4,
+      "trap": true,
+      "trap_reason": "Cleanup policies and protected tags need Maintainer, our images live in Google Artifact Registry rather than the GitLab registry, and the human moment is a rollback that simply works.",
+      "blocker": "Registry cleanup policies and protected tags need Maintainer, and the deploy skeleton pushes images to Artifact Registry, where CI only has Reader.",
+      "fallback": "A person-started CI job computes the keep set for Artifact Registry, re-tags the lifeboats with a writer role added at setup, dry-runs our own cleanup, and the rollback job uses the lifeboat tag.",
+      "mvd": "A CI job lists the images a cleanup rule would delete, the flow adds keeps for the revision serving traffic and a version a support issue mentions, code re-tags them as lifeboats, and the rollback job then finds the kept image."
+    },
+    "C16": {
+      "feasibility": 6,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Wiring the demo app to GitLab feature flags (Unleash client) and creating the flag per environment, which through the API needs a token.",
+      "fallback": "Alex creates the flag in the GitLab UI from the name the flow proposes, CI proves the flag-off path with an environment override, and at 03:00 a person flips the flag in the UI.",
+      "mvd": "Alex marks ready an MR that adds an outside call to a recommendations widget; the flow commits a flag check with a safe default, an alert rule and a runbook line, CI shows the flag-off path passes, and after merge a planted timeout opens an incident whose first line is the kill switch Alex flips while latency drops."
+    },
+    "C17": {
+      "feasibility": 6,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Reading production logs: the flow cannot reach Cloud Logging without id_tokens and allowed domains (unverified), and the cleanup needs logging config rights added at setup.",
+      "fallback": "A keyless CI job on main queries Cloud Logging, runs the deterministic detector and prints only masked counts and samples to its log, which the flow reads; the cleanup stays a manual job with an exclusion filter.",
+      "mvd": "A real deploy adds a retry log line that prints demo customers' emails; the flow picks that line from the diff, the CI query counts the masked hits since the deploy, and the flow opens a confidential issue with a redaction MR whose test proves the line is clean."
+    },
+    "C18": {
+      "feasibility": 7,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Reading the flag's cohort (user list or rollout percentage) in code from inside the flow, which needs the GitLab Unleash client API or a token.",
+      "fallback": "Mirror the cohort as a user list in a repo file that code reads, keep tickets as labelled demo issues, and let the owner move the flag in the GitLab UI.",
+      "mvd": "Alex asks '@canary-voices ready for 25%?' on the rollout issue; the flow finds three labelled login complaints, code finds two of them inside the 5% cohort of the real GitLab flag (about 0.15 expected) and recommends hold with the tickets quoted, and Alex holds."
+    },
+    "C19": {
+      "feasibility": 3,
+      "trap": true,
+      "trap_reason": "Its product is raising and lowering GitLab's own controls (deployment approvals, deploy freezes), which need Maintainer and Premium setup, and breaking the fever needs days of clean history.",
+      "blocker": "Protected environment approval rules and deploy freezes, which need Maintainer.",
+      "fallback": "A gate job in our own CI reads controls.yml and enforces the raised level itself, and a labelled clock compresses the clean days.",
+      "mvd": "Alex declares an incident, the flow opens a fever MR to controls.yml, after merge the next deploy waits for two approvals with a note saying why, and a labelled clean-day check returns it to one approval."
+    },
+    "C20": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "The work item status changed trigger on incidents (unverified), and the later remodel step needs a start that nobody performs (a daily schedule).",
+      "fallback": "Start by assignment when the incident is mitigated, and start the remodel with a person's mention after a labelled short quiet window that code checks.",
+      "mvd": "During a planted slow-query incident Alex commits 'temporary: raise DB timeout to 30s'; the flow records it as a clot, and after the labelled quiet window it opens a draft MR that restores 5 seconds and adds the missing index, green pipeline, assigned to him with 'you said you would revisit'."
+    },
+    "C21": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Reading flag state and last-change dates through the Feature Flags API, which the flow token may not reach and which needs a token from CI.",
+      "fallback": "Mirror flags in a repo flags.yml with owners and dates, use a labelled short idle window, and keep the strong part real: the removal MR that deletes the dead branch, with tests and a reference check.",
+      "mvd": "Alex assigns a flag review issue; code finds two flags with no survival signal in a labelled short window, the flow asks the owner for one reason to live, a 'keep, ACME in November' reply saves one, and a green MR deletes the other flag's checks and dead branch."
+    },
+    "C22": {
+      "feasibility": 2,
+      "trap": true,
+      "trap_reason": "It needs a year of incidents with metrics to build treated and untreated groups; generated history makes the statistics circular.",
+      "blocker": "Many past incidents with timeline events and metric series, which a project created on Oct 23 cannot have.",
+      "fallback": "Run the comparison on a clearly labelled synthetic archive and say so on screen; the honest claim shrinks to 'this is how it would read your history'.",
+      "mvd": "On a labelled synthetic archive of 11 queue-lag incidents, code shows the lag was already falling before 9 of 11 restarts, and the flow opens a runbook MR 'wait 15 minutes, restart only if still rising'."
+    },
+    "C23": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "An upstream that fixes the bug on cue: a real maintainer will not, so the upstream has to be our own labelled stand-in project, and posting to another project from the flow is unverified.",
+      "fallback": "Create the stand-in library in the hackathon subgroup, labelled, publish its fixed version to the GitLab package registry from CI with the job token, and have a person post the drafted report.",
+      "mvd": "Alex mentions the flow on an upstream-bug issue; it builds a 12-line reproduction that CI proves fails on the pinned version, drafts the report a person posts, and after the stand-in library publishes a fix a second mention opens the MR that bumps it and deletes the workaround."
+    },
+    "C24": {
+      "feasibility": 6,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "The flow reading retried jobs and their logs across pipelines; pipeline events fire for every pipeline, so the flow must stop fast when nothing was retried.",
+      "fallback": "Use real retries Alex makes on a test that fails at random, have Alex mention the flow with the pipeline link if the event does not fire, and say on screen that the counts cover two days and one person.",
+      "mvd": "After Alex retries a randomly failing checkout test eleven times, a green-after-retry pipeline starts the flow; code confirms 11 fail-then-pass runs on the same commits, the flow tells him 'it is flaky, it is not you' and opens a quarantine MR with an end date."
+    },
+    "C25": {
+      "feasibility": 4,
+      "trap": true,
+      "trap_reason": "It only works on top of another agent that people already corrected during a real day, so it doubles the build, and on its own it has no user value to show.",
+      "blocker": "A nightly start with nobody awake (pipeline schedule or Flows API), plus a day of real corrections to another agent.",
+      "fallback": "Ship it as a small add-on to the chosen main concept: a person assigns the replay issue in the morning, and the corrections are the real ones Alex made to the main agent on Oct 23.",
+      "mvd": "After Alex corrects the main agent three times with 'never during the nightly batch', he assigns the replay issue and the flow opens 'What I learned from you yesterday', one skill line with links to his three comments, which he merges."
+    },
+    "C26": {
+      "feasibility": 3,
+      "trap": true,
+      "trap_reason": "The hand-over needs two real project members and Maintainer-level reads (protected environments, escalation policies, other people's triggers); with one builder every item belongs to Alex.",
+      "blocker": "Reading protected environments, approval rules and escalation policies, and a second member taking ownership of a schedule; both need Maintainer.",
+      "fallback": "Limit the search to what a Developer can read (pipeline schedules and owners, CODEOWNERS, runbooks, assigned items) and let a labelled second account act as successor where membership allows.",
+      "mvd": "Alex assigns a hand-over issue for a departing teammate; the flow lists the pipeline schedule that runs as them, the CODEOWNERS lines naming only them and runbook lines that say 'ask Grace', each confirmed by API, and the successor takes ownership so the item turns green."
+    },
+    "C27": {
+      "feasibility": 7,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Keyless Google access from the deploy job to read the live Cloud Run config and the Cloud Audit Logs entry, which needs a log viewer role added at setup and the protected default branch.",
+      "fallback": "Detect drift from the Cloud Run describe output alone (the deploy account can already read its service) and take the who and when from the incident timeline note; the deploy guard and the adopting MR stay the same.",
+      "mvd": "During a planted crash Alex raises Cloud Run memory to 1Gi by hand in the console; the next routine deploy stops with 'deploying now would undo a manual change made at 02:10', the failed pipeline starts the flow, which opens an MR adopting 1Gi in his name, and after he merges the deploy runs with the fix inside."
+    },
+    "C28": {
+      "feasibility": 8,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "The pipeline events trigger must fire when the main pipeline starts so the question is posted before the person plays the manual production job; there is no trigger for 'a deployment is waiting'.",
+      "fallback": "The approver mentions the flow on the release MR before playing the job; code takes the diff from the last production release tag (created by the deploy job with the job token) and checks each citation in the repo clone.",
+      "mvd": "A release with a planted 5-minute session timeout reaches the manual production job; the flow posts one cited question ('config/session.py line 12, from !88: users logged out after 5 minutes, intended?'), Alex answers no and does not play the job, and the fix MR sets it back to 30."
+    },
+    "C29": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Starting the flow from a night alert with no human action (Flows API from a relay, unverified).",
+      "fallback": "At the 'alone' level, code on Cloud Run carries out the permitted action on the alert without the model, and the flow writes the 08:00 note on a mention; the record comes from six labelled staged incidents with real 'go' approvals on Oct 23.",
+      "mvd": "The ledger shows six real approved rollbacks, the flow's permit MR is merged, a planted fault in a labelled night window is rolled back with no approval and noted at 08:00, and a staged bad outcome drops the permit back to 'ask' on its own."
+    },
+    "C30": {
+      "feasibility": 4,
+      "trap": true,
+      "trap_reason": "'A week after release' cannot happen by Oct 24, the usage numbers would come from generated traffic, and it reads close to the excluded Proof of Fix.",
+      "blocker": "A daily pipeline schedule to start the postcards that are due (not verified as a human start), and a week of real usage telemetry.",
+      "fallback": "A person assigns the postcard issue after a labelled compressed window, and a keyless CI job counts usage from Cloud Logging over labelled synthetic traffic.",
+      "mvd": "Alex assigns the postcard for a merged CSV export feature; a CI job counts exports and failures from labelled synthetic traffic, the flow posts a postcard with three numbers and one demo quote, he replies yes, and a flag-removal MR appears."
+    },
+    "C31": {
+      "feasibility": 3,
+      "trap": true,
+      "trap_reason": "It needs a quarter of approvals by several people and audit events that may need Owner access; on a new one-person project the honest answer is trivial, and evidence for auditors sits next to the crowded attestation space.",
+      "blocker": "Audit events and approval data across deployments, which may need Maintainer or Owner, plus history that does not exist yet.",
+      "fallback": "Answer a narrower question from records that exist (production deployments since Oct 23 and their MRs), computed by a CI job, with a person approving the reply.",
+      "mvd": "Alex files an auditor question as an issue and assigns the flow; a CI job computes from real deployments and MRs that 5 of 5 production changes went through an MR, with a link per record in a CSV, and Alex approves the drafted reply."
+    },
+    "C32": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Counting calls per caller from production logs in CI (keyless Cloud Logging access added at setup) and opening issues or MRs in consumer projects.",
+      "fallback": "Three labelled demo callers (Cloud Scheduler jobs with distinct keys) living in projects we own in the subgroup, with the escrow window compressed and labelled.",
+      "mvd": "Alex assigns the sunset issue for /v1/orders; a CI log query shows three labelled callers, the flow opens migration MRs in the two consumer projects and drafts a note for the third, the count drops to zero, and after a labelled escrow window the removal MR flips to ready."
+    },
+    "C33": {
+      "feasibility": 7,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Code checking each claim against live state: deployment endpoints need sign-in and the flow token reaches only ai_workflows endpoints.",
+      "fallback": "The deploy job creates a release tag per production deploy with the job token, so code checks 'the fix is live' with git ancestry in the repo clone; the flag strategy comes from the GitLab Unleash client API; the ticket is a labelled demo issue.",
+      "mvd": "On a labelled demo ticket Alex asks the flow what he can honestly tell the customer; it traces the ticket to the fix MR, the production release and the 25% flag, code verifies each claim and drops one it cannot confirm, the draft says 'live for 25% of accounts, not yours yet', and Alex adds the customer to the user list."
+    },
+    "C34": {
+      "feasibility": 9,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "run_command with Python and SQLite inside the flow sandbox, with the image set in agent-config.yml, which is read only from the default branch.",
+      "fallback": "The flow commits its probes to the MR branch, a CI job runs the migration on the synthetic copy and prints the before and after table, and the flow posts it when a person mentions it.",
+      "mvd": "Alex opens an MR with a 'clean up names' migration; the flow probes the labelled synthetic customer table, code runs the migration on a copy and the MR shows 'Siobhan O'Brien-Nakamura becomes Siobhan Obrien-nakamura, and 311 more like this', while the production migrate job stays manual."
+    },
+    "C35": {
+      "feasibility": 7,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "The merge request approved trigger: an author may not be allowed to approve their own MR, so the start may need a second human.",
+      "fallback": "Start on assign reviewer or a mention instead, check the condition against an upstream issue on gitlab.com (reachable from the sandbox without extra domains), and label the time jump.",
+      "mvd": "When Alex's MR pins a dependency, the flow asks 'what would have to be true to remove this?', turns his answer into a condition on an upstream issue and commits it to WHY.yml; once that issue is closed, a mention runs the check and the flow opens an unpin MR quoting his original words, pipeline green."
+    },
+    "C36": {
+      "feasibility": 6,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "A second real account to play the newcomer, and whether the merge request created trigger fires on a revert MR (unverified).",
+      "fallback": "The newcomer's MR comes from a labelled second account through a fork of the public project; if the revert does not start the flow, the maintainer mentions it on the revert MR.",
+      "mvd": "A labelled second account's first MR 'fix date parsing' is merged and breaks on two-digit years in the real app; Alex reverts it, the flow writes a test that fails with the change and passes without it, and Alex approves a kind note with a ready branch, posted on the newcomer's MR."
+    },
+    "C37": {
+      "feasibility": 7,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Searching every real store (database, logs, search index, bucket) for the canary marker needs Google access, which the flow lacks without id_tokens and allowed domains.",
+      "fallback": "Run the canary test in CI against a local instance of the release candidate with all its stores, and search staging's Cloud Logging from a keyless CI job on main.",
+      "mvd": "A release adds a search index that copies addresses; the flow reads the diff and adds the index to the stores to check, code plants a labelled canary user, runs the real deletion path and reports 'LAILA-CANARY-7731 still present in addresses_v2', the production job stays manual, and the flow's one-line MR adds the index to the deletion job."
+    },
+    "C38": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Flag writes from each cue's CI job need an API token, and the cue state must survive across separate flow runs started by different human actions.",
+      "fallback": "Three cues only: the cue jobs read Alex's token from Secret Manager through keyless access on main, the standby acknowledgement is the play of a manual job, and the state lives in cues.yml.",
+      "mvd": "After approval the flow writes a three-cue sheet for a flag rollout; Alex plays each cue job after the agent's standby note, each job moves the real flag and watches errors for a dwell time, and at cue 3 a planted fault makes the agent call HOLD with the reverse cue ready."
+    },
+    "C39": {
+      "feasibility": 4,
+      "trap": true,
+      "trap_reason": "Each lock is a Maintainer-level GitLab setting (deploy freeze, pausing schedules, turning triggers off); with our own marker it only binds jobs we wrote ourselves.",
+      "blocker": "Deploy freezes, pausing pipeline schedules and switching flow triggers off from a job, which need Maintainer or the schedule owner.",
+      "fallback": "A lock registry in the Cloud Run app that our deploy and scheduled jobs check before acting, applied and removed by manual jobs, with the video saying it binds only jobs that honor it.",
+      "mvd": "Alex opens a lockout issue for the orders service; the flow lists the deploy job, a pipeline schedule and an auto-merge MR that could touch it, after he plays the lock job a scheduled deploy stops with 'Locked by Alex (orders repair)', and removing his lock restores everything."
+    },
+    "C40": {
+      "feasibility": 6,
+      "trap": true,
+      "trap_reason": "On screen it is a pipeline that deploys, holds at an approval and rolls back, which reads as the crowded release gatekeeper (4 of 7 known October entries and the judges' reference project).",
+      "blocker": "The landing step needs a protected environment with a deployment approval, which needs Maintainer and Premium setup.",
+      "fallback": "Make the landing step a manual job and keep the automatic go-around in generated child pipelines, which a Developer can run.",
+      "mvd": "A release ending in DROP COLUMN runs its reversible steps alone, a planted canary error triggers a go-around that reverses them, and on the second try the pipeline stops at the drop with the flow's brief beside the manual job until Alex plays 'land'."
+    },
+    "C41": {
+      "feasibility": 7,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Reading deployment and environment state from the flow: those endpoints need sign-in, and the flow token reaches only ai_workflows endpoints.",
+      "fallback": "Compare main with the last production release tag in the repo clone and take 'who can carry it' from CODEOWNERS; the ages are real but only hours old, and the video says so.",
+      "mvd": "Alex assigns the day's Pass issue; the flow finds the VAT fix merged but never promoted because the manual production job has no owner, code computes its age and the labelled demo ticket waiting on it, and one 'Hands' mention gives Alex the single click that deploys it."
+    },
+    "C42": {
+      "feasibility": 5,
+      "trap": true,
+      "trap_reason": "It needs two real on-call members to hand over between, and on screen it sits next to the banned handoff-notes generator.",
+      "blocker": "A complete live list of what is in flight (alert silences, paused jobs) that the flow can read, plus a second member to receive ownership.",
+      "fallback": "Limit the list to what can be read (incidents, environments, flags, auto-merge MRs) and use labelled owners on items instead of reassigning members.",
+      "mvd": "The incoming engineer writes 'two incidents, both quiet' and mentions the flow; code builds the live list, the flow replies 'missed: orders_backfill paused at 40 percent since 06:10', she corrects her readback, and the items move to her only after code confirms full coverage."
+    },
+    "C43": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "The flow running runbook commands against staging needs Google credentials inside the sandbox (id_tokens and allowed domains, unverified).",
+      "fallback": "The flow turns the runbook into a script, a manual CI job on main runs it with keyless access and records each step, and the flow reads the job log to find the broken step and open the runbook MR.",
+      "mvd": "Alex assigns the fight-call issue; the 'restore from backup' runbook is walked on staging, step 4 fails because the bucket was renamed, the working command is found in the current config, and the flow opens a runbook MR with the old command, the error, the fix and the measured restore time."
+    },
+    "C44": {
+      "feasibility": 7,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "The customer's confirmation channel (Service Desk email needs Maintainer setup) and a production data store the manual job can reach with keyless Google access.",
+      "fallback": "The request and the customer's 'yes, that one' are labelled demo comments, and the production store is a SQLite file in a Cloud Storage bucket that the manual job updates.",
+      "mvd": "On a labelled request to remove one duplicate March invoice, the flow finds invoice 4472 and writes the fix script, a CI dry run records the affected IDs, the customer confirms 4472, the manual production job runs only because the sets match, and a second take with a loose WHERE is refused: 'Site mismatch: 11 rows, 1 marked'."
+    },
+    "C45": {
+      "feasibility": 6,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Reading CI/CD variables per environment needs Maintainer, and the deploy skeleton has one Cloud Run service rather than separate staging and production.",
+      "fallback": "Reconcile only Cloud Run settings (staging as a tagged revision with its own config), Secret Manager names and GitLab flags per environment scope, read by a keyless CI job, names only, never values.",
+      "mvd": "A release MR adds a read of TAX_API_URL; the flow finds it in the diff, the CI listing shows it set in staging and missing in production, the production job stays manual, and the line turns green after Alex adds the setting."
+    },
+    "C46": {
+      "feasibility": 2,
+      "trap": true,
+      "trap_reason": "It counts who performed each task over six months; a new one-person project has days of history and one performer, so every finding is trivially true.",
+      "blocker": "Months of job, deployment and release history by several people, and audit events that may need a higher role.",
+      "fallback": "Show the counting on the few real runs and have a labelled second account perform one release with the script while Alex watches.",
+      "mvd": "Alex assigns the understudies issue; code counts that only one person ever played the release job, the flow builds a script from that person's last job log, and a labelled second account performs the next release with it."
+    },
+    "C47": {
+      "feasibility": 5,
+      "trap": true,
+      "trap_reason": "Its visible part is a bot answering 'ETA?' in the incident, which judges may file under the excluded generic incident chatbot, and the personal replies depend on Service Desk email.",
+      "blocker": "Service Desk (enabling it may need Maintainer), so that replies reach the people who wrote in.",
+      "fallback": "Tickets as labelled demo issues and replies as comments on them, with code checking that the approver is the commander and rate-limiting the batch.",
+      "mvd": "During a planted login outage Alex assigns the flow to the incident; it links five labelled demo tickets by meaning, answers '@shield ETA?' from the real pipeline and deployment state, and after the fix deploys drafts per-person replies ('you told us at 02:14, fixed at 02:51') that Alex approves as one batch."
+    },
+    "C48": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Each re-land needs a merge to the protected default branch and a keyless deploy from it, several times in a row.",
+      "fallback": "Re-land three changes instead of five and show the real cycle times; if merging to main is blocked, re-land from one dedicated protected branch that the identity condition allows.",
+      "mvd": "After Alex rolls back a release of five real MRs and assigns the flow, it opens one-change re-land MRs in a chosen order; each deploys to Cloud Run with a short error watch, the fourth brings a planted error back and is held as the suspect, and the rest return."
+    },
+    "C49": {
+      "feasibility": 8,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Reading pipeline schedules and their next run times through the flow's tools (which API reads the flow token reaches is unverified).",
+      "fallback": "Keep schedules as code (the schedule list and Cloud Scheduler config in the repo) and run the dry run in the sandbox with the clock set to the next run.",
+      "mvd": "Alex merges 'change tax rounding'; the flow finds that the monthly invoice job will run the new code for the first time on Sunday at 00:00 and posts it on a next-turn issue, Alex replies 'dry run', the job runs against a staging copy with the clock set to Sunday, three invoices fail, and the fix merges on Friday."
+    },
+    "C50": {
+      "feasibility": 6,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Load-testing the Cloud Run service honestly from CI: the skeleton caps max instances at 1, and quotas and cold starts make results noisy.",
+      "fallback": "Test a separate labelled staging revision at a small, stated scale, and make the defense a cache MR whose effect shows at that scale.",
+      "mvd": "Alex opens a labelled campaign issue with three links and assigns the flow; it maps them to routes, a CI load test on staging shows the promo page failing at 120 requests per second against a 350 estimate, the flow's cache MR is merged, and the rerun passes."
+    },
+    "C51": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Running the default-branch pipeline with a route that skips deferred jobs: the route has to reach the protected main pipeline as variables or a committed file.",
+      "fallback": "The flow commits route.yml to the fix MR, CI rules read it on main, and the deploy job then triggers the full pipeline through the job token; the slow stage is a labelled stand-in.",
+      "mvd": "During a planted checkout outage Alex mentions the flow on the one-line fix MR; it proposes an 11-minute route that defers the end-to-end suite, code accepts it against never-skip.yml, the fix deploys to Cloud Run, and the full pipeline runs right after and goes green."
+    },
+    "C52": {
+      "feasibility": 4,
+      "trap": true,
+      "trap_reason": "The freeze levers (deploy freezes, pausing schedules, cancelling other people's auto-merge) need Maintainer; with a marker file it only pauses jobs we wrote.",
+      "blocker": "Creating a deploy freeze and pausing pipeline schedules through the API, which needs Maintainer.",
+      "fallback": "A pause marker that our deploy and rollout jobs check before acting, with the flow doing the inventory and the resume order.",
+      "mvd": "During a planted incident Alex types '@pause'; the flow lists two pipelines about to deploy, an auto-merge MR and a flag step, the pause marker stops them with a note to each author, and '@pause resume' lets them back one at a time in the proposed order."
+    },
+    "C53": {
+      "feasibility": 8,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "The pipeline events trigger firing on a pipeline that passed after a person's retry, and the flow reading both attempts' job logs.",
+      "fallback": "Alex mentions the flow with the pipeline link; the experiments run in the flow sandbox with the standard library, or as a manual CI job whose log the flow reads.",
+      "mvd": "Alex retries a failed checkout test until the pipeline turns green; the flow compares the two logs, runs the experiment (200 isolated runs pass, 200 parallel runs fail 7 times) and opens an issue, 'not flaky: a race in reserve_stock, about 1 in 500 orders would be charged twice', with the reproduction command."
+    },
+    "C54": {
+      "feasibility": 6,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Rotating the leaked key: a flow cannot read provider credentials, so rotation must be a keyless CI job on main for a key we own.",
+      "fallback": "Leak a labelled demo key for our own Cloud Run service kept in Secret Manager; the rotation job adds a new secret version and redeploys, and the misuse check reads Cloud Logging.",
+      "mvd": "Alex pushes a commit containing a labelled demo key; secret detection flags it, the flow opens an incident and asks for containment, after Alex's 'go' a CI job rotates the key and redeploys, the flow reports no use of the old key in the logs, and leaves a no-blame note."
+    },
+    "C55": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Pipelines from a person-owned schedule must count as a human action for the pipeline events trigger (unverified), and the scheduled job must deploy from the protected default branch.",
+      "fallback": "The scheduled job checks code-only conditions itself and deploys when they hold; the flow turns her words into the order on a mention and writes the fill note when she mentions it later.",
+      "mvd": "Alex writes a limit order on a merged MR and leaves; a schedule he owns checks the real incident state and error rate every 15 minutes, the timeline shows 'incident still open' and 'errors 2.1%', and once both clear the scheduled job deploys to Cloud Run and his phone shows 'order filled'."
+    },
+    "C56": {
+      "feasibility": 5,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Reading package metadata and publisher history from outside GitLab inside the flow sandbox (allowed domains, strict mode unverified).",
+      "fallback": "A CI job fetches release age, publisher and diff facts into a log or artifact the flow reads; cooldowns are shortened and labelled, and a person merges instead of auto-merge into protected main.",
+      "mvd": "Alex starts a rating run over six real dependency bump MRs; the flow fills the rating form from CI-gathered facts, code rates them, the top-rated ones merge after a labelled short cooldown, and a labelled staged package that adds a network-calling install script is blocked with a short report."
+    },
+    "C57": {
+      "feasibility": 6,
+      "trap": false,
+      "trap_reason": "",
+      "blocker": "Reading failed requests per account from Cloud Logging needs keyless Google access from CI on main, since the flow cannot reach Google.",
+      "fallback": "A CI job pulls the incident window's failed orders and prints per-account impact for the flow, and the drafted messages stay as comments on the incident instead of Service Desk email.",
+      "mvd": "After a planted 40-minute checkout fault hits labelled synthetic customer traffic, Alex closes the incident and assigns the flow; code computes the affected accounts and credits from sla.yml, and the flow drafts one message per account ('your 3 orders failed between 14:02 and 14:41; we sent them again and added a $12 credit') for Alex to approve."
+    }
+  },
+  "top10_feasible_and_human": [
+    {
+      "id": "C34",
+      "why": "Runs entirely in the flow sandbox and CI on a labelled synthetic table with no Maintainer setting, and one customer's name mangled on every invoice is the scene."
+    },
+    {
+      "id": "C28",
+      "why": "Hangs on the deploy skeleton's existing manual job, code checks the cited line from a release-tag diff, and one approver catching a debug value at 18:00 is a clear moment."
+    },
+    {
+      "id": "C14",
+      "why": "A real dependency bump and a test that passes on the old lockfile and fails on the new one need no seeded history; a weekend maintainer clears her queue before her coffee cools."
+    },
+    {
+      "id": "C01",
+      "why": "The strongest feeling in the pool (the phone stays dark); day and morning steps use human triggers, and the night step can run as plain code on Cloud Run if the Flows API fails."
+    },
+    {
+      "id": "C13",
+      "why": "'Button, button, button' is the most memorable scene in the pool, and if no browser runs in the sandbox a CI job still produces the transcript and audio honestly."
+    },
+    {
+      "id": "C37",
+      "why": "A planted canary person and a marker search give a yes or no answer that runs in CI; a woman relying on account deletion to stay safe is the human stake."
+    },
+    {
+      "id": "C44",
+      "why": "The dry-run set must equal the set the customer marked, which is simple code, and 'Site mismatch: 11 rows, 1 marked' is a refusal a viewer remembers."
+    },
+    {
+      "id": "C35",
+      "why": "Needs only MR triggers, a WHY.yml file and an upstream issue on gitlab.com; a successor reading the departed author's own words beside a ready MR is warm and specific."
+    },
+    {
+      "id": "C07",
+      "why": "Human triggers throughout and a fault toggle we own in the demo app; a new hire walks into his first on-call week having already done it once."
+    },
+    {
+      "id": "C27",
+      "why": "Drift is read with rights the deploy account already has and the person-started deploy failure starts the flow; a 2 a.m. console fix is saved in its author's name instead of erased."
+    }
+  ]
+}
