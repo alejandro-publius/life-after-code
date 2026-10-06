@@ -1,0 +1,3 @@
+# Desired state after the morning countersign. The dawn flow proposes it; the on-call person merges it;
+# the apply_state job makes production match. Empty means nothing from last night is being kept.
+flags: []

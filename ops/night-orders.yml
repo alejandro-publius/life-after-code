@@ -1,0 +1,5 @@
+# Tonight's orders. The dusk flow drafts this file in a merge request; the on-call person edits it
+# and signs it by merging (or approving). With no signed orders, every alert wakes the on-call person.
+night: "2026-10-06"
+expires: "07:00"
+orders: []

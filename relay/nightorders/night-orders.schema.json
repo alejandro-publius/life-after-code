@@ -1,0 +1,94 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "night-orders.schema.json",
+  "title": "Night orders",
+  "description": "Tonight's orders: at most three reversible actions the agent may take alone, each tied to a condition and a reason. Signed when the on-call person merges or approves the merge request that changes ops/night-orders.yml. Code checks targets, the floor and the expiry on top of this schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["night", "expires", "orders"],
+  "properties": {
+    "night": {
+      "description": "Local date the watch starts (the evening).",
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "expires": {
+      "description": "Local time on the next morning when every order ends. Code also rejects anything later than the on-call watch end (07:00).",
+      "type": "string",
+      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+    },
+    "drafted_by": {
+      "description": "Where the draft came from, for the record (for example a Duo session link). Not trusted for anything.",
+      "type": "string",
+      "maxLength": 300
+    },
+    "orders": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {"$ref": "#/definitions/order"}
+    }
+  },
+  "definitions": {
+    "order": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "because", "when", "do"],
+      "properties": {
+        "id": {"type": "integer", "minimum": 1, "maximum": 9},
+        "because": {
+          "description": "The change behind this order, in one sentence a sleepy person can read.",
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 300
+        },
+        "when": {"$ref": "#/definitions/condition"},
+        "do": {
+          "oneOf": [
+            {"$ref": "#/definitions/flag_set"},
+            {"$ref": "#/definitions/traffic_to_revision"}
+          ]
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signal", "for_minutes"],
+      "properties": {
+        "signal": {
+          "type": "string",
+          "enum": ["checkout_error_rate", "http_5xx_ratio", "p95_latency_ms", "payment_error_rate"]
+        },
+        "path": {"type": "string", "enum": ["old", "new", "all"]},
+        "above": {"type": "number", "minimum": 0},
+        "below": {"type": "number", "minimum": 0},
+        "for_minutes": {"type": "integer", "minimum": 1, "maximum": 60}
+      },
+      "oneOf": [
+        {"required": ["above"], "not": {"required": ["below"]}},
+        {"required": ["below"], "not": {"required": ["above"]}}
+      ]
+    },
+    "flag_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "flag", "environment", "to"],
+      "properties": {
+        "action": {"const": "flag_set"},
+        "flag": {"type": "string", "pattern": "^[a-z][a-z0-9_]{1,62}$"},
+        "environment": {"type": "string", "enum": ["production", "staging"]},
+        "to": {"type": "string", "enum": ["off", "on"]}
+      }
+    },
+    "traffic_to_revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action", "service", "revision"],
+      "properties": {
+        "action": {"const": "traffic_to_revision"},
+        "service": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,48}[a-z0-9]$"},
+        "revision": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,61}[a-z0-9]$"}
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+# Who holds the pager, and when the night watch ends.
+# Only this person's merge or approval of a change to ops/night-orders.yml signs tonight's orders.
+# Demo: Alex's GitLab account plays the persona "Priya" (invented). Set user to the real GitLab username.
+user: alex-velazquez
+display_name: Priya (demo persona, played by Alex)
+timezone: America/Los_Angeles
+watch_ends: "07:00"
+recheck_minutes: 10
+answer_timeout_minutes: 8
+model_runs_per_night: 3

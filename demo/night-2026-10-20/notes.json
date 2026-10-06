@@ -1,0 +1,37 @@
+{
+ "_label": "DEMO DATA. Recorded answers in the exact format the watch flow posts. Not live model output.",
+ "incidents": {
+  "1": {
+   "arrives_after_minutes": 2,
+   "request": {
+    "order": null,
+    "fits_because": null,
+    "declined": {
+     "id": 1,
+     "why": "Checkout fails on the old path too (20.3% old, 20.4% new), so turning off new_checkout would not help."
+    },
+    "page": [
+     "Checkout failing on both paths since 01:45 (about 20%).",
+     "Not the new checkout, so I did not use order 1.",
+     "Inventory calls are timing out. Serving stock from cache should stop it."
+    ],
+    "suggest": {
+     "action": "flag_set",
+     "flag": "stock_from_cache",
+     "environment": "production",
+     "to": "on"
+    }
+   }
+  },
+  "2": {
+   "arrives_after_minutes": 1,
+   "request": {
+    "order": 1,
+    "fits_because": "Errors only where new_checkout is on (7.9% new path, 0.3% old path). The stack trace is in the price rounding added by MR !31.",
+    "declined": null,
+    "page": null,
+    "suggest": null
+   }
+  }
+ }
+}
