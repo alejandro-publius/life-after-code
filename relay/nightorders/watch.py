@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Protocol
 
-from .decide import Act, Ask, Night, StandDown, Waiting, Wake, approve_suggestion, check_request, recheck, triage
+from .decide import (APPROVAL_WINDOW_MINUTES, Act, Ask, Night, StandDown, Waiting, Wake, approve_suggestion,
+                     check_request, recheck, triage)
 from .model import Action, Alert, Order, fmt_value
 from .orders import watch_window
 from .signals import Metrics, condition_holds
@@ -49,7 +50,7 @@ class Ports(Protocol):
     def request_note(self, incident: int, at: datetime) -> str | None: ...
     def apply(self, action: Action, at: datetime) -> None: ...
     def page(self, incident: int, lines: tuple[str, ...], at: datetime) -> None: ...
-    def thumbs_up(self, incident: int, at: datetime) -> tuple[str, datetime] | None: ...
+    def thumbs_up(self, incident: int, at: datetime) -> list[tuple[str, datetime]]: ...  # oldest first
     def close_incident(self, incident: int, text: str, at: datetime) -> None: ...
 
 
@@ -195,20 +196,28 @@ class Watch:
     def _approval(self, incident: Incident, now: datetime) -> None:
         if incident.suggest is None or incident.paged_at is None:
             return
-        reaction = self.ports.thumbs_up(incident.number, now)
-        if reaction is None:
-            return
-        user, at = reaction
-        ok, text = approve_suggestion(incident.suggest, user, at, incident.paged_at, self.night)
         ledger = self.night.ledger
-        if ok:
-            self.ports.apply(incident.suggest, now)
-            text = f"{text} Done {self.night.oncall.hhmm(now)}: {incident.suggest.describe()}."
-            ledger.record(now, "approved", text, incident=incident.number, action=incident.suggest.as_dict())
-        else:
+        for user, at in self.ports.thumbs_up(incident.number, now):
+            ok, text = approve_suggestion(incident.suggest, user, at, incident.paged_at, self.night)
+            if ok:
+                self.ports.apply(incident.suggest, now)
+                text = f"{text} Done {self.night.oncall.hhmm(now)}: {incident.suggest.describe()}."
+                ledger.record(now, "approved", text, incident=incident.number, action=incident.suggest.as_dict())
+                self.ports.note(incident.number, text, now)
+                incident.suggest = None
+                return
+            # A reaction code refuses (a teammate's, say) is noted once, and the suggestion keeps waiting for
+            # the on-call person.
+            if not any(e.kind == "refused" and e.incident == incident.number and e.text == text
+                       for e in ledger.events):
+                ledger.record(now, "refused", text, incident=incident.number)
+                self.ports.note(incident.number, text, now)
+        if now >= incident.paged_at + timedelta(minutes=APPROVAL_WINDOW_MINUTES):
+            text = (f"Nobody approved the suggestion within {APPROVAL_WINDOW_MINUTES} minutes of the page, "
+                    "so it was dropped. Nothing was changed.")
             ledger.record(now, "refused", text, incident=incident.number)
-        self.ports.note(incident.number, text, now)
-        incident.suggest = None
+            self.ports.note(incident.number, text, now)
+            incident.suggest = None
 
     def _wake(self, incident: Incident, wake: Wake, now: datetime) -> None:
         incident.paged_at = now

@@ -102,11 +102,9 @@ class RecordingPorts:
     def page(self, incident: int, lines: tuple[str, ...], at: datetime) -> None:
         self.log.append(f"{self._t(at)}  PAGE (phone lights up) for #{incident}: " + " | ".join(lines))
 
-    def thumbs_up(self, incident: int, at: datetime) -> tuple[str, datetime] | None:
+    def thumbs_up(self, incident: int, at: datetime) -> list[tuple[str, datetime]]:
         reaction = self.reactions.get(incident)
-        if reaction and at >= reaction[1]:
-            return reaction
-        return None
+        return [reaction] if reaction and at >= reaction[1] else []
 
     def close_incident(self, incident: int, text: str, at: datetime) -> None:
         self.log.append(f"{self._t(at)}  incident #{incident} closed: {text}")
