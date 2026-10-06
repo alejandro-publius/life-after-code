@@ -10,7 +10,7 @@ How this was checked:
 - Claude API docs were read from [platform.claude.com/llms.txt](https://platform.claude.com/llms.txt). docs.claude.com now redirects to platform.claude.com (see "Moved or broken links").
 - MCP spec facts came from the spec repository on GitHub, because modelcontextprotocol.io is blocked from this session.
 - GitLab doc pages were read from their source files on gitlab.com, because docs.gitlab.com is blocked from this session.
-- Package versions came from PyPI and npm on 2026-10-06.
+- Package versions came from PyPI and the npm registry on 2026-10-06.
 - Anything not read on the live web is marked (unverified). Quotes keep the source wording; any em dash or en dash in a quote is replaced with " - ".
 
 ## Summary
@@ -21,7 +21,7 @@ How this was checked:
 4. Human control in headless runs: a `PreToolUse` hook can return `"defer"`, which stops the run at that tool call so a person can decide, then `claude -p --resume` continues ([hooks](https://code.claude.com/docs/en/hooks)). Time boxes: `--max-turns`, `--max-budget-usd` ([CLI reference](https://code.claude.com/docs/en/cli-reference)).
 5. Keyless auth: the GitLab CI doc has a Google Cloud's Agent Platform (formerly Vertex AI) job that uses GitLab OIDC and Workload Identity Federation, with no stored keys ([doc](https://code.claude.com/docs/en/gitlab-ci-cd)).
 6. MCP's current spec revision is `2026-07-28` (stateless). MCP was donated to the Agentic AI Foundation under the Linux Foundation on 2025-12-09 ([releases](https://github.com/modelcontextprotocol/modelcontextprotocol/releases), [news](https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation)).
-7. GitLab Duo itself uses Claude: the default model for most Duo features is "Claude Sonnet 4.6 Gemini Enterprise Agent Platform", meaning Claude served through Google ([GitLab doc source](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/gitlab_duo/model_selection.md)). That links all three sponsors.
+7. GitLab Duo itself uses Claude: the default model for most Duo features is "Claude Sonnet 4.6 Gemini Enterprise Agent Platform", which we read as Claude served through Google's platform ([GitLab doc source](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/gitlab_duo/model_selection.md)). That links all three sponsors.
 
 ## Launches 2025-2026
 
@@ -517,7 +517,7 @@ specific, actionable feedback on quality, security, and best practices.
 
 ### Claude Agent SDK
 
-- Packages: Python `claude-agent-sdk` 0.2.163 (2026-09-30, Python 3.10 or later) ([PyPI](https://pypi.org/project/claude-agent-sdk/)); TypeScript `@anthropic-ai/claude-agent-sdk` 0.3.290 ([npm](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk)). "Both the TypeScript and Python SDKs bundle a native Claude Code binary" ([quickstart](https://code.claude.com/docs/en/agent-sdk/quickstart)).
+- Packages: Python `claude-agent-sdk` 0.2.163 (2026-09-30, Python 3.10 or later) ([PyPI](https://pypi.org/project/claude-agent-sdk/)); TypeScript `@anthropic-ai/claude-agent-sdk` 0.3.290 ([npm registry](https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk/latest)). "Both the TypeScript and Python SDKs bundle a native Claude Code binary" ([quickstart](https://code.claude.com/docs/en/agent-sdk/quickstart)).
 - What it is: "the same tools, agent loop, and context management that power Claude Code, programmable in Python and TypeScript" ([overview](https://code.claude.com/docs/en/agent-sdk/overview)). To use the loop from another language, run the CLI with `-p` and `--output-format json`.
 - Providers: `CLAUDE_CODE_USE_BEDROCK=1`, `CLAUDE_CODE_USE_ANTHROPIC_AWS=1` (plus `ANTHROPIC_AWS_WORKSPACE_ID`), `CLAUDE_CODE_USE_VERTEX=1`, `CLAUDE_CODE_USE_FOUNDRY=1` ([quickstart](https://code.claude.com/docs/en/agent-sdk/quickstart)).
 
@@ -668,7 +668,7 @@ Breaking API behavior on the newest models ([release notes 2026-09-22](https://p
 
 - Endpoint `POST https://api.anthropic.com/v1/messages` with headers `x-api-key: $ANTHROPIC_API_KEY`, `anthropic-version: 2023-06-01`, `content-type: application/json` ([get started](https://platform.claude.com/docs/en/get-started)).
 - Keys are created at [Settings > API keys](https://platform.claude.com/settings/keys); the key "starts with `sk-ant-`" and is shown "only once". Key types: personal, service account (for CI), and legacy workspace keys; keys can have an expiration ([get API key](https://platform.claude.com/docs/en/get-api-key)).
-- SDKs: `pip install anthropic` (1.11.0 on 2026-09-30, Python 3.10 or later, [PyPI](https://pypi.org/project/anthropic/)); `npm install @anthropic-ai/sdk` (0.131.0, [npm](https://www.npmjs.com/package/@anthropic-ai/sdk)). Python SDK 1.0 (2026-08-20) moved HTTP to `httpx2` and removed `temperature`, `top_p`, `top_k` from Messages methods ([release notes](https://platform.claude.com/docs/en/release-notes/overview#august-20-2026)).
+- SDKs: `pip install anthropic` (1.11.0 on 2026-09-30, Python 3.10 or later, [PyPI](https://pypi.org/project/anthropic/)); `npm install @anthropic-ai/sdk` (0.131.0, [npm registry](https://registry.npmjs.org/@anthropic-ai/sdk/latest)). Python SDK 1.0 (2026-08-20) moved HTTP to `httpx2` and removed `temperature`, `top_p`, `top_k` from Messages methods ([release notes](https://platform.claude.com/docs/en/release-notes/overview#august-20-2026)).
 - `ant` CLI: v1.38.0 in the Managed Agents quickstart; Linux tarball from [anthropics/anthropic-cli releases](https://github.com/anthropics/anthropic-cli/releases) ([quickstart](https://platform.claude.com/docs/en/managed-agents/quickstart)).
 
 Environment variables (sources: [env vars](https://code.claude.com/docs/en/env-vars), [model config](https://code.claude.com/docs/en/model-config), [WIF reference](https://platform.claude.com/docs/en/manage-claude/wif-reference), [monitoring](https://code.claude.com/docs/en/monitoring-usage)):
@@ -795,7 +795,7 @@ What changed, by revision (from the changelogs in the spec repo):
 
 Governance: on 2025-12-09 Anthropic donated MCP to the Agentic AI Foundation, "a directed fund under the Linux Foundation, co-founded by Anthropic, Block and OpenAI, with support from Google, Microsoft, Amazon Web Services (AWS), Cloudflare, and Bloomberg". The same post cites "more than 10,000 active public MCP servers" and "97M+ monthly SDK downloads across Python and TypeScript", and mentions an official community Registry ([news](https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation)).
 
-SDK versions on 2026-10-06: Python `mcp` 2.3.0 (2026-10-02, [PyPI](https://pypi.org/project/mcp/)); TypeScript v2 packages `@modelcontextprotocol/server`, `/client`, `/core` 2.3.1; the 1.x package `@modelcontextprotocol/sdk` is 1.32.1 ([npm](https://www.npmjs.com/package/@modelcontextprotocol/sdk)). Which SDK versions implement `2026-07-28` was not checked (unverified).
+SDK versions on 2026-10-06: Python `mcp` 2.3.0 (2026-10-02, [PyPI](https://pypi.org/project/mcp/)); TypeScript v2 packages `@modelcontextprotocol/server`, `/client`, `/core` 2.3.1; the 1.x package `@modelcontextprotocol/sdk` is 1.32.1 ([npm registry](https://registry.npmjs.org/@modelcontextprotocol/sdk), [server package](https://registry.npmjs.org/@modelcontextprotocol/server)). Which SDK versions implement `2026-07-28` was not checked (unverified).
 
 Claude Code support: Claude Code has two MCP client runtimes; "The v2 runtime is the same code on MCP TypeScript SDK 2.0, which adds MCP protocol revision 2026-07-28" ([MCP](https://code.claude.com/docs/en/mcp)). Since v2.1.274 (2026-09-17), Bedrock, Vertex and Foundry installs also default to the v2 client and 2026-07-28 negotiation with HTTP servers ([changelog](https://code.claude.com/docs/en/changelog)).
 
@@ -852,6 +852,9 @@ This section is our reading of what Anthropic publishes and promotes. Each point
 | https://about.gitlab.com/blog/gitlab-18-3-expanding-ai-orchestration-in-software-engineering/ | curl: `CONNECT tunnel failed, response 403` | 1 |
 | https://about.gitlab.com/press/releases/ | curl: `CONNECT tunnel failed, response 403` | 1 |
 | https://claude.ai/install.sh (redirects to https://downloads.claude.ai/claude-code-releases/bootstrap.sh) | curl: `CONNECT tunnel failed, response 403` | 1 |
+| https://agentskills.io (linked from the Claude Code skills doc) | curl: `CONNECT tunnel failed, response 403` | 1; not read |
+| github.com HTML pages (for example the MCP releases page) | curl: HTTP 403 | read instead with WebFetch on github.com and curl on raw.githubusercontent.com |
+| www.npmjs.com package pages | curl: HTTP 403 | read instead from registry.npmjs.org |
 | WebSearch tool | "this turn's web search budget is used up (limit: 200 WebSearch calls per turn, shared by every agent in it)" on the first query about GitLab and Anthropic partnership news | 1 |
 | devpost.com, web.archive.org | not attempted (known blocked) | 0 |
 
