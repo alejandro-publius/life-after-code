@@ -4,11 +4,11 @@ Last updated: **5 Oct 2026 (Pacific Time)**.
 
 ## Current result
 
-One chosen improvement is ready locally: a guided Night Orders browser demo at `/demo`. It brings the existing decision core into a readable Before bed, During the night and Over coffee story, with two human choices, old and new checkout charts and inspectable evidence. It addresses **Design and Presentation, each 20%** under the [official judging criteria](https://gitlab-transcend.devpost.com/rules). See the [judge guide](GUIDE.md) and [review record](codex/JUDGE_REVIEW.md).
+One chosen improvement is published on main: a guided Night Orders browser demo at `/demo`. It brings the existing decision core into a readable Before bed, During the night and Over coffee story, with two human choices, old and new checkout charts and inspectable evidence. It addresses **Design and Presentation, each 20%** under the [official judging criteria](https://gitlab-transcend.devpost.com/rules). See the [judge guide](GUIDE.md) and [review record](codex/JUDGE_REVIEW.md).
 
 The demo uses a simulated shop, planted faults and recorded model replies. Signing and approval select isolated fixture inputs; they do not merge real orders, push code or send phone notifications. The default path reports 1 wake-up, 1 incident handled automatically and 1 approved action. These are actual counts from the invented night, not production impact measurements.
 
-**Public live demo URL: pending.** No GitLab or Google Cloud integration is configured for this run. Nothing has run on GitLab.com or Google Cloud, and no live model execution has been demonstrated. The browser improvement is published to GitHub main at `a164dd4`. Remote CI is pending verification.
+**Public live demo URL: pending.** No GitLab or Google Cloud integration is configured for this run. Nothing has run on GitLab.com or Google Cloud, and no live model execution has been demonstrated. The browser improvement and public materials are published to GitHub main at `0812bc9`. [GitHub CI passed](https://github.com/alejandro-publius/life-after-code/actions/runs/37418744092) for that exact commit: Python checks, Browser smoke and the pinned gcloud flag audit. This is not GitLab pipeline or deployment proof.
 
 ## Verified locally
 
@@ -27,9 +27,9 @@ The demo uses a simulated shop, planted faults and recorded model replies. Signi
 | Checkout decision | [Phone](images/demo-phone.png) | [Laptop](images/demo-laptop.png) |
 | Morning brief | [Phone](images/demo-phone-morning.png) | [Laptop](images/demo-laptop-morning.png) |
 
-## CI and integration proof still pending
+## CI and pending integration proof
 
-- The [GitHub Actions checks workflow](../.github/workflows/checks.yml) is published on main but not yet verified green. Local passes do not establish a remote CI result.
+- The [GitHub Actions checks workflow](../.github/workflows/checks.yml) passed all three hosted jobs on `0812bc938fb06835a12f166a26e2ddb48da9e640` at 22:31 PDT on October 5. [Verified run](https://github.com/alejandro-publius/life-after-code/actions/runs/37418744092). It runs checks only and does not deploy. The hosted deployment suite also ran all 16 tests without the local SDK skip.
 - The [GitLab pipeline configuration](../.gitlab-ci.yml) is present. Visible GitLab pipeline history showing automation running is still pending.
 - The three [Duo flow files](../flows/) are defined and validated against the checked-in schema and tool list. That is configuration validation, not proof of live Duo execution. The actual night start in [Plan, decision D1](PLAN.md) remains the next integration milestone.
 - [Google Cloud deployment code](../deploy/README.md) is present and locally checked. A real deployment and public live URL are pending. No Google Cloud bonus is claimed.
