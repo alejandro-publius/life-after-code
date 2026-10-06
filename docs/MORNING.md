@@ -26,13 +26,13 @@ Full reasoning: [IDEAS.md](IDEAS.md).
 
 ## What was built, and how to see it
 
-All of it runs offline and in CI. **Nothing has run on GitLab.com or Google Cloud yet.**
+All of it runs offline and in CI: 218 tests pass. **Nothing has run on GitLab.com or Google Cloud yet.**
 
 - The decision code, with one test per reason it refuses to act: [relay/nightorders/](../relay/nightorders/), [tests/](../tests/).
 - The agent's first job, the dusk drafter (today's changes in, tonight's orders out): [agent/dusk.py](../agent/dusk.py).
 - A labelled demo night replayed through the real code: run `cd relay && uv run --project .. python -m nightorders.demo_night ../demo/night-2026-10-20`, or open the `demo_night` job's artifact in CI.
 - Three Duo flows, checked against GitLab's own flow schema: [flows/](../flows/).
-- In progress: the relay service (`relay/main.py`) and the demo shop (`shop/`).
+- The relay service, which runs the night on Cloud Run: [relay/](../relay/). The demo shop (demo data): [shop/](../shop/).
 - The pipeline (tests, demo night, flow and orders checks, SAST, secret detection, the gcloud audit in the pinned image, manual keyless deploy): [.gitlab-ci.yml](../.gitlab-ci.yml).
 - What a judge reads first: [README.md](../README.md). The dated plan: [PLAN.md](PLAN.md).
 

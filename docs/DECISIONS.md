@@ -62,3 +62,19 @@ GitLab escalation policies need the Maintainer role, so the night page is a push
 ## 2026-10-06: Alex's steps stay on the phone until Oct 23
 
 Alex is busy until Oct 23. Every step before then is a phone step of 15 minutes or less. Once the workspace exists, Alex adds a GitLab token to the Claude Code environment as `GITLAB_TOKEN` (never in the chat or the repo), and Claude Code runs the API parts of the day-one test and pushes the code to GitLab.
+
+## 2026-10-06: the relay applies the morning countersign
+
+The dawn flow writes the kept changes to `ops/state.yml` in the countersign merge request. When the on-call person signs it (merge, or approval where merging is not allowed) after the watch end, the relay undoes every other night change, once, and notes what it did on the watch issue. A state file cannot make a new change, a countersign by anyone else changes nothing, and a traffic change that is not kept is listed for a person to undo, because code does not know which revision should serve next. Code for this: `relay/nightorders/countersign.py` and `relay/nightorders/morning.py`.
+
+## 2026-10-06: two apps named main.py
+
+The relay and the shop are each deployed from their own folder with a `main.py`, as the deploy contract asks. Their tests load each `main.py` from its file under its own module name, so one test run can cover both.
+
+## 2026-10-06: what "on" means for a flag
+
+`flag_set` to `"on"` turns a flag on for every user in that environment. Turning a flag off removes its strategies for that environment only. So turning a flag back on does not restore an earlier partial rollout (for example the demo's pilot customers); a person does that in GitLab. This keeps the night action simple and its undo predictable.
+
+## 2026-10-06: every thumbs-up is checked
+
+The relay's builder found that taking only the first thumbs-up on a page note let a teammate's reaction block the on-call person's own approval. Now code checks every thumbs-up, oldest first: a refused one is noted once and the suggestion keeps waiting, and a suggestion nobody approves within 60 minutes of the page is dropped with nothing changed.

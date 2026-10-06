@@ -12,7 +12,7 @@ Last updated: 2026-10-06, about 04:30 UTC (session 1).
 | 3. Current field | docs/FIELD.md | done |
 | 4. Sponsors | docs/SPONSORS.md | done |
 | 5. Ideas | docs/IDEAS.md | done: 74 concepts, 57 scored, five briefs, Night Orders chosen |
-| 6. Build and plan | code, CI, docs/PLAN.md | first complete workflow done offline: decision code and tests, dusk drafter, demo night, morning countersign, three Duo flows, CI. Codex's keyless deploy merged. In progress: the relay service and the demo shop. |
+| 6. Build and plan | code, CI, docs/PLAN.md | first complete workflow done offline: decision code, dusk drafter, demo night, relay service, demo shop, morning countersign, three Duo flows, CI (218 tests). Codex's keyless deploy merged; the CLI audit passes in the pinned image. |
 | Finish | docs/MORNING.md | done |
 
 ## What has not run yet

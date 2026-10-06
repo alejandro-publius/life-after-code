@@ -4,7 +4,7 @@
 
 An entry for [Life After Code, the GitLab Transcend Hackathon](https://gitlab-transcend.devpost.com/), Path A. Built by Alex Velazquez. MIT licence.
 
-Status on 6 Oct 2026: the decision code, its tests, the dusk drafter, a replayed demo night, the morning countersign and the three Duo flow files are in this repo and run in CI. The relay service and the demo shop are being built. Nothing has run on GitLab.com or Google Cloud yet. The dated plan is in [docs/PLAN.md](docs/PLAN.md).
+Status on 6 Oct 2026: the decision code, the dusk drafter, a replayed demo night, the relay service, the demo shop, the morning countersign and the three Duo flow files are in this repo, with 218 offline tests that run in CI. Nothing has run on GitLab.com or Google Cloud yet. The dated plan is in [docs/PLAN.md](docs/PLAN.md).
 
 ## The problem
 
@@ -19,7 +19,7 @@ Priya (a demo persona, played by Alex) is on call for a small online shop. At 16
    - the watch flow checks the reason, and names the order in a short machine-readable note.
 
    The action is always read from the signed file, never from the agent's note. If either key fails, she gets a three-line page with one suggested action, which she can approve with a thumbs-up.
-4. **Dawn.** The orders expire at 07:00. Code writes the watch log. The dawn flow proposes keep or undo for each change made overnight, as a merge request she merges.
+4. **Dawn.** The orders expire at 07:00. Code writes the watch log on the watch issue. The dawn flow proposes keep or undo for each change made overnight, as a countersign merge request. When she signs it, code undoes every night change she did not keep, once.
 
 Some things always wake her and no order can cover them: payment errors, a second alert during a re-check, anything after 07:00, a malformed agent answer, no answer within 8 minutes, and a fourth model run in one night.
 
@@ -67,7 +67,7 @@ Handled while you slept: incident #2 (order 1).
                                                        |
   feature flags  <------- flag on or off --------------+---> shop (Cloud Run): traffic
                                                               to a named revision
-  dawn flow (Duo): watch log, keep-or-undo MR
+  dawn flow (Duo): keep-or-undo MR    relay: watch log, then applies the signed countersign
 ```
 
 ## What to look at, by judging criterion
