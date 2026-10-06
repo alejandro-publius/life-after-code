@@ -6,7 +6,8 @@ Inputs, all in [research/ideas/](research/ideas/): the four lens files, [CANDIDA
 
 Contents:
 
-1. Recommendation
+0. Reopened selection, 6 Oct 2026 (current; supersedes section 1 until reviewed)
+1. Recommendation (original, superseded)
 2. How the ideas were made
 3. How they were scored
 4. The full scoring table (57 concepts)
@@ -15,6 +16,87 @@ Contents:
 7. The runners-up
 8. The recommendation, argued
 9. What happens next
+
+## 0. Reopened selection, 6 Oct 2026
+
+**Status: recommendation for Codex review. Nothing in this section is decided until the review comes back.** Sections 1 to 9 below are the original selection from earlier on 6 Oct. Their scores came from AI personas, not judges, and some of their platform assumptions no longer hold (see the [refresh note](research/refresh_2026-10-06.md)).
+
+### 0.1 How this was done
+
+- Primary sources were read again on 6 Oct, 07:35 to 07:50 UTC: the rules, GitLab's Duo Agent Platform docs, the public field and organizer posts about past winners ([refresh note](research/refresh_2026-10-06.md)). The Night Orders code was audited against main at `484c411` ([DECISIONS.md](DECISIONS.md)).
+- Four substantially different candidates were chosen from the 57 in sections 1 to 9: Night Orders (on-call authority), No Mouse (accessibility), Forget Me (deletion) and Fine Print (dependency behaviour). Each was rewritten to use only documented capabilities, then attacked by three AI critics (platform, judge, delivery), then compared by two independent AI reviewers with opposite lenses (expected quality, and risk of an incomplete or simulated entry). Everything they wrote, with sources, is in the [panel appendix](research/ideas/concept_panel_2026-10-06.md).
+- The choice below is the lead's judgement from that evidence. Model-written bands are opinions with reasons, not scores.
+
+### 0.2 What changed since the first selection
+
+1. **Only a person's action can start a Duo trigger, and there is no schedule trigger.** A Duo flow cannot wake up at 03:12 on its own. The Flows API can start one from code, but a start with a Developer account in the hackathon group is untested.
+2. **Flows likely cannot read feature flags or deployments.** Their token scope is accepted by the Issues, Notes, Merge requests, Commits and Files APIs only.
+3. **Creating flows and triggers needs Maintainer.** Entrants get Developer plus an unpublished AI role. This is the one gate every candidate shares, and it is still unanswered.
+4. **The field is crowded with hands-off release loops** (gate, deploy, verify, roll back). No public entrant covers on-call authority, accessibility, deletion or dependency behaviour, though GitLab itself ships a flow for dependency bumps.
+5. **Night Orders has ten confirmed or partly confirmed concerns** in its code, and its browser demo replays recorded inputs.
+
+### 0.3 The four candidates
+
+The same rule runs through all four: the model chooses where to look, code decides what is true, a person decides what matters. All four are Path A and Supervised. Every one depends on the same Maintainer gate.
+
+| | No Mouse | Forget Me | Night Orders (revised) | Fine Print |
+|---|---|---|---|---|
+| Product | A pipeline check that walks the checkout using only what a screen reader would announce; when the walk breaks, a Duo flow decides whether a harmless redesign or a real barrier, and writes the new path or the issue and fix | On each merge request, a person who does not exist uses the changed feature and asks to be deleted; code searches every store for her marker; a Duo flow keeps the test's map of where data lands current with the change | Before bed the on-call engineer signs up to two flag actions a Duo flow drafted from the day's merges; code may do only those at night; everything else wakes her; at 07:00 it ends | For a dependency bump whose pipeline is still green, a Duo flow writes tests that pin how our code uses each changelog item; CI runs them on the old and new lockfile |
+| User and task | Small team with no screen reader user; a redesign silently breaks checkout for blind customers | Developers and privacy owner of an app with a Delete account button; new features create copies the delete path misses | On-call engineer of a small team; woken to flip a flag she already knew was right | Maintainer facing a backlog of upgrade MRs that might silently change behaviour |
+| Agent decision that matters | Redesign or barrier, the new path, the cause and the smallest fix | How a test person reaches each new place data lands (journeys, stores, derived names, vendors); later, delete more or keep less | Which merges get an order, the condition that separates this change failing from something else; keep or undo at dawn | Which changelog items touch our code, and the smallest test through our own functions |
+| Duo feature | One API-only custom flow (Pipeline events: Failed, fallback `/flow:`); issue and MR tools | Map flow (Merge request: Created) and gap flow started by the privacy lead's mention | Dusk and dawn flows started by the on-call person; the night runs on code alone | Read flow (Assign reviewer); optional fix flow (Mention) |
+| Code verifies | Replays every path the agent writes; never accepts a path that presses an unnamed control; order actually placed | Marker present before deletion and absent after; exhaustive store scan; unmapped store blocks | Signature, expiry, measured condition, exact action, exact morning restore | Valid on old lockfile; pass old and fail new means proven change; guards on test scope |
+| Human authority | Merges the path or fix; a release job needs a clear walk | Chooses the fix direction by mention; merges; runs the release job | Signs at dusk by reaction; approves pages; countersigns at dawn | Merges or asks for a fix |
+| Demo, first 30 s | Black screen, simulated screen reader voice: "Button. Button. Button." Then the red walk and the Duo issue | A parent deletes a child's account; the new share feature; a red probe row where a copy survived | 03:12, a flag turns off under a signed order, the phone stays dark | A green bump MR, then one red row: our function's result changed |
+| Closest | GitLab's Fix CI/CD Pipeline flow, Pa11y, Playwright's test repair agent (search excerpt), Evinced | Compliance Sentinel (Feb 2026 honorable mention, static check), canary data subjects in commercial tools | AutoSRE-0 (2 a.m. rollbacks, no human), BABYDOV's autonomy budget, PagerDuty runbook automation | GitLab's Resolve Dependency Bump Breaking Changes flow, BreakGuard (arXiv, Aug 2026) |
+| Distinction | Judges whether a person can pay, by ear; cannot turn a barrier green | Runs instead of reading; the test follows each change | A grant a person signs, that expires, and is restored by default | Works on a green pipeline and adds evidence, not repairs |
+| Technological Implementation | Medium, higher with a live flow | Medium, higher with a live flow | Medium-low now: Duo is off the critical path | Medium |
+| Design | Medium to medium-high | Medium | Medium to medium-high | Low-medium to medium |
+| Potential Impact | Medium | Medium to medium-high | Medium-low to medium | Medium |
+| Innovation/Idea | Medium-high against this field; never claim first | Medium; canary subjects are prior art | Medium | Low to low-medium |
+| Presentation | High potential (audio) | Medium (risks reading as "a test failed") | Medium-high only if a real night is filmed | Medium |
+| Local burden | About 2,600 lines; reuses the Playwright smoke test and flow validator | About 2,800 to 3,800 lines, all new | About 1,500 to 2,800 lines of rework on a tested core | About 1,500 to 2,500 lines |
+| Integration burden | Medium: one flow; Playwright image in CI; Cloud Run optional | Medium: two flows; trigger rules mean the gap flow needs a mention | High: two flows, flags, incidents, reactions, a relay running for hours with a token | Low-medium: one flow; no cloud |
+| Main failure risk | Duo looks like the Fix CI/CD Pipeline flow with an accessibility prompt; a 30-line rule catches the planted barrier | A fair crawler baseline catches most planted cases, so Duo writes YAML code could have produced | Judges see code acting at night and Duo writing paperwork; the night is staged | Prior art makes it mid-pack; the hero change is famous, so "the model remembered it" |
+| Smallest fallback | Code walk plus one flow started by `/flow:` that opens an issue and a fix MR | Probe plus the map flow only; a person writes fixes | Code-only night plus whatever Duo run works (fails Stage One if none works) | One flow, one real bump, the fix by hand |
+| Confidence | Medium that it is the best choice; 40 to 55% for a complete honest entry | Medium-low | Medium-low; 30 to 45% for the full product | Medium to finish; low to place |
+
+Rejected as the main concept, and why:
+
+- **Night Orders.** The useful part at 03:12 is deterministic code; the dossier itself keeps Duo out of the night, and code already handles the two dusk examples that were meant to show the model's value. It has the widest untested live surface and the most staged demo. It would move up only if a live probe showed a Flows API start working for this role, so that Duo acts at the paged moment under the signed grant.
+- **Fine Print.** Most likely to finish and look honest, least likely to place: GitLab ships a neighbouring flow, a published method does the same thing, and the planned hero change is one the model may simply remember.
+
+### 0.4 Recommendation
+
+**Preferred: No Mouse, revised.** Code walks the checkout in CI using only accessible names and keys, Duo judges a broken walk, code replays whatever Duo writes, and a person merges. It is the only candidate both comparisons put in their top two. It has the clearest human consequence in a short video, a domain no visible entrant covers, an event-driven Duo start that fits the documented trigger rules, and an output (issues and MRs) judges can read without project access. Recommended category: **Path A, Best Supervised Agent**, with **Most Creative** as the special prize emphasis.
+
+**Strongest argument against it.** The new part may be plain CI code. A short rule catches the planted unnamed-icon barrier, a bounded search over named controls may handle harmless redesigns without a model, and the flow resembles GitLab's Fix CI/CD Pipeline flow. The screen reader is simulated (Playwright's computed accessible names, read aloud by a speech engine), and a Developer cannot enforce "pipelines must succeed", so some control is convention plus a release job that needs a clear walk. If the model does not beat a strong baseline, Duo is decorative and the concept fails its own test.
+
+**Closest alternative: Forget Me.** Prefer it if (a) No Mouse's experiment fails against the strong baseline while a pre-registered Forget Me bench shows the model catching cases a crawler misses, (b) a Playwright browser in GitLab shared runners proves impractical, or (c) Alex values Potential Impact and a real privacy decision over presentation and Most Creative.
+
+**Prize emphasis.** Supervised path prize first. Most Creative second. Not Most Stages Covered (an honest count is Verify and Create, with thin Plan, Release and Monitor), and not the environmental prize. The Google Cloud bonus is optional and late: one scale-to-zero Cloud Run shop that the release job deploys and judges can try with their own screen reader, only after the live flow passes.
+
+**Feasibility experiment, before any bulk build (about 1 to 1.5 days, local, decided by about 10 Oct).**
+
+1. Build and commit, before writing any prompt: the labelled demo shop, the code walker and announcer, and two baselines. B1 is a short rule (an unnamed focusable control means barrier, otherwise match the old name). B2 is strong: a synonym list plus a bounded search over named controls, accepted only if an order is really placed and no unnamed or junk-named control is pressed.
+2. Codex writes held-out variants without seeing the prompt: at least four harmless redesigns (including a reworded control no synonym covers), at least five barriers (including a named but meaningless control and a spoken name that does not match the visible label), and one prompt-injection page.
+3. Run the exact flow prompt with mock tools that return only the log tail, three times per variant, using a clearly labelled stand-in model (not Duo).
+4. Pass: the model beats B2 on at least two distinct cases; barriers are answered barrier or unsure in at least 14 of 15 runs; no accepted path presses an unnamed or junk-named control; the injection is ignored every time; drafted fixes replay green in at least two of three runs.
+5. Fail: B2 ties the model. That is a concept decision for Codex and Alex (run the Forget Me bench or reframe), not a quiet fallback.
+
+A separate live gate applies to every candidate, within 48 hours of workspace access: create and enable a one-component custom flow; start it by `/flow:` and by the Flows API; have it read a real job log tail, open an issue and commit a one-line change on a branch; record whether a failed pipeline after a person's push fires a Pipeline events trigger, whether Alex can merge, and the credits left. Escalate to the organizers the same day if anything is refused.
+
+**Smallest complete product worth demonstrating.** One labelled demo shop and one checkout journey. A CI walk job that writes the verdict, a transcript, audio, one JUnit case per step and a short evidence block at the end of the log, and a release job that needs a clear walk. One API-only custom flow (a single agent first; split it only after routing is proven live) that reads the log tail and opens either a "record the new path" MR or an issue with a draft fix MR. Code guards on every agent path. Two real runs on GitLab.com: one harmless redesign and one barrier. One real VoiceOver clip for calibration. A README with the evaluation table against both baselines, failures included, and the prior art named.
+
+**Deliberately out of scope.** An agent pressing keys inside the flow (only a stretch if the live probe shows a browser can run there); real screen readers in CI beyond the calibration clip; more than one journey; mobile; any WCAG compliance or "first" claim; auto-merge, auto-deploy and rollback; a human approval step on the critical path (unsure cases become an issue for a person); Cloud Run before about 22 Oct; Most Stages Covered and SCI claims; session links as the only proof; deleting the Night Orders code before the switch is reviewed.
+
+**Confidence.** Medium that No Mouse is the best of the four; the margin over Forget Me is narrow. The shared gate (can the hackathon role enable a custom flow?) matters more than the choice between them: if it fails, no candidate qualifies.
+
+### 0.5 Questions Codex should answer
+
+1. Accept No Mouse as preferred, choose Forget Me, or keep Night Orders?
+2. Are the experiment's baselines and pass bar fair, and will Codex write the held-out variants?
+3. Should the submission repository contain only the new product, with Night Orders kept in the GitHub workbench?
 
 ## 1. Recommendation
 

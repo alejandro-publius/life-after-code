@@ -1,16 +1,30 @@
 # Status
 
-Last updated: **5 Oct 2026 (Pacific Time)**.
+Last updated: **6 Oct 2026, about 08:40 UTC** (concept review batch).
 
-## Current result
+## Current state
 
-One chosen improvement is published on main: a guided Night Orders browser demo at `/demo`. It brings the existing decision core into a readable Before bed, During the night and Over coffee story, with two human choices, old and new checkout charts and inspectable evidence. It addresses **Design and Presentation, each 20%** under the [official judging criteria](https://gitlab-transcend.devpost.com/rules). See the [judge guide](GUIDE.md) and [review record](codex/JUDGE_REVIEW.md).
+| Item | State |
+|---|---|
+| Concept | **Selection reopened.** The code on main implements Night Orders. The recommendation under review is **No Mouse** (revised), with **Forget Me** as the closest alternative ([IDEAS.md, section 0](IDEAS.md#0-reopened-selection-6-oct-2026)). Nothing is decided until Codex reviews it. |
+| Prize emphasis | Path A, Best Supervised Agent; Most Creative as the special prize. Not Most Stages Covered or the environmental prize. Google Cloud bonus optional and late. |
+| Latest reviewed source | GitHub main at `484c41154a2742666483a53c715121685eb7dac0`. The concept review batch is on branch `claude/concept-review` and is not yet reviewed. |
+| Works locally | The Night Orders decision core, relay, demo shop and guided browser replay at `/demo` (see below). Rerun on 6 Oct at 07:34 UTC on `484c411`: 256 application tests passed; flow, orders and state checks passed; the demo night replayed. The deployment unittests ran 16 in a Linux container (`python:3.12-slim`): 15 passed, 1 skipped because gcloud is absent. On macOS they fail 9 times only because the system bash is version 3.2. |
+| Simulated | The browser replay's shop, persona, faults, model replies, signature, approvals and morning countersign are recorded or invented demo data. |
+| Live integrations verified | **None.** Nothing has run on GitLab.com or Google Cloud, and no live Duo or model run has been demonstrated. |
+| CI evidence | [GitHub Checks run 37418993849](https://github.com/alejandro-publius/life-after-code/actions/runs/37418993849) passed all three jobs on `484c411` (Python checks, Browser smoke, pinned gcloud flag audit). This is GitHub CI, not GitLab pipeline history. |
+| Current blocker | Two decisions: the concept review, and whether the hackathon role (Developer plus an unpublished AI role) can create and enable a custom Duo flow. Every candidate depends on the second. |
+| Next highest-value task | After review: the local feasibility experiment in [IDEAS.md, section 0.4](IDEAS.md#04-recommendation), and the one-flow live probe within 48 hours of workspace access. |
 
-The demo uses a simulated shop, planted faults and recorded model replies. Signing and approval select isolated fixture inputs; they do not merge real orders, push code or send phone notifications. The default path reports 1 wake-up, 1 incident handled automatically and 1 approved action. These are actual counts from the invented night, not production impact measurements.
+The sections below describe the Night Orders work on main as of 5 Oct.
 
-**Public live demo URL: pending.** No GitLab or Google Cloud integration is configured for this run. Nothing has run on GitLab.com or Google Cloud, and no live model execution has been demonstrated. The browser improvement and public materials are published to GitHub main at `0812bc9`. [GitHub CI passed](https://github.com/alejandro-publius/life-after-code/actions/runs/37418744092) for that exact commit: Python checks, Browser smoke and the pinned gcloud flag audit. This is not GitLab pipeline or deployment proof.
+## Night Orders result on main (5 Oct)
 
-## Verified locally
+One chosen improvement is published on main: a guided Night Orders browser demo at `/demo`. It brings the existing decision core into a readable Before bed, During the night and Over coffee story, with two human choices, old and new checkout charts and inspectable evidence. See the [judge guide](GUIDE.md) and [review record](codex/JUDGE_REVIEW.md).
+
+The demo uses a simulated shop, planted faults and recorded model replies. Signing and approval select isolated fixture inputs; they do not merge real orders, push code or send phone notifications. The default path reports 1 wake-up, 1 incident handled automatically and 1 approved action. These are actual counts from the invented night, not production impact measurements. A code audit on 6 Oct confirmed ten known concerns in this implementation ([DECISIONS.md](DECISIONS.md)).
+
+## Verified locally (5 Oct)
 
 | Check | Result |
 |---|---|
@@ -40,12 +54,12 @@ The demo uses a simulated shop, planted faults and recorded model replies. Signi
 
 | Part | File | State |
 |---|---|---|
-| Rules | [RULES.md](RULES.md) | Research retained; later primary-source wording in [RULES_CHECK.md](codex/RULES_CHECK.md) controls where the early notes differ. |
+| Rules | [RULES.md](RULES.md) | Research retained. Primary sources were read again on 6 Oct ([refresh note](research/refresh_2026-10-06.md)); that note and [RULES_CHECK.md](codex/RULES_CHECK.md) control where the early notes differ. |
 | 1. Past winners | [PAST_WINNERS.md](PAST_WINNERS.md) | Research retained: 102 winners across 15 events. |
 | 2. Patterns | [PATTERNS.md](PATTERNS.md) | Counts, anti-patterns and ten project rules retained. |
 | 3. Current field | [FIELD.md](FIELD.md) | Dated field research retained; it is not a claim about every current competitor. |
 | 4. Sponsors | [SPONSORS.md](SPONSORS.md) | Sponsor research retained. |
-| 5. Ideas | [IDEAS.md](IDEAS.md) | 74 concepts, 57 scored and five briefs; Night Orders chosen. |
+| 5. Ideas | [IDEAS.md](IDEAS.md) | 74 concepts, 57 scored and five briefs. Selection reopened on 6 Oct: section 0 holds the four-candidate review and the current recommendation. |
 | 6. Build and plan | [PLAN.md](PLAN.md), code and pipeline files | Decision core, dusk drafter, replay, relay, demo shop, countersign and three Duo definitions available offline. Current verification is listed above. |
 | Public materials | [README](../README.md), [GUIDE](GUIDE.md), [DEVPOST](DEVPOST.md), [VIDEO](VIDEO.md), [MORNING](MORNING.md) | Updated around the guided local demo and its limits. |
 
