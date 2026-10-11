@@ -104,75 +104,91 @@ class Walk:
 
 def plan_b(walk: Walk) -> list:
     """One action list per Plan B scene, in order. Each runs at the start of its slot; the slot's time is held."""
-    def s0():
-        walk.scroll(".order-list", 2500)
-        time.sleep(4)
+    def signed_night():
+        walk.fresh()
+        walk.click("#sign-orders", "inventory")
+        walk.click("#approve-fallback", "inventory")
+
+    def s0():  # cold open at 03:12: the chart and the dark phone
+        signed_night()
+        walk.click("#next-step", "checkout")
+        walk.scroll(".metric-card", 600)
+        time.sleep(3)
+        walk.scroll(".phone.dark", 1200)
+
+    def s1():  # before bed
+        walk.fresh()
+        walk.caption(walk_caption[1])
+        walk.scroll(".order-list", 2200)
+        time.sleep(5)
         walk.scroll("#primary-action", 1200)
         time.sleep(1)
         walk.click("#sign-orders", "inventory")
         walk.scroll("top", 600)
 
-    def s1():
-        walk.scroll(".veto-card", 2000)
-        time.sleep(4)
+    def s2():  # 01:52, the decline and the one wake-up
+        walk.scroll(".veto-card", 1800)
+        time.sleep(5)
         walk.scroll("#wake-message", 1500)
-        time.sleep(4)
+        time.sleep(5)
+        walk.scroll("#primary-action", 800)
         walk.click("#approve-fallback", "inventory")
 
-    def s2():
+    def s3():  # 03:13, the order runs
         walk.click("#next-step", "checkout")
         walk.scroll("top", 400)
         time.sleep(3)
-        walk.scroll(".metric-card", 2000)
+        walk.scroll(".metric-card", 1800)
         time.sleep(5)
         walk.scroll(".phone.dark", 1500)
 
-    def s3():
+    def s4():  # the evidence and the planted log line
         walk.click("#evidence-details > summary")
-        walk.scroll("#evidence-details", 1800)
-        time.sleep(6)
-        walk.scroll(".ledger-list", 2200)
+        walk.scroll("#evidence-details", 1600)
+        time.sleep(4)
+        walk.scroll(".proof-log mark", 1800)
+        time.sleep(5)
+        walk.scroll(".ledger-list", 2000)
 
-    def s4():
+    def s5():  # the same night, unsigned
         walk.fresh()
-        walk.caption(walk_caption[4])
-        time.sleep(2)
-        walk.scroll("#primary-action", 1200)
+        walk.caption(walk_caption[5])
+        walk.scroll("#primary-action", 1000)
         walk.click("#leave-unsigned", "inventory")
         time.sleep(3)
         walk.click("#next-step", "checkout")
         walk.scroll("top", 400)
 
-    def s5():
-        walk.fresh()
-        walk.caption(walk_caption[5])
-        walk.click("#sign-orders", "inventory")
-        walk.click("#approve-fallback", "inventory")
+    def s6():  # over coffee
+        signed_night()
+        walk.caption(walk_caption[6])
         walk.click("#next-step", "checkout")
         walk.click("#next-step", "dawn")
         walk.scroll("top", 400)
-        time.sleep(5)
-        walk.scroll(".stat-grid", 1500)
+        time.sleep(3)
+        walk.scroll(".quiet-push", 1200)
+        time.sleep(4)
+        walk.scroll(".stat-grid", 1200)
         time.sleep(4)
         walk.scroll(".morning-list", 1800)
 
-    def s6():
+    def s7():  # what lands in GitLab
+        walk.scroll(".gitlab-objects", 1500)
+        time.sleep(6)
         walk.click("#evidence-details > summary")
-        walk.scroll("#evidence-details", 1800)
-        time.sleep(5)
         walk.scroll(".ledger-list", 2000)
         time.sleep(4)
         walk.page.locator("summary", has_text="Read the morning record").first.click()
         walk.scroll("summary:has(+ pre)", 1500)
 
-    def s7():
+    def s8():  # close
         walk.click("#evidence-details > summary")
         walk.scroll("top", 1500)
-        time.sleep(9)
+        time.sleep(8)
         walk.page.evaluate(TITLE, ["Night Orders", "Before bed, you sign what the agent may do alone tonight. "
                                    "Everything else wakes you.", REPO])
 
-    return [s0, s1, s2, s3, s4, s5, s6, s7]
+    return [s0, s1, s2, s3, s4, s5, s6, s7, s8]
 
 
 walk_caption: list[str] = []
