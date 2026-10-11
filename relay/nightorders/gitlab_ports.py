@@ -389,8 +389,9 @@ class GitLabPorts:
     def __init__(self, gitlab: GitLab, http: Http, *, flow_consumer_id: str, flow_service_account: str,
                  ntfy_url: str, gcp_project: str = "", gcp_region: str = "",
                  google_token: Callable[[], str] | None = None, memory: dict | None = None,
-                 dawn_consumer_id: str = "", watch_issue: int | None = None):
+                 dawn_consumer_id: str = "", watch_issue: int | None = None, errors_url: str = ""):
         self.gitlab = gitlab
+        self.errors_url = errors_url
         self.dawn_consumer_id = dawn_consumer_id
         self.watch_issue = watch_issue
         self.http = http
@@ -467,6 +468,21 @@ class GitLabPorts:
         if not answers:
             return None
         return max(answers, key=lambda answer: answer[0])[1]
+
+    def recent_log_lines(self, at: datetime) -> list[tuple[datetime, str]]:
+        """The shop's recent warnings and errors from its /errors.json, (when, "SEVERITY message"), oldest first.
+        Only time, severity and message are read; the watch fences and labels them as data."""
+        if not self.errors_url:
+            return []
+        data = self.http.call("read the shop's error lines", "GET", self.errors_url).json()
+        lines = []
+        for item in (data.get("errors") or []) if isinstance(data, dict) else []:
+            if not isinstance(item, dict):
+                continue
+            when = parse_time(item.get("time"))
+            if when is not None:
+                lines.append((when, f"{str(item.get('severity') or '')[:10]} {str(item.get('message') or '')}".strip()))
+        return sorted(lines, key=lambda line: line[0])
 
     # The morning: the watch log and the dawn flow on the standing watch issue. Without one, both do nothing.
 

@@ -24,7 +24,8 @@ def test_timeline_has_the_two_faults_and_renews_traffic():
     assert (3, {"inventory_slow": True}) in whats and (16, {"inventory_slow": False}) in whats
     assert (20, {"rounding_bug": True}) in whats
     assert whats[-1] == (45, {"inventory_slow": False, "rounding_bug": False})
-    assert [m for m, f in whats if f is None] == [0.0, 25.0]  # traffic starts and is renewed once
+    assert [s.minute for s in steps if s.faults is None and s.coupon is None] == [0.0, 25.0]  # traffic, renewed once
+    assert [s.minute for s in steps if s.coupon] == [21.5]  # the planted injection, once
     assert [s.minute for s in steps] == sorted(s.minute for s in steps)
 
 
@@ -71,7 +72,10 @@ def test_the_runner_plays_the_night_in_order_with_the_key_in_a_header_only():
     assert calls[0] == ("/demo/traffic", {"minutes": "30"}, None)
     assert calls[1] == ("/demo/faults", {}, {"inventory_slow": True})
     assert calls[-1] == ("/demo/traffic", {"minutes": "0"}, None)  # the last step stops the traffic loop
-    assert all(r.headers["X-Demo-Key"] == KEY for r in fake.requests)
+    keyed = [r for r in fake.requests if r.url.path != "/checkout"]
+    assert all(r.headers["X-Demo-Key"] == KEY for r in keyed)
+    [planted] = [r for r in fake.requests if r.url.path == "/checkout"]
+    assert "X-Demo-Key" not in planted.headers  # /checkout is public: the key goes only where it is needed
     assert KEY not in printed and "inventory_slow on" in printed and "night over" in printed
     assert sum(clock.slept) == 45 * 60  # it waited exactly through the night
 

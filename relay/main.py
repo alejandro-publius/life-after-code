@@ -41,6 +41,9 @@ Settings come only from environment variables. The relay never prints, logs or r
   DAWN_FLOW_CONSUMER_ID optional: numeric AI Catalog item consumer ID of the dawn flow
   SHOP_STAGING_URL      optional: the staging shop's base URL. The rehearsal of a drafted order applies it on
                         staging, checks this shop still serves a checkout, and restores the flag.
+  SHOP_ERRORS_URL       optional: the shop's /errors.json. When an incident opens, its recent error lines are
+                        copied into the evidence pack, fenced and labelled as data. Defaults to SHOP_METRICS_URL
+                        with /metrics.json replaced by /errors.json.
   WATCH_MODE            optional: "flow" (default) starts the watch flow and lets the model check the reason;
                         "standing" is Standing Orders, the fallback for an account whose Flows API refuses to
                         start a flow: no model at night, code carries out the first signed order whose numbers
@@ -128,7 +131,8 @@ class Config:
     @classmethod
     def from_env(cls, env: Any = None) -> "Config":
         env = os.environ if env is None else env
-        names = REQUIRED + ("STATE_BUCKET", "STATE_OBJECT", "SHOP_STAGING_URL", "WATCH_MODE") + OPTIONAL_NUMBERS
+        names = REQUIRED + ("STATE_BUCKET", "STATE_OBJECT", "SHOP_STAGING_URL", "SHOP_ERRORS_URL",
+                            "WATCH_MODE") + OPTIONAL_NUMBERS
         return cls(values={name: str(env.get(name, "")).strip() for name in names},
                    on_cloud_run=bool(env.get("K_SERVICE")))
 
@@ -137,6 +141,14 @@ class Config:
 
     def __repr__(self) -> str:
         return f"Config(set: {', '.join(sorted(n for n, v in self.values.items() if v))})"
+
+    @property
+    def errors_url(self) -> str:
+        """The shop's /errors.json: SHOP_ERRORS_URL, or the metrics URL's sibling."""
+        if self.values.get("SHOP_ERRORS_URL"):
+            return self.values["SHOP_ERRORS_URL"]
+        metrics = self.values.get("SHOP_METRICS_URL", "")
+        return metrics[: -len("/metrics.json")] + "/errors.json" if metrics.endswith("/metrics.json") else ""
 
     @property
     def standing(self) -> bool:
@@ -225,7 +237,7 @@ def make_relay(config: Config, store: Any) -> Relay:
                            flow_service_account=config["FLOW_SERVICE_ACCOUNT"], ntfy_url=config["NTFY_URL"],
                            gcp_project=config["GCP_PROJECT_ID"], gcp_region=config["GCP_REGION"],
                            google_token=token, memory=saved, dawn_consumer_id=config["DAWN_FLOW_CONSUMER_ID"],
-                           watch_issue=watch_issue)
+                           watch_issue=watch_issue, errors_url=config.errors_url)
 
     # The day sheet and the rehearsal read and write a lot, so they get a budget of their own, large enough
     # for the rehearsal's wait on the staging shop and still inside the tick lease.

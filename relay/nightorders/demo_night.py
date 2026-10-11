@@ -80,6 +80,8 @@ class RecordingPorts:
     next_incident: int = 1
     samples: list[dict] = field(default_factory=list)
     actions: list[dict] = field(default_factory=list)
+    log_lines: list[tuple[datetime, str]] = field(default_factory=list)  # scenario.yml log_lines (demo data)
+    evidence: dict[int, str] = field(default_factory=dict)  # the evidence pack code wrote for each incident
 
     def _t(self, at: datetime) -> str:
         return at.astimezone(self.oncall_tz).strftime("%H:%M")
@@ -87,8 +89,12 @@ class RecordingPorts:
     def open_incident(self, title: str, description: str, at: datetime) -> int:
         number = self.next_incident
         self.next_incident += 1
+        self.evidence[number] = description
         self.log.append(f"{self._t(at)}  incident #{number} opened: {title}")
         return number
+
+    def recent_log_lines(self, at: datetime) -> list[tuple[datetime, str]]:
+        return [(when, text) for when, text in self.log_lines if when <= at]
 
     def note(self, incident: int, text: str, at: datetime) -> None:
         self.log.append(f"{self._t(at)}  note on #{incident}: {text}")
@@ -226,7 +232,8 @@ def run(folder: Path | str, ops: Path | str | None = None, *, signed: bool = Tru
     raw_reactions = json.loads((folder / "reactions.json").read_text())["incidents"] if approved else {}
     reactions = {int(k): (v["user"], datetime.fromisoformat(v["at"])) for k, v in raw_reactions.items()}
 
-    ports = RecordingPorts(oncall_tz=tz, shop=shop, notes=notes, reactions=reactions)
+    ports = RecordingPorts(oncall_tz=tz, shop=shop, notes=notes, reactions=reactions,
+                           log_lines=[(_local(line["at"], tz), str(line["text"])) for line in scenario.get("log_lines", [])])
     watch = Watch(night, ports, rules, standing=standing)
     metrics = Metrics()
     now = _local(scenario["start"], tz)

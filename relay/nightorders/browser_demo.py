@@ -191,6 +191,7 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
                    "model_requests": len(night.ledger.of("asked"))},
         "steps": steps, "timeline": timeline, "messages": messages, "metrics": ports.samples,
         "logs": list(ports.log), "watch_log": watch_log,
+        "evidence": {str(number): text for number, text in sorted(ports.evidence.items())},
         "flags": {"initial": initial_flags, "after_night": after_night, "after_morning": dict(ports.shop.flags)},
         "morning": morning,
     }

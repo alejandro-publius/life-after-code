@@ -11,11 +11,16 @@ from __future__ import annotations
 import json
 import sys
 import traceback
+from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
 
 SERVICE = "juniper-market (demo shop)"
 HERE = Path(__file__).resolve().parent
+RECENT_MAX = 50
+# The last warnings and errors, newest last, served at GET /errors.json so the relay can copy recent error
+# lines into an incident's evidence pack. Kept in memory only, like the metrics.
+RECENT: deque[dict] = deque(maxlen=RECENT_MAX)
 
 
 def emit(severity: str, message: str, **fields: object) -> dict:
@@ -24,7 +29,14 @@ def emit(severity: str, message: str, **fields: object) -> dict:
     entry.update(fields)
     sys.stdout.write(json.dumps(entry, default=str, ensure_ascii=False) + "\n")
     sys.stdout.flush()
+    if severity in ("WARNING", "ERROR", "CRITICAL"):
+        RECENT.append({"time": entry["time"], "severity": severity, "message": message})
     return entry
+
+
+def recent(limit: int = RECENT_MAX) -> list[dict]:
+    """The newest warnings and errors, oldest first: time, severity and message only (no stack, no user)."""
+    return list(RECENT)[-limit:]
 
 
 def error(exc: BaseException, where: str, **fields: object) -> dict:

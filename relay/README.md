@@ -66,6 +66,7 @@ Environment variables only. Secrets come from Secret Manager; the rest are publi
 | `WATCH_ISSUE_IID` | no | the standing "Tonight's watch" issue (optional; without it no log is posted) |
 | `SHOP_METRICS_URL` | no | the shop's `/metrics.json` |
 | `SHOP_STAGING_URL` | no | the staging shop's base URL, for the rehearsal (optional) |
+| `SHOP_ERRORS_URL` | no | the shop's `/errors.json`, whose recent lines go into an incident's evidence pack as fenced data (optional; defaults to the metrics URL's sibling) |
 | `NTFY_URL` | yes | ntfy topic URL for pages; the random topic name is the only protection |
 | `RELAY_KEY` | yes | the key Cloud Scheduler sends in `X-Relay-Key` |
 | `GCP_PROJECT_ID`, `GCP_REGION` | no | where the Cloud Run services live (for `traffic_to_revision`) |

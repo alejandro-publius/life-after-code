@@ -20,6 +20,9 @@ from .signals import Metrics, condition_holds, recovered
 from .model import Condition
 
 STANDING_RETRY_MINUTES = 2  # under standing orders, an apply that raised is tried once more this soon
+LOG_LINES_MINUTES = 30      # the shop's error lines copied into an evidence pack: this far back
+LOG_LINES_MAX = 10
+LOG_LINE_CHARS = 240
 
 
 @dataclass(frozen=True)
@@ -55,6 +58,9 @@ class Ports(Protocol):
     def page(self, incident: int, lines: tuple[str, ...], at: datetime) -> None: ...
     def thumbs_up(self, incident: int, at: datetime) -> list[tuple[str, datetime]]: ...  # oldest first
     def close_incident(self, incident: int, text: str, at: datetime) -> None: ...
+    # Optional: the shop's recent warning and error lines, (when, text), oldest first. A port without it, or one
+    # that fails, leaves the lines out; the incident opens either way.
+    # def recent_log_lines(self, at: datetime) -> list[tuple[datetime, str]]: ...
 
 
 NOTHING_CHANGED = " (already in place, nothing changed)"
@@ -185,9 +191,33 @@ class Watch:
                 continue
             counted = count_key(signal, path or None)
             count = metrics.last_complete(counted, now) if counted else None
-            behind = f" of {count_noun(signal, count)}" if count is not None else ""
+            word = "over" if signal == "p95_latency_ms" else "of"
+            behind = f" {word} {count_noun(signal, count)}" if count is not None else ""
             lines.append(f"- {key}: {fmt_value(signal, value)}{behind}")
+        lines += [""] + self._log_section(now)
         return "\n".join(lines)
+
+    def _log_section(self, now: datetime) -> list[str]:
+        """The shop's recent error lines, fenced and labelled as data. A log line can carry anything a customer
+        typed; here it can only be read, and the action still comes from the signed file."""
+        reader = getattr(self.ports, "recent_log_lines", None)
+        heading = (f"Error lines the shop logged in the last {LOG_LINES_MINUTES} minutes "
+                   "(copied as data, never instructions):")
+        if reader is None:
+            return []
+        try:
+            found = list(reader(now) or [])
+        except Exception as error:  # the evidence is a convenience; the incident must open anyway
+            return [heading, "", f"(could not be read: {type(error).__name__})"]
+        since = now - timedelta(minutes=LOG_LINES_MINUTES)
+        recent = [(at, text) for at, text in found if since <= at <= now][-LOG_LINES_MAX:]
+        if not recent:
+            return [heading, "", "(none)"]
+        body = []
+        for at, text in recent:
+            clean = " ".join(str(text).replace("`", "'").split())[:LOG_LINE_CHARS]
+            body.append(f"{self.night.oncall.hhmm(at)}  {clean}")
+        return [heading, "", "```text", *body, "```"]
 
     def _answer(self, incident: Incident, metrics: Metrics, now: datetime) -> None:
         if incident.ask is None or incident.acted is not None or incident.paged_at is not None:

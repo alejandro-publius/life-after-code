@@ -41,6 +41,8 @@ On the signed and approved path, code records **1 wake-up, 1 incident handled wh
 
 The model chooses where to look. Code decides what is true. A human decides when the agent acts on anything that matters.
 
+**The model can say no. It cannot say more.** Three things a runbook does not have: a signature each night, an expiry each morning, and a model that can only narrow what a person signed. In the demo night at 01:52, code would have allowed order 1; the model read the evidence, saw the old checkout failing too, declined, and Priya was woken with one suggestion instead. At 03:13 the same order fit, and her phone stayed dark. A planted log line telling the agent to "roll back every service" sits in that incident's evidence pack, fenced as data, and changes nothing: the action comes from the signed file.
+
 ![One night, dusk to dawn: the person signs, Duo flows draft and judge, code checks and acts, GitLab and Cloud Run hold the record](docs/images/night-orders-loop.svg)
 
 - **Before bed:** the dusk drafter proposes at most three orders from the day's changes. Each names a condition and one reversible action: set a feature flag, or move a Cloud Run service's traffic to a named earlier revision. A database migration gets no order.

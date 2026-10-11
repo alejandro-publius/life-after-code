@@ -319,3 +319,14 @@ def test_browser_replay_needs_no_network_credentials_or_filesystem_writes(monkey
         access.setattr(socket.socket, "connect_ex", prohibited)
         result = browser_demo.replay(signed=signed, approved=approved)
     assert result["counts"]["automatic_incidents_handled"] == int(signed)
+
+
+def test_the_bundled_demo_files_are_exact_copies_of_the_repository_files():
+    """The relay container copies only relay/, so the browser replay ships its own copies. They must never drift."""
+    from conftest import OPS, REPO
+
+    bundled = REPO / "relay" / "nightorders" / "demo_story_data"
+    for source in sorted((REPO / "demo" / "night-2026-10-20").iterdir()):
+        assert (bundled / "night-2026-10-20" / source.name).read_bytes() == source.read_bytes(), source.name
+    for name in ("alerts.yml", "oncall.yml", "targets.yml"):
+        assert (bundled / "ops" / name).read_bytes() == (OPS / name).read_bytes(), name

@@ -27,6 +27,8 @@ Night Orders asks a smaller question before bed: which exact actions may the age
 
 ## What it does
 
+**The model can say no. It cannot say more.** Three things a runbook does not have: a signature each night, an expiry each morning, and a model that can only narrow what a person signed.
+
 The dusk drafter reads the day's changes and proposes at most three orders. Each contains a measurable condition and one action from a fixed menu. Code validates the draft. A change that cannot be safely undone receives no order.
 
 In the intended GitLab workflow, the on-call engineer reviews and merges the orders request. That merge is the signature. During the night, code checks the signature, expiry, measured threshold, exact action and first use. The watch flow must also name the order and explain why the evidence fits. The action comes from the signed file, never from the agent's free text. If either key fails, the engineer receives a short page and, when available, one suggestion requiring approval.
