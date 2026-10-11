@@ -22,7 +22,7 @@ from .dawn import LooseEnd, action_from, dawn_goal, loose_ends, render_watch_log
 from .decide import Night
 from .model import Action, Change, Signature
 from .orders import OrdersError, watch_window
-from .watch import NOTHING_CHANGED
+ALREADY_BACK = " (already as before the night)"
 
 
 class MorningPorts(Protocol):
@@ -129,7 +129,7 @@ def countersign(record: dict, state_file: StateFile, night: Night, ports: Any, n
             change = ports.restore(action, before, now)
             text = describe_restored(action, before)
             if isinstance(change, Change) and not change.changed:
-                text += NOTHING_CHANGED
+                text += ALREADY_BACK
             result["restored"].append(text)
         else:
             # A record from before snapshots existed: a flag is turned the other way (plan_morning sends

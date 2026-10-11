@@ -266,8 +266,12 @@ def _environment_strategies(flag: dict, environment: str) -> list[dict]:
         scopes = [{"environment_scope": str(s.get("environment_scope", ""))} for s in _scopes(strategy)
                   if scope_covers(str(s.get("environment_scope", "")), environment)]
         if scopes:
-            found.append({"name": strategy.get("name"), "parameters": dict(strategy.get("parameters") or {}),
-                          "scopes": scopes})
+            record = {"name": strategy.get("name"), "parameters": dict(strategy.get("parameters") or {}),
+                      "scopes": scopes}
+            user_list = strategy.get("user_list")
+            if isinstance(user_list, dict) and user_list.get("id") is not None:
+                record["user_list_id"] = user_list["id"]  # a gitlabUserList strategy is nothing without it
+            found.append(record)
     return found
 
 
@@ -277,10 +281,18 @@ def flag_snapshot(flag: dict, name: str, environment: str) -> dict:
             "strategies": _environment_strategies(flag, environment)}
 
 
+def served(strategies: list[dict]) -> set[str]:
+    """What an environment is served by these strategies: each strategy's name, parameters and user list.
+
+    Scopes are left out on purpose. After a restore, a strategy that covered the environment through a wider
+    scope (* say) and its exact scope comes back as two records that serve the same thing, and that is fine.
+    """
+    return {json.dumps({"name": s.get("name"), "parameters": s.get("parameters") or {},
+                        "user_list_id": s.get("user_list_id")}, sort_keys=True) for s in strategies}
+
+
 def _same_strategies(first: list[dict], second: list[dict]) -> bool:
-    def key(strategy: dict) -> str:
-        return json.dumps(strategy, sort_keys=True)
-    return sorted(map(key, first)) == sorted(map(key, second))
+    return served(first) == served(second)
 
 
 def same_flag_state(first: dict, second: dict) -> bool:
@@ -302,10 +314,14 @@ def flag_restore_changes(flag: dict, environment: str, before: dict) -> tuple[di
     update: dict = {}
     if not _same_strategies(_environment_strategies(flag, environment), wanted_strategies):
         changes = _drop_environment(strategies, environment)
-        changes += [{"name": s["name"], "parameters": dict(s.get("parameters") or {}),
-                     "scopes": [{"environment_scope": environment}]}
-                    for s in wanted_strategies
-                    if any(scope.get("environment_scope") == environment for scope in s.get("scopes") or [])]
+        for s in wanted_strategies:
+            if not any(scope.get("environment_scope") == environment for scope in s.get("scopes") or []):
+                continue
+            created = {"name": s["name"], "parameters": dict(s.get("parameters") or {}),
+                       "scopes": [{"environment_scope": environment}]}
+            if s.get("user_list_id") is not None:
+                created["user_list_id"] = s["user_list_id"]
+            changes.append(created)
         if changes:
             update["strategies"] = changes
     active_now = bool(flag.get("active"))
@@ -485,9 +501,11 @@ class GitLabPorts:
 
     def restore(self, action: Action, before: dict, at: datetime) -> Change:
         kind = (before or {}).get("kind")
-        if action.kind == "flag_set" and kind == "flag" and action.flag and action.environment:
+        flag_shape = kind == "flag" and "active" in before and isinstance(before.get("strategies"), list)
+        traffic_shape = kind == "traffic" and isinstance(before.get("traffic"), list)
+        if action.kind == "flag_set" and flag_shape and action.flag and action.environment:
             return self._restore_flag(action.flag, action.environment, before)
-        if action.kind == "traffic_to_revision" and kind == "traffic" and action.service:
+        if action.kind == "traffic_to_revision" and traffic_shape and action.service:
             return self._restore_traffic(action.service, before)
         raise RelayError(f"restore: the snapshot ({kind}) does not fit {action.kind}")
 

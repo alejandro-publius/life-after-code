@@ -50,7 +50,7 @@ def loose_ends(night: Night) -> list[LooseEnd]:
             continue
         action = action_from(data)
         target = ("flag", action.flag, action.environment) if action.kind == "flag_set" else ("service", action.service)
-        if first_before.get(target) is None:
+        if target not in first_before:  # the first change of the night is the state before the night
             first_before[target] = event.data.get("before")
         if event.data.get("changed") is False:
             continue

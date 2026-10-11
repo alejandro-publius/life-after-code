@@ -292,6 +292,8 @@ class GcsStore:
         meta = self.http.call("Cloud Storage read state", "GET", self._object_url(), headers=headers,
                               expect=(200, 404))
         if meta.status_code == 404:
+            if "bucket does not exist" in meta.text.lower():
+                raise StateError("the state bucket does not exist")
             return None, "0"
         generation = str(meta.json()["generation"])
         body = self.http.call("Cloud Storage read state", "GET", self._object_url(), headers=headers,
@@ -329,7 +331,9 @@ class GcsStore:
                 return None
             held = str(meta.json()["generation"])
             existing = self.http.call("Cloud Storage read the tick lease", "GET", url, headers=headers,
-                                      params={"alt": "media", "generation": held})
+                                      params={"alt": "media", "generation": held}, expect=(200, 404))
+            if existing.status_code == 404:  # released or taken over between the two reads
+                return None
             if not lease_stale(existing.content, now):
                 return None
             generation = self._put_lease(body, held)  # left behind by a crashed tick: take it over

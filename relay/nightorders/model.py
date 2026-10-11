@@ -114,11 +114,13 @@ def _strategy_words(strategy: dict) -> str:
         return "on for every user"
     if name == "userWithId":
         count = len([u for u in str(parameters.get("userIds", "")).split(",") if u.strip()])
+        if count == 0:
+            return "on for nobody (empty user list)"
         return f"on for {count} listed user{'s' if count != 1 else ''}"
     if name == "gradualRolloutUserId":
         return f"on for {parameters.get('percentage', '?')}% of users"
     if name == "flexibleRollout":
-        return f"on for {parameters.get('rollout', '?')}% of users"
+        return f"on for {parameters.get('rollout', '?')}% of page views"
     if name == "gitlabUserList":
         return "on for a user list"
     return f"on by the {name} strategy"

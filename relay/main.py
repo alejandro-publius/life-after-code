@@ -205,8 +205,10 @@ def make_relay(config: Config, store: Any) -> Relay:
                            google_token=token, memory=saved, dawn_consumer_id=config["DAWN_FLOW_CONSUMER_ID"],
                            watch_issue=watch_issue)
 
+    # The day sheet reads a lot (every merge's diffs), so it gets a GitLab client without the tick's budget.
+    gitlab_plain = GitLab(plain, config["GITLAB_URL"], config["GITLAB_PROJECT_ID"], config["GITLAB_TOKEN"])
     return Relay(sources=GitLabSources(gitlab, budget, config["SHOP_METRICS_URL"]), store=store,
-                 make_ports=make_ports, pager=make_pager(config), watch_issue=watch_issue, gitlab=gitlab)
+                 make_ports=make_ports, pager=make_pager(config), watch_issue=watch_issue, gitlab=gitlab_plain)
 
 
 def readiness(config: Config, make_store: Callable[[Config], Any]) -> list[str]:
@@ -214,8 +216,10 @@ def readiness(config: Config, make_store: Callable[[Config], Any]) -> list[str]:
     problems = config.problems()
     try:
         make_store(config).load()
+    except (RelayError, state.StateError) as error:
+        problems.append(f"state store: {str(error).split(' (')[0]}")  # the what and the status, never the server's text
     except Exception as error:
-        problems.append(f"state store: {reason(error)}")
+        problems.append(f"state store: {type(error).__name__}")
     return problems
 
 
@@ -366,12 +370,21 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
     try:
         watch.tick(inputs.metrics, now)
         done = morning.step(relay_doc, night, watch.expired, state_file, ports, now, relay.watch_issue)
-        if relay.gitlab is not None and relay.watch_issue is not None:
-            done += daysheet.step(relay_doc, now, inputs.oncall, inputs.targets, relay.gitlab, relay.watch_issue)
     except Exception as error:
         problem = f"stopped partway through a tick ({reason(error)})"
         if not isinstance(error, (RelayError, httpx.HTTPError)):
             log.error("unexpected error in a tick", exc_info=error)
+    if not problem and relay.gitlab is not None and relay.watch_issue is not None:
+        # The day sheet is a convenience for the dusk flow, not the watch: a failure is logged, kept in the
+        # state so the next tick tries again, and never counted as a failed tick or paged.
+        try:
+            posted = daysheet.step(relay_doc, now, inputs.oncall, inputs.targets, relay.gitlab, relay.watch_issue)
+            done += posted
+            if posted:
+                relay_doc.pop("daysheet_problem", None)
+        except Exception as error:
+            relay_doc["daysheet_problem"] = {"at": now.isoformat(), "reason": reason(error)}
+            log.warning("day sheet not posted: %s", reason(error))
     # Keep what the tick did before any failure, so nothing it did is done twice.
     state.capture(watch, doc)
     doc["ports"] = ports.saved()

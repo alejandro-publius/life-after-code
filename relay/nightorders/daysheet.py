@@ -140,22 +140,29 @@ def collect(gitlab: GitLab, now: datetime, oncall: OnCall, targets: Targets) -> 
     }
 
 
+def _plain(text: str) -> str:
+    """Text copied as data: in backticks, so Markdown links and emphasis in it stay inert."""
+    return "`" + str(text).replace("`", "'").replace("\n", " ") + "`"
+
+
 def render(sheet: dict) -> str:
-    """The note on the watch issue. Plain Markdown; merge request text is quoted inside code fences."""
+    """The note on the watch issue, as plain Markdown. Titles, labels and file names are copied as data inside
+    backticks; the diff excerpt sits in a code fence, with any fence inside it defused."""
     day = datetime.fromisoformat(sheet["date"]).strftime("%a %d %b")
     lines = [f"## Day sheet for {day}", "", f"{sheet['_label']} Written at {sheet.get('written_at', '')}.", ""]
     lines.append("### Merged today")
     if sheet["merged_today"]:
         for merge in sheet["merged_today"]:
-            lines.append(f"- !{merge['iid']} at {merge['merged_at']} by {merge['author']}: {merge['title']}"
-                         + (f" (labels: {merge['note']})" if merge["note"] else ""))
+            title = _plain(merge["title"])
+            labels = f" (labels: {_plain(merge['note'])})" if merge["note"] else ""
+            lines.append(f"- !{merge['iid']} at {merge['merged_at']} by {_plain(merge['author'])}: {title}{labels}")
             if merge["files"]:
-                lines.append(f"  - files: {', '.join(merge['files'])}")
+                lines.append(f"  - files: {', '.join(_plain(f) for f in merge['files'])}")
             if merge["diff_excerpt"]:
                 lines.append("  - excerpt:")
                 lines.append("")
                 lines.append("    ```diff")
-                lines.extend(f"    {line}" for line in merge["diff_excerpt"].splitlines())
+                lines.extend(f"    {line.replace('```', chr(39) * 3)}" for line in merge["diff_excerpt"].splitlines())
                 lines.append("    ```")
                 lines.append("")
     else:
@@ -218,16 +225,27 @@ if __name__ == "__main__":
 
 
 DAYSHEET_AT = time(21, 0)  # local time; the first tick at or after it posts the sheet, once a day
+MAX_TRIES_PER_DAY = 5      # a GitLab outage at dusk is tried again on the next ticks, then left for a person
 
 
 def step(relay_doc: dict, now: datetime, oncall: OnCall, targets: Targets, gitlab: GitLab, watch_issue: int) -> list[str]:
-    """Called by the relay's tick: post today's day sheet on the watch issue once, at dusk."""
+    """Called by the relay's tick, outside the watch's own failure accounting: post today's day sheet once.
+
+    The sheet counts as posted only after GitLab accepted the note. A failed try is counted and tried again
+    next tick, at most MAX_TRIES_PER_DAY times a day. The error goes back to the caller, which logs it.
+    """
     local = now.astimezone(oncall.timezone)
     today = local.date().isoformat()
     if local.time() < DAYSHEET_AT or relay_doc.get("daysheet") == today:
         return []
-    relay_doc["daysheet"] = today  # set first, so a failing post is not repeated every minute
+    tries = relay_doc.setdefault("daysheet_tries", {})
+    if tries.get(today, 0) >= MAX_TRIES_PER_DAY:
+        return []
+    tries[today] = tries.get(today, 0) + 1
+    for day in [d for d in tries if d != today]:
+        del tries[day]
     sheet = collect(gitlab, now, oncall, targets)
     post(gitlab, watch_issue, render(sheet))
+    relay_doc["daysheet"] = today
     return [f"day sheet posted on the watch issue: {len(sheet['merged_today'])} merge(s), "
             f"{len(sheet['deployments'])} deployment(s)"]
