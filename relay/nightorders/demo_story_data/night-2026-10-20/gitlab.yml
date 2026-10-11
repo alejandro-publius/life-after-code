@@ -1,0 +1,11 @@
+# DEMO DATA. The GitLab objects this demo night would leave behind, for the browser replay's "In GitLab"
+# rows. The numbers are invented; every time comes from the replay itself. On a real night these are real
+# objects, and the rows become links.
+watch_issue: 12
+orders_mr: 36
+countersign_mr: 37
+rehearsed_at: "2026-10-20T21:48"
+orders_head: "36d0e5a1c0ffee0000000000000000000000demo"
+# Cloud Run revisions of the demo shop, for the rehearsal's check that a traffic order names a real one.
+revisions:
+  shop: [shop-00040, shop-00041, shop-00042]

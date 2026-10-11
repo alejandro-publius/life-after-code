@@ -502,3 +502,39 @@ details > summary::-webkit-details-marker { display: none; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Rehearsal line, left-out changes, GitLab rows and the three-ways table */
+.order-rehearsal { margin: 10px 0 0; padding: 9px 11px; border-radius: 8px; color: #2f5443; background: var(--green-light); font-size: 12px; line-height: 1.5; }
+.rehearsal-kicker { display: block; margin-bottom: 2px; color: #477358; font-size: 10px; font-weight: 750; letter-spacing: .4px; text-transform: uppercase; }
+.left-out { margin-top: 18px; }
+.left-out-list { margin: 8px 0 0; padding: 0; list-style: none; }
+.left-out-list li { padding: 8px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; line-height: 1.5; }
+.left-out-list strong { color: var(--ink); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+.change-list { margin: 8px 0 10px; padding: 0; list-style: none; }
+.change-list li { padding: 4px 0; font-size: 12px; line-height: 1.45; }
+.gitlab-objects { margin-top: 22px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: #fbfaf5; }
+.gitlab-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.gitlab-head h3 { margin: 0; font-size: 14px; }
+.gitlab-head p { margin: 0; color: var(--muted); font-size: 12px; }
+.gitlab-objects ul { margin: 10px 0 0; padding: 0; list-style: none; }
+.gitlab-objects li { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; padding: 9px 0; border-top: 1px solid var(--line); }
+.gl-ref { color: #6e49cb; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; font-weight: 650; white-space: nowrap; }
+.gl-body strong { display: block; color: var(--ink); font-size: 13px; font-weight: 650; overflow-wrap: anywhere; }
+.gl-body span { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.gl-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.gl-state { padding: 2px 7px; border-radius: 10px; color: #1f5e3b; background: #e3f1e6; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.gl-meta time { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
+.three-ways { margin-top: 22px; }
+.three-ways-scroll { overflow-x: auto; }
+.three-ways table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.three-ways tbody th { min-width: 84px; font-weight: 650; }
+.three-ways thead th { line-height: 1.25; }
+.three-ways th, .three-ways td { padding: 8px 6px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+.three-ways thead th { color: var(--muted); font-size: 11px; font-weight: 650; }
+.three-ways td { font-variant-numeric: tabular-nums; text-align: center; font-weight: 650; }
+.three-ways tr.is-designed { background: var(--green-light); }
+@media (max-width: 700px) {
+  .gitlab-objects li { grid-template-columns: 1fr auto; }
+  .gl-ref { grid-column: 1 / -1; }
+  .three-ways table { font-size: 12px; }
+}

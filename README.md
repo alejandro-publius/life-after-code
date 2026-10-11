@@ -18,12 +18,26 @@ uv run --project .. uvicorn main:app --host 127.0.0.1 --port 8080
 
 Open **[http://localhost:8080/demo](http://localhost:8080/demo)** on a laptop or phone-sized browser window. No credentials are needed.
 
-1. Review Priya's two orders, then choose **Sign demo orders** or **Leave unsigned**.
+1. Review Priya's two orders, each with the line the rehearsal code wrote after trying it on a simulated staging shop, and what was left out tonight. Then choose **Sign demo orders** or **Leave unsigned**.
 2. Both checkout paths fail. Read the three-line wake-up and choose **Approve demo fallback** or **Decline** when a suggestion is available.
 3. Only the new checkout fails. See whether the signed order permits code to turn it off, and inspect the old and new checkout chart against the 5% limit.
 4. Read the morning brief, the actual replay counts and the recorded keep-or-undo decision. Open **Read the decision evidence** for the signature, checks and ledger.
 
 On the signed and approved path, code records **1 wake-up, 1 incident handled while Priya slept and 1 human-approved action**. These are counts from this invented night, not measured production impact. Try leaving the orders unsigned to see the same faults without permission to act.
+
+### The same night, three ways
+
+The same demo night, replayed by the same Watch code with only the permission changed (`python -m nightorders.compare`, run in CI):
+
+<!-- compare:start -->
+| The same demo night | Wake-ups | Wake-ups with a fix to approve | Faults handled while she slept | Changes that did not help |
+|---|---|---|---|---|
+| Signed, the watch flow checks the reason (as designed) | 1 | 1 | 1 | 0 |
+| Signed, standing orders: no model at night | 1 | 0 | 0 | 1 |
+| Nothing signed | 2 | 0 | 0 | 0 |
+<!-- compare:end -->
+
+Code alone acted on the numbers at 01:50, the change did not help, and Priya was woken anyway with nothing to approve. With the model's key, the night cost her one wake-up with a fix she approved in one tap, and one fault was handled while she slept. Demo data: an invented night, not measured production impact.
 
 ![Night Orders in a local phone-sized browser](docs/images/demo-phone.png)
 
@@ -56,7 +70,7 @@ Payment errors, a second alert during a re-check, expired permission, a malforme
 
 ## GitLab workflow and current limits
 
-Status: **11 Oct 2026**. The whole loop runs offline here, with **389 passing tests**: the decision core, the relay, the demo shop, the three Duo flows, the day-one test script ([scripts/day_one.py](scripts/day_one.py)) and the test-night runner ([docs/TEST_NIGHT.md](docs/TEST_NIGHT.md)). A public live demo URL is **pending**. Nothing has run on GitLab.com or Google Cloud yet, and no live model execution has been demonstrated; [docs/STATUS.md](docs/STATUS.md) says what is true today.
+Status: **11 Oct 2026**. The whole loop runs offline here, with **401 passing tests**: the decision core, the relay, the demo shop, the three Duo flows, the day-one test script ([scripts/day_one.py](scripts/day_one.py)) and the test-night runner ([docs/TEST_NIGHT.md](docs/TEST_NIGHT.md)). A public live demo URL is **pending**. Nothing has run on GitLab.com or Google Cloud yet, and no live model execution has been demonstrated; [docs/STATUS.md](docs/STATUS.md) says what is true today.
 
 Three custom GitLab Duo Agent Platform flows are defined: [dusk](flows/dusk.yml) drafts orders, [watch](flows/watch.yml) reads incident evidence, and [dawn](flows/dawn.yml) proposes the morning countersign. Their files are validated against the checked-in GitLab flow schema and tool list. That validation checks configuration; it is not proof of a live Duo run.
 

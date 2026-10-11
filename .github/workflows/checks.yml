@@ -55,6 +55,9 @@ jobs:
       - name: Replay demo night under standing orders
         working-directory: relay
         run: uv run --locked --project .. python -m nightorders.demo_night ../demo/night-2026-10-20 --standing
+      - name: The same night, three ways
+        working-directory: relay
+        run: uv run --locked --project .. python -m nightorders.compare ../demo/night-2026-10-20
 
   browser-smoke:
     name: Browser smoke

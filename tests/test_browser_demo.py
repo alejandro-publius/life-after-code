@@ -330,3 +330,39 @@ def test_the_bundled_demo_files_are_exact_copies_of_the_repository_files():
         assert (bundled / "night-2026-10-20" / source.name).read_bytes() == source.read_bytes(), source.name
     for name in ("alerts.yml", "oncall.yml", "targets.yml"):
         assert (bundled / "ops" / name).read_bytes() == (OPS / name).read_bytes(), name
+
+
+def test_the_readme_three_ways_table_is_the_one_the_code_counts():
+    from conftest import REPO
+    from nightorders.compare import compare, table
+
+    text = (REPO / "README.md").read_text(encoding="utf-8")
+    block = text.split("<!-- compare:start -->\n", 1)[1].split("\n<!-- compare:end -->", 1)[0]
+    assert block == table(compare())
+
+
+def test_the_replay_carries_the_rehearsal_the_gitlab_objects_and_the_three_ways():
+    signed = browser_demo.replay(signed=True, approved=True)
+    rehearsal = signed["rehearsal"]
+    assert rehearsal["time"] == "21:48" and rehearsal["source"].startswith("written by the rehearsal code")
+    assert rehearsal["lines"]["1"] == ("order 1: new_checkout off in staging applied, the staging shop fetched the "
+                                       "change, checkout ok on the old path, restored")
+    assert rehearsal["lines"]["2"] == "order 2: revision shop-00041 exists on shop"
+    assert rehearsal["staging_flags_after"] == {"new_checkout": "on", "stock_from_cache": "off"}  # put back
+    assert signed["flags"]["initial"] == {"new_checkout": "on", "stock_from_cache": "off"}  # production untouched
+    objects = signed["objects"]
+    assert objects["label"] == "Demo objects. Links go live after the first real night."
+    assert [row["ref"] for row in objects["dusk"]] == ["#12", "!36"] and objects["dusk"][1]["state"] == "merged"
+    flags = [(row["title"], row["state"], row["time"]) for row in objects["night"] if row["kind"] == "feature flag"]
+    assert flags == [("stock_from_cache in production", "now on", "01:53"), ("new_checkout in production", "now off", "03:13")]
+    assert [row["ref"] for row in objects["dawn"]] == ["#12", "!37"]
+    ways = {row["way"]: row for row in signed["three_ways"]}
+    assert (ways["signed"]["wake_ups"], ways["signed"]["handled_asleep"], ways["signed"]["did_not_help"]) == (1, 1, 0)
+    assert (ways["standing"]["did_not_help"], ways["standing"]["fix_offered"]) == (1, 0)
+    assert ways["unsigned"]["wake_ups"] == 2
+    for choice in ((True, False), (False, True), (False, False)):
+        other = browser_demo.replay(signed=choice[0], approved=choice[1])
+        assert other["rehearsal"]["lines"] == rehearsal["lines"] and other["three_ways"] == signed["three_ways"]
+        assert other["objects"]["dusk"][1]["state"] == ("merged" if choice[0] else "open")
+        if not choice[0]:
+            assert [row["kind"] for row in other["objects"]["night"]] == ["incident", "incident"]  # nothing changed

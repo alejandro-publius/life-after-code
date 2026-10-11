@@ -105,7 +105,7 @@ def check_shop(http: Http, base_url: str, mark: str | None = None,
 
 
 def rehearse_order(order, ports: Any, targets: Targets, http: Http, staging_url: str, pending: list[dict],
-                   iid: int, sha: str, sleep: Callable[[float], None] = time.sleep) -> str:
+                   iid: int, sha: str, sleep: Callable[[float], None] = time.sleep, now: datetime | None = None) -> str:
     action = order.do
     if action.kind == "traffic_to_revision":
         exists = ports.revision_exists(action.service, action.revision)
@@ -120,12 +120,12 @@ def rehearse_order(order, ports: Any, targets: Targets, http: Http, staging_url:
     entry = {"iid": iid, "sha": sha, "order": order.id, "action": twin.as_dict(), "before": before, "tries": 0}
     pending.append(entry)
     mark = shop_mark(http, staging_url) if staging_url else None
-    change = ports.apply(twin, None)
+    change = ports.apply(twin, now)
     if not isinstance(change, Change) or not change.changed:
         pending.remove(entry)
         return f"order {order.id}: {twin.describe()} was already so on staging, nothing to rehearse"
     shop = check_shop(http, staging_url, mark, sleep) if staging_url else "no staging shop URL set, not checked"
-    ports.restore(twin, before, None)
+    ports.restore(twin, before, now)
     pending.remove(entry)
     return f"order {order.id}: {twin.describe()} applied, {shop}, restored"
 
@@ -193,7 +193,7 @@ def rehearse(gitlab: GitLab, ports: Any, http: Http, oncall: OnCall, targets: Ta
         return "\n".join(lines) + "\n"
     for order in orders.orders:
         try:
-            lines.append("- " + rehearse_order(order, ports, targets, http, staging_url, pending, iid, sha, sleep))
+            lines.append("- " + rehearse_order(order, ports, targets, http, staging_url, pending, iid, sha, sleep, now))
         except Exception as error:  # the note still says what happened; anything left on staging is restored
             text = f"- order {order.id}: rehearsal stopped ({_why(error)})"
             left = [e for e in pending if e["iid"] == iid and e["sha"] == sha and e["order"] == order.id]

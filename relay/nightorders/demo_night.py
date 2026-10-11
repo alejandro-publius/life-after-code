@@ -81,6 +81,7 @@ class RecordingPorts:
     samples: list[dict] = field(default_factory=list)
     actions: list[dict] = field(default_factory=list)
     log_lines: list[tuple[datetime, str]] = field(default_factory=list)  # scenario.yml log_lines (demo data)
+    revisions: dict[str, list[str]] = field(default_factory=dict)  # gitlab.yml revisions (demo data)
     evidence: dict[int, str] = field(default_factory=dict)  # the evidence pack code wrote for each incident
 
     def _t(self, at: datetime) -> str:
@@ -112,6 +113,12 @@ class RecordingPorts:
                 self.log.append(f"{self._t(at)}  agent note on #{incident} (recorded)")
             return text
         return None
+
+    def snapshot(self, action: Action) -> dict:
+        return self._snapshot(action)
+
+    def revision_exists(self, service: str, revision: str) -> bool:
+        return revision in self.revisions.get(service, [])
 
     def _snapshot(self, action: Action) -> dict:
         """The target's state right now, in the shape the morning restores from."""

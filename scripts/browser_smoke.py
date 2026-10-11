@@ -95,6 +95,11 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
     expect(page.get_by_role("heading", name="Priya wants to sleep.")).to_be_visible()
     expect(page.get_by_text("Your choices stay in this demo.", exact=True)).to_be_visible()
     fits_screen(page)
+    dusk_data = json.loads((ROOT / "demo" / "night-2026-10-20" / "dusk_recorded.json").read_text(encoding="utf-8"))
+    expect(page.locator(".order-reason").first).to_have_text(dusk_data["orders"][0]["because"])
+    expect(page.locator(".left-out-list")).to_contain_text(dusk_data["left_out"][0]["why"])
+    expect(page.locator(".order-rehearsal").first).to_contain_text("restored")
+    expect(page.locator(".gitlab-objects")).to_contain_text("!36")
     if signed and approved:
         capture(page, screenshots, f"demo-{screen}-dusk.png")
     # Keyboard activation exercises the same controls as touch and mouse.
@@ -139,6 +144,7 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
     ready(page, "dawn")
     expected = ["1" if signed else "2", "1" if signed else "0", "1" if signed and approved else "0"]
     assert page.locator(".stat-value").all_text_contents() == expected
+    expect(page.locator(".three-ways tbody tr")).to_have_count(3)
     expect(page.get_by_text("Tonight's permission expires.", exact=True)).to_be_visible()
     page.locator("#evidence-details > summary").click()
     expect(page.get_by_role("heading", name="Demo signature and expiry")).to_be_visible()

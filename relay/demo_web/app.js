@@ -60,13 +60,40 @@
     return declined?.data?.recorded_reply?.declined || null;
   }
 
+  const SIGNALS = {
+    checkout_error_rate: (when) => ({title: when.path === "new" ? "New checkout errors" : when.path === "old" ? "Old checkout errors" : "Checkout errors", what: `${when.path === "all" ? "checkout" : `${when.path} checkout`} errors`, limit: `${+(Number(when.above ?? when.below) * 100).toFixed(1)}%`}),
+    http_5xx_ratio: (when) => ({title: "Server errors", what: "server errors", limit: `${+(Number(when.above ?? when.below) * 100).toFixed(1)}%`}),
+    p95_latency_ms: (when) => ({title: "A slower shop", what: "the slowest 5% of checkouts", limit: `${Number(when.above ?? when.below) / 1000} seconds`}),
+  };
+
+  function conditionWords(when) {
+    const words = (SIGNALS[when.signal] || ((w) => ({title: w.signal, what: w.signal, limit: String(w.above ?? w.below)})))(when);
+    const direction = when.above !== undefined && when.above !== null ? "above" : "below";
+    const verb = when.signal === "p95_latency_ms" ? (direction === "above" ? "take longer than" : "take less than") : `stay ${direction}`;
+    return {title: words.title, sentence: `If ${words.what} ${verb} ${words.limit} for ${when.for_minutes} minutes`};
+  }
+
   function orderCards() {
-    return `<div class="order-list" aria-label="The two demo orders">${state.replay.orders.map((order) => {
-      const checkout = order.when.signal === "checkout_error_rate";
-      const condition = checkout ? `If new checkout errors stay above ${Number(order.when.above) * 100}% for ${order.when.for_minutes} minutes` : `If response time stays above ${Number(order.when.above) / 1000} seconds for ${order.when.for_minutes} minutes`;
-      const reason = checkout ? "Today's price rounding change is running only in the new checkout." : "Today's larger image cache shipped in a new shop version.";
-      return `<article class="order-card"><div class="order-number">Order ${escape(order.id)}</div><h3 class="order-title">${checkout ? "New checkout errors" : "A slower shop"}</h3><p class="order-condition">${escape(condition)},</p><p class="order-action">${escape(actionName(order.do))}.</p><p class="order-reason">${reason}</p></article>`;
+    const rehearsal = state.replay.rehearsal;
+    return `<div class="order-list" aria-label="The demo orders">${state.replay.orders.map((order) => {
+      const words = conditionWords(order.when);
+      const tried = rehearsal?.lines?.[String(order.id)];
+      return `<article class="order-card"><div class="order-number">Order ${escape(order.id)}</div><h3 class="order-title">${escape(words.title)}</h3><p class="order-condition">${escape(words.sentence)},</p><p class="order-action">${escape(actionName(order.do))}.</p><p class="order-reason">${escape(order.because)}</p>${tried ? `<p class="order-rehearsal"><span class="rehearsal-kicker">Rehearsed on staging at ${escape(rehearsal.time)}, before she signs</span>${escape(tried.replace(/^order \d+: /, ""))}.</p>` : ""}</article>`;
     }).join("")}</div>`;
+  }
+
+  function leftOut() {
+    const items = state.replay.left_out || [];
+    const question = state.replay.dusk_question;
+    const answer = state.signedChoice === null ? "" : state.signedChoice ? "Her answer was to sign the orders as drafted, so that change will wake her." : "She left the draft unsigned, so every alert will wake her.";
+    return `${items.length ? `<section class="left-out" aria-labelledby="left-out-title"><h3 class="section-title" id="left-out-title">Left out tonight</h3><ul class="left-out-list">${items.map((item) => `<li><strong>${escape(item.change)}</strong> ${escape(item.why)}</li>`).join("")}</ul></section>` : ""}${question ? `<div class="decision-note"><strong>The agent asked one question before she signed.</strong> ${escape(question)}${answer ? ` ${escape(answer)}` : ""}</div>` : ""}`;
+  }
+
+  function gitlabRows(phase, filter) {
+    const objects = state.replay.objects;
+    const rows = (objects?.[phase] || []).filter(filter || (() => true));
+    if (!rows.length) return "";
+    return `<section class="gitlab-objects" aria-label="What this leaves in GitLab"><div class="gitlab-head"><h3>In GitLab</h3><p>${escape(objects.label)}</p></div><ul>${rows.map((row) => `<li><span class="gl-ref">${escape(row.ref)}</span><span class="gl-body"><strong>${escape(row.title)}</strong><span>${escape(row.detail)}</span></span><span class="gl-meta"><span class="gl-state">${escape(row.state)}</span><time>${escape(row.time)}</time></span></li>`).join("")}</ul></section>`;
   }
 
   function dusk() {
@@ -81,7 +108,8 @@
       <div class="action-row" id="primary-action">${actions}</div>
       ${chosen ? `<p class="inline-note">${state.signedChoice ? "Priya's signature is part of this demo night." : "No permission was given. Watch must wake Priya instead of acting alone."}</p>` : "<p class=\"small-copy\">Choose a path. You can replay the other one.</p>"}
       ${orderCards()}
-      <div class="decision-note"><strong>A boundary she keeps.</strong> Today's carts table change is left out. A database change needs a person; it cannot be safely undone by these orders.</div>`;
+      ${leftOut()}
+      ${gitlabRows("dusk")}`;
   }
 
   function inventoryMessage() {
@@ -117,7 +145,8 @@
       ${notification}
       <article class="decision-card"><p class="decision-kicker">${available ? "Priya decides on this suggestion" : "No signed permission"}</p><h3 class="decision-title">${available ? "Use cached stock while inventory is slow" : "Priya must investigate this alert"}</h3><p class="decision-copy">${available ? "This can restore checkout on both paths. The code only applies it after approval from the on-call person." : "Leaving the orders unsigned also leaves the recorded agent suggestion unavailable. This replay makes no fallback change."}</p>${available ? "" : "<p class=\"decision-note\">The demo approval choice is unavailable on this path.</p>"}</article>
       ${selected ? `<p class="inline-note">${state.approvedChoice ? `Demo approval recorded. Cached stock turned on at ${escape(approved?.time || "01:53")}.` : "Demo fallback declined. Nothing was changed by this suggestion."}</p>` : ""}
-      <p class="small-copy">Priya's wake-up is part of the recorded demo.</p>`;
+      <p class="small-copy">Priya's wake-up is part of the recorded demo.</p>
+      ${gitlabRows("night", (row) => row.time < "03:00")}`;
   }
 
   function checkout() {
@@ -130,7 +159,8 @@
       <div class="action-row" id="primary-action">${button("next-step", "Read the morning brief", "dawn")}${button("review-wake", "Back to the wake-up", "inventory", "quiet")}</div>
       <article class="decision-card"><p class="decision-kicker">${handled ? "Signed order 1 · Applied by code" : "No signed order · Human decision needed"}</p><h3 class="decision-title">${handled ? "The new checkout is turned off" : "The new checkout stays on"}</h3><p class="decision-copy">${handled ? `Two keys turned. Code checked the signature, the expiry, the numbers on enough checkouts, the exact action and first use. The model checked the reason. At ${escape(recovered?.time || "03:23")} the re-check finds the whole shop back under 5%, not just the emptied path. No page.` : "Watch records the alert and wakes Priya. The replay makes no checkout change on her behalf."}</p>${handled ? "<p class=\"decision-note\"><strong>The model can say no. It cannot say more.</strong> The action came from the signed file, not from the model's note or the logs.</p>" : ""}</article>
       ${handled ? phone(false, acted.time, [], `Nobody approved this at ${acted.time}. She already had, at 22:06.`) : (woke ? phone(true, woke.time, (state.replay.messages.find((m) => m.incident === 2)?.lines || []), `Priya's phone at ${woke.time}: woken again, because nothing was signed`) : "")}
-      ${handled ? `<div class="event-list"><div class="event-card"><span class="event-time">${escape(acted.time)}</span><div class="event-body"><strong>Permission checked, new checkout off.</strong><p>Only the action in the signed file was used.</p></div></div><div class="event-card"><span class="event-time">${escape(recovered?.time || "03:23")}</span><div class="event-body"><strong>Re-check passed.</strong><p>Priya did not need another wake-up.</p></div></div></div>` : "<p class=\"inline-note\">This replay records a second wake-up. It does not invent a response from Priya.</p>"}`;
+      ${handled ? `<div class="event-list"><div class="event-card"><span class="event-time">${escape(acted.time)}</span><div class="event-body"><strong>Permission checked, new checkout off.</strong><p>Only the action in the signed file was used.</p></div></div><div class="event-card"><span class="event-time">${escape(recovered?.time || "03:23")}</span><div class="event-body"><strong>Re-check passed.</strong><p>Priya did not need another wake-up.</p></div></div></div>` : "<p class=\"inline-note\">This replay records a second wake-up. It does not invent a response from Priya.</p>"}
+      ${gitlabRows("night", (row) => row.time >= "03:00")}`;
   }
 
   function dawn() {
@@ -146,7 +176,16 @@
       <div class="event-card expiry-card"><span class="event-time">07:00</span><div class="event-body"><strong>Tonight's permission expires.</strong><p>Expiry stops further automatic action. It does not automatically undo a change.</p></div></div>
       <h3 class="section-title">${hasChanges ? "The recorded morning countersign" : "No overnight changes to keep or restore"}</h3>
       ${hasChanges ? `<ul class="morning-list">${kept}${undone}${byHand}</ul>` : "<p class=\"small-copy\">Watch made no changes, so this path needs no morning countersign.</p>"}
-      <p class="small-copy">A countersign is Priya's morning decision about what stays. This one is recorded demo data, not a live merge.</p>`;
+      <p class="small-copy">A countersign is Priya's morning decision about what stays. This one is recorded demo data, not a live merge.</p>
+      ${threeWays()}
+      ${gitlabRows("dawn")}`;
+  }
+
+  function threeWays() {
+    const rows = state.replay.three_ways || [];
+    if (!rows.length) return "";
+    const short = {signed: "Signed, model on", standing: "Signed, no model", unsigned: "Nothing signed"};
+    return `<section class="three-ways" aria-labelledby="three-ways-title"><h3 class="section-title" id="three-ways-title">The same night, three ways</h3><p class="small-copy">Counted by the same Watch code on the same demo night. Only the permission changes. "Model on" is the design: the watch flow checks the reason. "No model" is the standing orders fallback: code acts on the numbers alone.</p><div class="three-ways-scroll"><table><thead><tr><th scope="col">Night</th><th scope="col">Wake-ups</th><th scope="col">Fix to approve</th><th scope="col">Handled asleep</th><th scope="col">Did not help</th></tr></thead><tbody>${rows.map((row) => `<tr class="${row.way === "signed" ? "is-designed" : ""}"><th scope="row">${escape(short[row.way] || row.label)}</th><td>${escape(row.wake_ups)}</td><td>${escape(row.fix_offered)}</td><td>${escape(row.handled_asleep)}</td><td>${escape(row.did_not_help)}</td></tr>`).join("")}</tbody></table></div><p class="decision-note"><strong>Why the model's key matters.</strong> With code alone, the numbers matched at 01:50 and code turned the new checkout off. It did not help, and she was woken anyway, with nothing to approve.</p></section>`;
   }
 
   function samplesForChart() {
@@ -184,7 +223,7 @@
 
   function context() {
     const persona = `<div class="persona-strip"><div class="avatar" aria-hidden="true">P</div><div class="persona-note"><strong>Priya</strong><p>Demo persona · On call tonight</p></div></div>`;
-    if (state.view === "dusk") return `<aside class="context-panel" aria-label="Priya's context">${persona}<blockquote class="persona-quote">"Wake me when you need me. Let the small, agreed fixes happen without me."</blockquote><div class="context-note"><p class="eyebrow">What changed today</p><h3>A new checkout. A larger cache.</h3><p>Both have a narrow way back. The carts table change needs human judgment and stays outside tonight's permission.</p></div><div class="expiry-note"><strong>Permission ends at 07:00.</strong><p>Two actions, exact conditions, one use each.</p></div></aside>`;
+    if (state.view === "dusk") return `<aside class="context-panel" aria-label="Priya's context">${persona}<blockquote class="persona-quote">"Wake me when you need me. Let the small, agreed fixes happen without me."</blockquote><div class="context-note"><p class="eyebrow">What changed today</p><ul class="change-list">${(state.replay.changes || []).map((change) => `<li><span class="gl-ref">!${escape(change.iid)}</span> ${escape(change.title)}</li>`).join("")}</ul><p>Each order names the change behind it. A change with no safe way back gets no order.</p></div><div class="expiry-note"><strong>Permission ends at 07:00.</strong><p>Two actions, exact conditions, one use each.</p></div></aside>`;
     return `<aside class="context-panel" aria-label="Replay evidence">${persona}${choiceBadge()}${metricChart()}</aside>`;
   }
 
