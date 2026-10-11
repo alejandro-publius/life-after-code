@@ -15,15 +15,15 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from time import monotonic
 
-from .countersign import parse_state, plan_morning
+from .countersign import parse_state, plan_morning, undo
 from .dawn import loose_ends, render_watch_log
 from .decide import Night
 from .ledger import Ledger
-from .model import Action, Signature
+from .model import Action, Change, Signature
 from .notes import Request, render_request
 from .orders import OrdersError, load_yaml, parse_oncall, parse_orders, parse_targets
 from .signals import Metrics
-from .watch import Watch, parse_alert_rules
+from .watch import NOTHING_CHANGED, Watch, parse_alert_rules
 
 REPO = Path(__file__).resolve().parents[2]
 MAX_DEMO_STEPS = 960
@@ -37,6 +37,7 @@ class DemoShop:
     flags: dict[str, str]
     faults: list[tuple[str, datetime, datetime]]
     new_share: float
+    traffic: dict[str, str] = field(default_factory=dict)  # service: the revision all traffic is pinned to
 
     def active(self, name: str, at: datetime) -> bool:
         return any(n == name and start <= at < end for n, start, end in self.faults)
@@ -99,13 +100,41 @@ class RecordingPorts:
             return text
         return None
 
-    def apply(self, action: Action, at: datetime) -> None:
-        before = dict(self.shop.flags)
+    def _snapshot(self, action: Action) -> dict:
+        """The target's state right now, in the shape the morning restores from."""
         if action.kind == "flag_set":
-            self.shop.flags[action.flag] = action.to  # type: ignore[index]
-        self.actions.append({"at": at.isoformat(), "action": action.as_dict(),
-                             "flags_before": before, "flags_after": dict(self.shop.flags)})
-        self.log.append(f"{self._t(at)}  APPLY {action.describe()}")
+            return {"kind": "flag", "flag": action.flag, "environment": action.environment,
+                    "value": self.shop.flags.get(action.flag)}  # type: ignore[arg-type]
+        revision = self.shop.traffic.get(action.service)  # type: ignore[arg-type]
+        return {"kind": "traffic", "service": action.service, "revision": revision}
+
+    def _set(self, action: Action, value: str | None, at: datetime, applied: dict) -> None:
+        flags_before = dict(self.shop.flags)
+        if action.kind == "flag_set":
+            self.shop.flags[action.flag] = value  # type: ignore[index, assignment]
+        elif value is None:
+            self.shop.traffic.pop(action.service, None)  # type: ignore[arg-type]
+        else:
+            self.shop.traffic[action.service] = value  # type: ignore[index]
+        self.actions.append({"at": at.isoformat(), "flags_before": flags_before, "flags_after": dict(self.shop.flags),
+                             **applied})
+
+    def apply(self, action: Action, at: datetime) -> Change:
+        before = self._snapshot(action)
+        wanted = action.to if action.kind == "flag_set" else action.revision
+        changed = _value(before) != wanted
+        self._set(action, wanted, at, {"action": action.as_dict(), "changed": changed, "before": before})
+        self.log.append(f"{self._t(at)}  APPLY {action.describe()}" + ("" if changed else NOTHING_CHANGED))
+        return Change(changed=changed, before=before,
+                      detail=f"was {_value(before)}" if changed else f"already {wanted}, nothing changed")
+
+    def restore(self, action: Action, before: dict, at: datetime) -> Change:
+        now = self._snapshot(action)
+        changed = _value(now) != _value(before)
+        self._set(action, _value(before), at, {"action": restored_action(action, before).as_dict(),
+                                                "changed": changed, "before": now, "restored_to": before})
+        self.log.append(f"{self._t(at)}  RESTORE {restore_words(action, before)}")
+        return Change(changed=changed, before=now, detail=f"back to {_value(before)}")
 
     def page(self, incident: int, lines: tuple[str, ...], at: datetime) -> None:
         self.log.append(f"{self._t(at)}  PAGE (phone lights up) for #{incident}: " + " | ".join(lines))
@@ -116,6 +145,25 @@ class RecordingPorts:
 
     def close_incident(self, incident: int, text: str, at: datetime) -> None:
         self.log.append(f"{self._t(at)}  incident #{incident} closed: {text}")
+
+
+def _value(snapshot: dict) -> str | None:
+    return snapshot.get("value") if snapshot.get("kind") == "flag" else snapshot.get("revision")
+
+
+def restored_action(action: Action, before: dict) -> Action:
+    """The night action's target as the morning puts it back, in Action form."""
+    if action.kind == "flag_set":
+        return Action(kind="flag_set", flag=action.flag, environment=action.environment,
+                      to=_value(before))  # type: ignore[arg-type]
+    return Action(kind="traffic_to_revision", service=action.service, revision=_value(before))
+
+
+def restore_words(action: Action, before: dict) -> str:
+    if action.kind == "flag_set":
+        return f"{action.flag} to {_value(before)} in {action.environment}"
+    revision = _value(before)
+    return f"{action.service} traffic to " + (f"revision {revision}" if revision else "its earlier allocation")
 
 
 def _local(text: str, tz) -> datetime:
@@ -206,9 +254,15 @@ def countersign(folder: Path | str, ports: RecordingPorts, night: Night) -> list
     plan = plan_morning(loose_ends(night), parse_state(data.get("state"), night.targets))
     lines = [f"{ports._t(at)}  countersign merged by {night.oncall.first_name} ({data['merged_by']})"]
     lines += [f"{ports._t(at)}  KEEP {item.action.describe()}, until {item.until}" for item in plan.kept]
-    for action, why in plan.undo:
-        ports.apply(action, at)
-        lines.append(f"{ports._t(at)}  UNDO {action.describe()}: {why}")
+    for action, before, why in plan.undo:
+        if before is None:  # a record from before snapshots existed
+            reverse = undo(action)
+            assert reverse is not None
+            ports.apply(reverse, at)
+            lines.append(f"{ports._t(at)}  UNDO {reverse.describe()}: {why}")
+        else:
+            ports.restore(action, before, at)
+            lines.append(f"{ports._t(at)}  RESTORE {restore_words(action, before)}: {why}")
     lines += [f"{ports._t(at)}  FOR A PERSON: {text}" for text in plan.by_hand]
     return lines
 

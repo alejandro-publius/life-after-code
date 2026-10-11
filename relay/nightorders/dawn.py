@@ -6,30 +6,57 @@ ops/state.yml. The facts in the log come from the ledger, not from the model.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from .decide import Night
 from .model import Action
 
 SHOWN = ("alert", "asked", "acted", "declined", "woke", "approved", "refused", "recovered", "stood_down", "expired")
 
 
-def loose_ends(night: Night) -> list[tuple[Action, str]]:
-    """State changed tonight and not changed back: (action, why) in the order they happened."""
-    latest: dict[tuple, tuple[Action, str]] = {}
+@dataclass(frozen=True)
+class LooseEnd:
+    """A change made tonight and still in place: what was done, why, and the target's state before the night.
+
+    before is the snapshot the port took before the first night action on this target (None for records
+    written before snapshots existed). The morning restores from it, never by guessing.
+    """
+
+    action: Action
+    why: str
+    before: dict | None = None
+
+
+def action_from(data: dict) -> Action:
+    """An Action from its as_dict form."""
+    if data["action"] == "flag_set":
+        return Action(kind="flag_set", flag=data["flag"], environment=data["environment"], to=data["to"])
+    return Action(kind="traffic_to_revision", service=data["service"], revision=data["revision"])
+
+
+def loose_ends(night: Night) -> list[LooseEnd]:
+    """State changed tonight and not changed back, in the order the targets were first changed.
+
+    An action that changed nothing (changed is False in its record) leaves no loose end. Records without
+    the key, from before changes were recorded, count as changed.
+    """
+    latest: dict[tuple, LooseEnd] = {}
+    first_before: dict[tuple, dict | None] = {}
     for event in night.ledger.events:
         if event.kind not in ("acted", "approved"):
             continue
         data = event.data.get("action")
         if not data:
             continue
-        if data["action"] == "flag_set":
-            action = Action(kind="flag_set", flag=data["flag"], environment=data["environment"], to=data["to"])
-            target = ("flag", action.flag, action.environment)
-        else:
-            action = Action(kind="traffic_to_revision", service=data["service"], revision=data["revision"])
-            target = ("service", action.service)
+        action = action_from(data)
+        target = ("flag", action.flag, action.environment) if action.kind == "flag_set" else ("service", action.service)
+        if first_before.get(target) is None:
+            first_before[target] = event.data.get("before")
+        if event.data.get("changed") is False:
+            continue
         when = night.oncall.hhmm(event.at)
         why = f"order {event.order}, {when}" if event.kind == "acted" else f"approved by thumbs-up, {when}"
-        latest[target] = (action, why)
+        latest[target] = LooseEnd(action=action, why=why, before=first_before[target])
     return list(latest.values())
 
 
@@ -75,10 +102,11 @@ def render_watch_log(night: Night) -> str:
     if ends:
         lines.append("Loose ends: changed tonight and still in place.")
         lines.append("")
-        for action, why in ends:
-            lines.append(f"- {action.describe()} ({why})")
+        for end in ends:
+            lines.append(f"- {end.action.describe()} ({end.why})")
         lines.append("")
-        lines.append("The dawn flow proposes keep or undo for each in ops/state.yml. You decide by merging.")
+        lines.append("The dawn flow proposes keep or undo for each in ops/state.yml. You decide by merging. "
+                     "What is not kept, code restores to how it was before the night.")
     else:
         lines.append("Loose ends: none.")
     return "\n".join(lines) + "\n"
@@ -91,7 +119,7 @@ def dawn_goal(night: Night, watch_issue: int) -> str:
     lines = [f"Watch issue #{watch_issue}, night of {title_night}. Code posted the watch log there."]
     if ends:
         lines.append("Loose ends, changed tonight and still in place. Propose keep or undo for each:")
-        lines += [f"- {action.describe()} ({why})" for action, why in ends]
+        lines += [f"- {end.action.describe()} ({end.why})" for end in ends]
     else:
         lines.append("Loose ends: none. Post one note saying nothing needs a countersign, and open no merge request.")
     return "\n".join(lines)

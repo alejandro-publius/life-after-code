@@ -45,7 +45,7 @@ The model chooses where to look. Code decides what is true. A human decides when
 - **Signature:** in the intended GitLab workflow, the on-call person's merge signs the orders. Unsigned orders grant no authority.
 - **During the night:** both keys must agree. Code checks the signature, expiry, measured condition, exact permitted action and first use tonight. The watch reply must name the order and explain why it fits. The action comes from the signed file, never from free text in the reply or a log.
 - **Outside the orders:** the engineer gets a short page and, when available, one suggestion requiring their approval. In the replay, both checkout paths failing causes the recorded watch reply to decline the new checkout order.
-- **Over coffee:** authority ends at 07:00. Expiry does not automatically undo existing changes. The morning countersign decides what stays; code undoes overnight changes that are not kept. The default replay keeps the new checkout off and undoes the temporary inventory fallback.
+- **Over coffee:** authority ends at 07:00. Expiry does not automatically undo existing changes. The morning countersign decides what stays; code restores every change she did not keep to how it was before the night, from the snapshot it took before acting (a pilot rollout comes back as a pilot rollout, not on for everyone). The default replay keeps the new checkout off and restores the temporary inventory fallback.
 
 Payment errors, a second alert during a re-check, expired permission, a malformed reply, a reply timeout and an exhausted nightly model budget cannot be covered by an order. The decision and watch loops enforce those limits in [code](relay/nightorders/).
 

@@ -3,8 +3,9 @@
 At the first tick after the watch end, the relay keeps the night's loose ends in its own record (they
 outlive the noon rollover of the ledger), posts the watch log on the watch issue and starts the dawn flow.
 The dawn flow proposes keep or undo in a countersign merge request that changes ops/state.yml. When the
-on-call person merges or approves it, the relay applies the plan from countersign.plan_morning once,
-through the same apply port the night uses, and notes what it did on the watch issue.
+on-call person merges or approves it, the relay applies the plan from countersign.plan_morning once:
+every loose end that is not kept is restored, through the restore port, to the snapshot the night's
+apply took of it, and the result is noted on the watch issue.
 
 Nothing here decides what the night meant: the loose ends come from the ledger, the plan from
 countersign.py, and the person decides by signing the countersign.
@@ -16,17 +17,19 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
-from .countersign import parse_state, plan_morning
-from .dawn import dawn_goal, loose_ends, render_watch_log
+from .countersign import describe_restored, parse_state, plan_morning, undo
+from .dawn import LooseEnd, action_from, dawn_goal, loose_ends, render_watch_log
 from .decide import Night
-from .model import Action, Signature
+from .model import Action, Change, Signature
 from .orders import OrdersError, watch_window
+from .watch import NOTHING_CHANGED
 
 
 class MorningPorts(Protocol):
     def watch_note(self, text: str, at: datetime) -> None: ...
     def start_dawn_flow(self, goal: str, at: datetime) -> None: ...
-    def apply(self, action: Action, at: datetime) -> None: ...
+    def apply(self, action: Action, at: datetime) -> Change: ...
+    def restore(self, action: Action, before: dict, at: datetime) -> Change: ...
 
 
 @dataclass(frozen=True)
@@ -50,23 +53,17 @@ def new_record(night: Night) -> dict:
     return {
         "night": night.orders.night.isoformat(),
         "ended_at": end.isoformat(),
-        "loose_ends": [{"action": action.as_dict(), "why": why} for action, why in loose_ends(night)],
+        "loose_ends": [{"action": end.action.as_dict(), "why": end.why, "before": end.before}
+                       for end in loose_ends(night)],
         "log_posted": False,
         "flow_started": False,
         "countersign": None,
     }
 
 
-def loose_from(record: dict) -> list[tuple[Action, str]]:
-    found = []
-    for item in record.get("loose_ends") or []:
-        data = item["action"]
-        if data["action"] == "flag_set":
-            action = Action(kind="flag_set", flag=data["flag"], environment=data["environment"], to=data["to"])
-        else:
-            action = Action(kind="traffic_to_revision", service=data["service"], revision=data["revision"])
-        found.append((action, str(item.get("why", ""))))
-    return found
+def loose_from(record: dict) -> list[LooseEnd]:
+    return [LooseEnd(action=action_from(item["action"]), why=str(item.get("why", "")), before=item.get("before"))
+            for item in record.get("loose_ends") or []]
 
 
 def step(relay_doc: dict, night: Night, watch_expired: bool, state_file: StateFile | None,
@@ -108,7 +105,8 @@ def countersign(record: dict, state_file: StateFile, night: Night, ports: Any, n
     if signature is None or signature.at < ended:
         return None  # not countersigned yet: nothing changes
     result: dict = {"commit": signature.commit, "user": signature.user, "at": signature.at.isoformat(),
-                    "method": signature.method, "undone": [], "kept": [], "by_hand": [], "problems": []}
+                    "method": signature.method, "restored": [], "undone": [], "kept": [], "by_hand": [],
+                    "problems": []}
     if signature.user != night.oncall.user:
         result["problems"] = [f"ops/state.yml was signed by {signature.user}, not by the on-call person "
                               f"({night.oncall.user}). Nothing was changed."]
@@ -125,10 +123,21 @@ def countersign(record: dict, state_file: StateFile, night: Night, ports: Any, n
                       for item in plan.kept]
     result["by_hand"] = list(plan.by_hand)
     # If a change fails, the error stops this pass and the whole countersign is tried again next tick.
-    # That is safe: setting a flag to the value it already has changes nothing.
-    for action, _why in plan.undo:
-        ports.apply(action, now)
-        result["undone"].append(action.describe())
+    # That is safe: restoring a target that is already as its snapshot says changes nothing.
+    for action, before, _why in plan.undo:
+        if before is not None:
+            change = ports.restore(action, before, now)
+            text = describe_restored(action, before)
+            if isinstance(change, Change) and not change.changed:
+                text += NOTHING_CHANGED
+            result["restored"].append(text)
+        else:
+            # A record from before snapshots existed: a flag is turned the other way (plan_morning sends
+            # a traffic change without a snapshot to a person instead).
+            reverse = undo(action)
+            assert reverse is not None
+            ports.apply(reverse, now)
+            result["undone"].append(reverse.describe())
     return result
 
 
@@ -137,6 +146,7 @@ def render_countersign(result: dict, night: Night) -> str:
     who = night.oncall.first_name if result["user"] == night.oncall.user else result["user"]
     lines = [f"Countersign by {who} at {night.oncall.hhmm(at)} ({result['method']}), applied by code."]
     lines += [f"- Kept: {text}" for text in result["kept"]]
+    lines += [f"- Restored: {text}" for text in result.get("restored") or []]
     lines += [f"- Undone: {text}" for text in result["undone"]]
     lines += [f"- For a person: {text}" for text in result["by_hand"]]
     lines += [f"- Refused: {text}" for text in result["problems"]]

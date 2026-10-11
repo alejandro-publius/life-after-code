@@ -17,7 +17,10 @@ A small FastAPI service on Cloud Run, and the only part of Night Orders that cha
    - everything else pages the on-call person (ntfy push plus a note on the incident), with one suggested
      action they can approve with a thumbs-up on that note.
 4. In the morning: posts the watch log on the watch issue, starts the dawn flow, and once the on-call
-   person signs the countersign (`ops/state.yml`), undoes every night change they did not keep.
+   person signs the countersign (`ops/state.yml`), restores every night change they did not keep to how it
+   was before the night, from the snapshot each change recorded (a flag's earlier strategies for that
+   environment, a service's earlier traffic allocation). A change that found its target already in place
+   is recorded as such and needs no restore.
 5. Saves its memory. If GitLab, the shop or the store fails three ticks in a row, it pages.
 
 Only one tick runs at a time, across Cloud Run instances: a tick first takes a short lease in the state store

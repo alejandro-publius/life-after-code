@@ -14,7 +14,7 @@ from typing import Protocol
 
 from .decide import (APPROVAL_WINDOW_MINUTES, Act, Ask, Night, StandDown, Waiting, Wake, approve_suggestion,
                      check_request, recheck, triage)
-from .model import Action, Alert, Order, fmt_value
+from .model import Action, Alert, Change, Order, fmt_value
 from .orders import watch_window
 from .signals import Metrics, condition_holds
 from .model import Condition
@@ -48,10 +48,19 @@ class Ports(Protocol):
     def note(self, incident: int, text: str, at: datetime) -> None: ...
     def start_watch_flow(self, incident: int, goal: str, at: datetime) -> None: ...
     def request_note(self, incident: int, at: datetime) -> str | None: ...
-    def apply(self, action: Action, at: datetime) -> None: ...
+    def apply(self, action: Action, at: datetime) -> Change: ...
+    def restore(self, action: Action, before: dict, at: datetime) -> Change: ...  # the target back as the snapshot says
     def page(self, incident: int, lines: tuple[str, ...], at: datetime) -> None: ...
     def thumbs_up(self, incident: int, at: datetime) -> list[tuple[str, datetime]]: ...  # oldest first
     def close_incident(self, incident: int, text: str, at: datetime) -> None: ...
+
+
+NOTHING_CHANGED = " (already in place, nothing changed)"
+
+
+def _as_change(result: object) -> Change:
+    """A port that does not report (an older one) counts as a change with no snapshot."""
+    return result if isinstance(result, Change) else Change(changed=True, before=None, detail="")
 
 
 @dataclass
@@ -164,14 +173,16 @@ class Watch:
             incident.ask = None
             return
         assert isinstance(result, Act)
-        self.ports.apply(result.order.do, now)
+        change = _as_change(self.ports.apply(result.order.do, now))
         incident.acted, incident.acted_at = result.order, now
         text = (
             f"Order {result.order.id} carried out {self.night.oncall.hhmm(now)}: {result.order.do.describe()}. "
             f"Checks: {'; '.join(result.checks)}."
         )
+        if not change.changed:
+            text += NOTHING_CHANGED
         ledger.record(now, "acted", text, incident=incident.number, order=result.order.id,
-                      action=result.order.do.as_dict())
+                      action=result.order.do.as_dict(), changed=change.changed, before=change.before)
         self.ports.note(incident.number, text, now)
 
     def _recheck(self, incident: Incident, metrics: Metrics, now: datetime) -> None:
@@ -200,9 +211,12 @@ class Watch:
         for user, at in self.ports.thumbs_up(incident.number, now):
             ok, text = approve_suggestion(incident.suggest, user, at, incident.paged_at, self.night)
             if ok:
-                self.ports.apply(incident.suggest, now)
+                change = _as_change(self.ports.apply(incident.suggest, now))
                 text = f"{text} Done {self.night.oncall.hhmm(now)}: {incident.suggest.describe()}."
-                ledger.record(now, "approved", text, incident=incident.number, action=incident.suggest.as_dict())
+                if not change.changed:
+                    text += NOTHING_CHANGED
+                ledger.record(now, "approved", text, incident=incident.number, action=incident.suggest.as_dict(),
+                              changed=change.changed, before=change.before)
                 self.ports.note(incident.number, text, now)
                 incident.suggest = None
                 return

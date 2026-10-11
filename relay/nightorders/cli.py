@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
             kept = parse_state(load_yaml(args.state), targets)
         except OrdersError as error:
             return _report(args.state, "cannot be countersigned", error.problems)
-        print(f"{args.state}: ok, keeps {len(kept)} change{'s' if len(kept) != 1 else ''}; every other night change is undone")
+        print(f"{args.state}: ok, keeps {len(kept)} change{'s' if len(kept) != 1 else ''}; every other night change is restored to how it was before the night")
         return 0
 
     problems = validate_file(args.orders, args.ops)

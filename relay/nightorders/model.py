@@ -79,6 +79,52 @@ class Action:
 
 
 @dataclass(frozen=True)
+class Change:
+    """What one action did to its target: whether anything changed, a JSON-safe snapshot of the target
+    from before the action, and plain words. The morning restores from the snapshot, never by guessing."""
+
+    changed: bool
+    before: dict | None
+    detail: str
+
+
+def describe_before(before: dict | None) -> str:
+    """A snapshot in plain words, for example "on for 10 listed users" or "100% to the latest revision"."""
+    if not before:
+        return "unknown"
+    if before.get("kind") == "traffic":
+        targets = [t for t in before.get("traffic") or [] if isinstance(t, dict) and t.get("percent")]
+        if not targets:
+            return "no traffic allocation recorded"
+        return ", ".join(
+            f"{t.get('percent')}% to "
+            + (f"revision {t['revision']}" if t.get("revision") else "the latest revision") for t in targets)
+    if "value" in before:
+        return str(before["value"])
+    strategies = before.get("strategies") or []
+    if not before.get("active") or not strategies:
+        return "off"
+    return " and ".join(_strategy_words(s) for s in strategies)
+
+
+def _strategy_words(strategy: dict) -> str:
+    name = strategy.get("name")
+    parameters = strategy.get("parameters") or {}
+    if name == "default":
+        return "on for every user"
+    if name == "userWithId":
+        count = len([u for u in str(parameters.get("userIds", "")).split(",") if u.strip()])
+        return f"on for {count} listed user{'s' if count != 1 else ''}"
+    if name == "gradualRolloutUserId":
+        return f"on for {parameters.get('percentage', '?')}% of users"
+    if name == "flexibleRollout":
+        return f"on for {parameters.get('rollout', '?')}% of users"
+    if name == "gitlabUserList":
+        return "on for a user list"
+    return f"on by the {name} strategy"
+
+
+@dataclass(frozen=True)
 class Order:
     id: int
     because: str

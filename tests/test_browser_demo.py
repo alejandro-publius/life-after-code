@@ -172,7 +172,9 @@ def test_expiry_does_not_revert_night_changes_and_morning_keeps_and_undoes():
     assert morning["undone"][0]["why"]
     assert morning["by_hand"] == []
     assert any("KEEP new_checkout off" in line for line in morning["lines"])
-    assert any("UNDO stock_from_cache off" in line for line in morning["lines"])
+    assert any("RESTORE stock_from_cache to off in production" in line for line in morning["lines"])
+    assert morning["undone"][0]["before"] == {"kind": "flag", "flag": "stock_from_cache", "environment": "production",
+                                              "value": "off"}
 
 
 def test_declining_the_suggestion_never_changes_the_cache():
@@ -190,7 +192,7 @@ def test_declining_the_suggestion_never_changes_the_cache():
     }
     assert len(result["morning"]["kept"]) == 1
     assert result["morning"]["undone"] == []
-    assert not any("UNDO" in line for line in result["morning"]["lines"])
+    assert not any("RESTORE" in line or "UNDO" in line for line in result["morning"]["lines"])
 
 
 @pytest.mark.parametrize("approved", [False, True])

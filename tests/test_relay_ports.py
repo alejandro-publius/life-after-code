@@ -11,8 +11,9 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
 
-from nightorders.gitlab_ports import GitLab, GitLabPorts, GoogleToken, Http, RelayError, flag_changes
-from nightorders.model import Action
+from nightorders.gitlab_ports import (GitLab, GitLabPorts, GoogleToken, Http, RelayError, flag_changes,
+                                      flag_restore_changes, flag_snapshot)
+from nightorders.model import Action, Change
 
 TOKEN = "fake-token-not-real"
 TOPIC_URL = "https://ntfy.example/test-topic-not-real"
@@ -191,6 +192,130 @@ def test_flag_change_that_would_reach_other_environments_is_refused():
     assert flag_changes(flag(False), "production", "on")["active"] is True
 
 
+# Snapshots and the morning restore: the flag goes back to what it did in that environment, exactly.
+
+PILOT_IDS = ",".join(f"pilot-{n:02d}" for n in range(1, 11))
+OFF = Action(kind="flag_set", flag="new_checkout", environment="production", to="off")
+ON = Action(kind="flag_set", flag="new_checkout", environment="production", to="on")
+
+
+def strategy(sid: int, name: str, scopes: list[tuple[int, str]], parameters: dict | None = None) -> dict:
+    return {"id": sid, "name": name, "parameters": parameters or {},
+            "scopes": [{"id": i, "environment_scope": e} for i, e in scopes]}
+
+
+def flag_with(active: bool, *strategies: dict) -> dict:
+    return {"name": "new_checkout", "active": active, "version": "new_version_flag", "strategies": list(strategies)}
+
+
+def snapshot(*strategies: tuple[str, dict], active: bool = True) -> dict:
+    return {"kind": "flag", "flag": "new_checkout", "environment": "production", "active": active,
+            "strategies": [{"name": name, "parameters": parameters, "scopes": [{"environment_scope": "production"}]}
+                           for name, parameters in strategies]}
+
+
+PILOT = snapshot(("userWithId", {"userIds": PILOT_IDS}))
+
+
+def test_turning_off_a_pilot_rollout_records_the_pilot_list_it_removed():
+    before = flag_with(True, strategy(11, "userWithId", [(21, "production")], {"userIds": PILOT_IDS}),
+                       strategy(12, "default", [(22, "staging")]))
+    after = flag_with(True, strategy(12, "default", [(22, "staging")]))
+    server = Server({("GET", FLAG): before, ("PUT", FLAG): after})
+    change = ports_for(server).apply(OFF, NOW)
+    assert change == Change(changed=True, before=PILOT, detail="new_checkout was on for 10 listed users in production")
+    assert json.loads(json.dumps(change.before)) == change.before
+    [put] = server.sent("PUT", FLAG)
+    assert body(put) == {"strategies": [{"id": 11, "_destroy": True}]}
+
+
+def test_restore_re_creates_the_pilot_list_for_that_environment_only():
+    now = flag_with(True, strategy(12, "default", [(22, "staging")]))
+    after = flag_with(True, strategy(12, "default", [(22, "staging")]),
+                      strategy(13, "userWithId", [(23, "production")], {"userIds": PILOT_IDS}))
+    server = Server({("GET", FLAG): now, ("PUT", FLAG): after})
+    change = ports_for(server).restore(OFF, PILOT, NOW)
+    assert change.changed is True and change.detail == "new_checkout is on for 10 listed users in production again"
+    assert change.before == snapshot()
+    [put] = server.sent("PUT", FLAG)
+    assert body(put) == {"strategies": [{"name": "userWithId", "parameters": {"userIds": PILOT_IDS},
+                                         "scopes": [{"environment_scope": "production"}]}]}
+
+
+def test_restore_after_a_night_on_drops_the_default_strategy_and_puts_the_pilot_list_back():
+    # The night added a default strategy next to the pilot list. Restoring removes the environment's strategies
+    # and re-creates the snapshot's, so the pilot list comes back and the flag is not on for everyone.
+    now = flag_with(True, strategy(11, "userWithId", [(21, "production")], {"userIds": PILOT_IDS}),
+                    strategy(13, "default", [(23, "production")]))
+    after = flag_with(True, strategy(14, "userWithId", [(24, "production")], {"userIds": PILOT_IDS}))
+    server = Server({("GET", FLAG): now, ("PUT", FLAG): after})
+    ports_for(server).restore(ON, PILOT, NOW)
+    [put] = server.sent("PUT", FLAG)
+    assert body(put) == {"strategies": [
+        {"id": 11, "_destroy": True}, {"id": 13, "_destroy": True},
+        {"name": "userWithId", "parameters": {"userIds": PILOT_IDS}, "scopes": [{"environment_scope": "production"}]}]}
+
+
+def test_a_flag_already_off_changes_nothing_and_says_so():
+    server = Server({("GET", FLAG): flag_with(True, strategy(12, "default", [(22, "staging")]))})
+    change = ports_for(server).apply(OFF, NOW)
+    assert change == Change(changed=False, before=snapshot(), detail="already off in production, nothing changed")
+    assert server.sent("PUT", FLAG) == []
+
+
+def test_restore_of_a_flag_already_as_before_changes_nothing():
+    server = Server({("GET", FLAG): flag_with(True, strategy(11, "userWithId", [(21, "production")],
+                                                            {"userIds": PILOT_IDS}))})
+    change = ports_for(server).restore(OFF, PILOT, NOW)
+    assert change == Change(changed=False, before=PILOT,
+                            detail="new_checkout already on for 10 listed users in production, nothing changed")
+    assert server.sent("PUT", FLAG) == []
+
+
+def test_restoring_a_snapshot_without_strategies_turns_the_environment_off():
+    now = flag_with(True, strategy(13, "default", [(23, "production")]), strategy(12, "default", [(22, "staging")]))
+    server = Server({("GET", FLAG): now, ("PUT", FLAG): flag_with(True, strategy(12, "default", [(22, "staging")]))})
+    change = ports_for(server).restore(ON, snapshot(), NOW)
+    assert change.changed is True and change.detail == "new_checkout is off in production again"
+    [put] = server.sent("PUT", FLAG)
+    assert body(put) == {"strategies": [{"id": 13, "_destroy": True}]}
+
+
+def test_restoring_an_inactive_snapshot_deactivates_the_flag_unless_another_environment_needs_it():
+    night_on = flag_with(True, strategy(13, "default", [(23, "production")]))
+    update, wanted = flag_restore_changes(night_on, "production", snapshot(active=False))
+    assert update == {"strategies": [{"id": 13, "_destroy": True}], "active": False}
+    assert wanted["active"] is False
+    shared = flag_with(True, strategy(13, "default", [(23, "production")]), strategy(12, "default", [(22, "staging")]))
+    update, wanted = flag_restore_changes(shared, "production", snapshot(active=False))
+    assert update == {"strategies": [{"id": 13, "_destroy": True}]}
+    assert wanted["active"] is True
+    assert flag_restore_changes(night_on, "production", snapshot(("default", {}))) == (None, snapshot(("default", {})))
+
+
+def test_a_wildcard_strategy_is_in_the_snapshot_but_never_re_created():
+    everywhere = flag_with(True, strategy(11, "userWithId", [(21, "*")], {"userIds": PILOT_IDS}))
+    before = flag_snapshot(everywhere, "new_checkout", "production")
+    assert before["strategies"] == [{"name": "userWithId", "parameters": {"userIds": PILOT_IDS},
+                                     "scopes": [{"environment_scope": "*"}]}]
+    night_on = flag_with(True, strategy(11, "userWithId", [(21, "*")], {"userIds": PILOT_IDS}),
+                         strategy(13, "default", [(23, "production")]))
+    update, _wanted = flag_restore_changes(night_on, "production", before)
+    assert update == {"strategies": [{"id": 13, "_destroy": True}]}
+
+
+def test_restore_that_gitlab_does_not_confirm_is_an_error():
+    now = flag_with(True, strategy(12, "default", [(22, "staging")]))
+    server = Server({("GET", FLAG): now, ("PUT", FLAG): now})
+    with pytest.raises(RelayError, match="did not report it back as before in production"):
+        ports_for(server).restore(OFF, PILOT, NOW)
+
+
+def test_restore_refuses_a_snapshot_that_does_not_fit_the_action():
+    with pytest.raises(RelayError, match="does not fit flag_set"):
+        ports_for(Server()).restore(OFF, {"kind": "traffic", "service": "shop", "traffic": []}, NOW)
+
+
 def test_flag_change_that_gitlab_does_not_confirm_is_an_error():
     before = flag(True, (11, "default", [(21, "production")]))
     server = Server({("GET", FLAG): before, ("PUT", FLAG): before})
@@ -227,6 +352,44 @@ def test_traffic_to_revision_sends_all_traffic_to_the_named_revision():
     assert not {"uid", "generation", "conditions", "latestReadyRevision"} & set(sent)
     assert patch.headers["Authorization"] == "Bearer test-google-token"
     assert all("PRIVATE-TOKEN" not in r.headers for r in server.requests)
+
+
+def test_traffic_change_records_the_earlier_allocation_and_restore_puts_it_back():
+    latest = [{"type": "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST", "percent": 100}]
+    pinned = [{"type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION", "revision": "shop-00041", "percent": 100}]
+    current = {"name": "projects/demo-project/locations/us-central1/services/shop", "etag": "etag-5",
+               "uid": "abc", "template": {"containers": [{"image": "example/shop@sha256:1"}]}, "traffic": latest}
+    routes = {("GET", TOKEN_PATH): {"access_token": "test-google-token", "expires_in": 3599},
+              ("GET", SERVICE): current,
+              ("PATCH", SERVICE): {"name": "projects/demo-project/locations/us-central1/operations/1"}}
+    server = Server(routes)
+    traffic = Action(kind="traffic_to_revision", service="shop", revision="shop-00041")
+    change = ports_for(server).apply(traffic, NOW)
+    assert change == Change(changed=True, before={"kind": "traffic", "service": "shop", "traffic": latest},
+                            detail="shop traffic was 100% to the latest revision")
+
+    server = Server({**routes, ("GET", SERVICE): {**current, "traffic": pinned}})
+    restored = ports_for(server).restore(traffic, change.before, NOW)
+    assert restored.changed is True and restored.detail == "shop traffic is 100% to the latest revision again"
+    assert restored.before == {"kind": "traffic", "service": "shop", "traffic": pinned}
+    [patch] = server.sent("PATCH", SERVICE)
+    sent = body(patch)
+    assert sent["traffic"] == latest and sent["etag"] == "etag-5" and "uid" not in sent
+    assert patch.url.params["updateMask"] == "traffic"
+
+
+def test_traffic_already_on_the_revision_changes_nothing():
+    pinned = [{"type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION", "revision": "shop-00041", "percent": 100}]
+    server = Server({("GET", TOKEN_PATH): {"access_token": "t"}, ("GET", SERVICE): {"template": {}, "traffic": pinned},
+                     ("PATCH", SERVICE): {"name": "op"}})
+    ports = ports_for(server)
+    traffic = Action(kind="traffic_to_revision", service="shop", revision="shop-00041")
+    change = ports.apply(traffic, NOW)
+    assert change == Change(changed=False, before={"kind": "traffic", "service": "shop", "traffic": pinned},
+                            detail="shop traffic already all on revision shop-00041, nothing changed")
+    restored = ports.restore(traffic, change.before, NOW)
+    assert restored.changed is False and restored.detail.endswith("nothing changed")
+    assert server.sent("PATCH", SERVICE) == []
 
 
 def test_traffic_change_that_google_refuses_is_an_error():

@@ -14,7 +14,8 @@ in-memory shop through the existing `Watch` code. It makes no network calls,
 uses no credentials, writes no files and changes no production state. The
 browser's sign and approval choices select whether that run receives the
 recorded signature and reaction. The real decision code determines what
-happens, including the morning KEEP and UNDO operations.
+happens, including the morning KEEP and RESTORE operations: what is not
+kept goes back to how it was before the night.
 
 The minute samples contain the last completed minute's error rates. Their
 `at` field is the decision tick; `sampled_at` identifies the observed minute.

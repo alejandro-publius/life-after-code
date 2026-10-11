@@ -184,7 +184,7 @@ def test_at_the_watch_end_the_relay_posts_the_log_and_starts_the_dawn_flow_once(
     assert len(ports.dawn_goals) == 1 and ports.dawn_goals[0].startswith("Watch issue #7, night of Tue 20 Oct.")
 
 
-def test_the_countersign_undoes_what_was_not_kept_once_and_says_so(morning):
+def test_the_countersign_restores_what_was_not_kept_once_and_says_so(morning):
     ports, night, relay = morning
     tz = night.oncall.timezone
     relay.countersign = StateFile(KEEP_FLAG_OFF, Signature(method="merge", user="alex-velazquez",
@@ -192,12 +192,13 @@ def test_the_countersign_undoes_what_was_not_kept_once_and_says_so(morning):
                                                            commit="cs0001"))
     summary = relay.tick(relay.metrics, datetime(2026, 10, 21, 7, 43, tzinfo=tz))
     relay.tick(relay.metrics, datetime(2026, 10, 21, 7, 44, tzinfo=tz))
-    assert [line for line in ports.log if "APPLY" in line][-1] == "07:43  APPLY stock_from_cache off in production"
-    assert sum("APPLY stock_from_cache off" in line for line in ports.log) == 1
+    assert ports.log[-1] == "07:43  RESTORE stock_from_cache to off in production"
+    assert sum("RESTORE stock_from_cache" in line for line in ports.log) == 1
+    assert sum("APPLY" in line for line in ports.log) == 2  # the night's two changes, nothing more
     assert summary["morning"] == ["Countersign by Priya at 07:42 (merge), applied by code."]
     note = ports.watch_notes[-1]
     assert "- Kept: new_checkout off in production, until the fix for !31 is in production" in note
-    assert "- Undone: stock_from_cache off in production" in note
+    assert "- Restored: stock_from_cache in production to how it was before the night (off)" in note
     assert ports.shop.flags == {"new_checkout": "off", "stock_from_cache": "off"}
     page = relay.client.get("/").text
     assert "Countersign by Priya at 07:42 (merge), applied by code." in page

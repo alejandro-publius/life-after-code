@@ -47,6 +47,14 @@ def test_demo_night_wakes_once_and_sleeps_through_the_signed_order():
     assert sum(1 for line in ports.log if "APPLY" in line) == 2
     assert [e.kind for e in night.ledger.events if e.kind in ("acted", "approved", "woke")] == [
         "woke", "approved", "acted"]
+    # Each change recorded what it found before, so the morning can put it back exactly.
+    [approved] = night.ledger.of("approved")
+    assert approved.data["changed"] is True
+    assert approved.data["before"] == {"kind": "flag", "flag": "stock_from_cache", "environment": "production",
+                                       "value": "off"}
+    [acted] = night.ledger.of("acted")
+    assert acted.data["changed"] is True
+    assert acted.data["before"] == {"kind": "flag", "flag": "new_checkout", "environment": "production", "value": "on"}
 
 
 def test_watch_log_lists_loose_ends():
@@ -55,3 +63,4 @@ def test_watch_log_lists_loose_ends():
     assert "Woken: 1 time (01:52)." in text
     assert "- new_checkout off in production (order 1, 03:13)" in text
     assert "- stock_from_cache on in production (approved by thumbs-up, 01:53)" in text
+    assert "What is not kept, code restores to how it was before the night." in text

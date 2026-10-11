@@ -12,7 +12,8 @@ from pathlib import Path
 
 from .countersign import parse_state, plan_morning
 from .dawn import loose_ends, render_watch_log
-from .demo_night import run, countersign
+from .countersign import undo
+from .demo_night import countersign, restored_action, run
 from .orders import load_yaml, watch_window
 
 DATA = Path(__file__).with_name("demo_story_data")
@@ -123,7 +124,7 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
             "approval": "approved" if was_approved else "declined" if suggestion else "unavailable",
         })
 
-    # Capture the night's evidence before the actual countersign applies any undo.
+    # Capture the night's evidence before the actual countersign restores anything.
     ends = loose_ends(night)
     morning_source = load_yaml(FIXTURE / "countersign.yml")
     morning_at = datetime.fromisoformat(morning_source["merged_at"]).replace(tzinfo=night.oncall.timezone).isoformat()
@@ -143,20 +144,26 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
         morning["lines"] = countersign(FIXTURE, ports, night)
         morning["status"] = "merged"
         morning["kept"] = [{"action": item.action.as_dict(), "until": item.until} for item in plan.kept]
-        morning["undone"] = [{"action": action.as_dict(), "why": why} for action, why in plan.undo]
+        morning["undone"] = []
+        for action, before, why in plan.undo:
+            applied = restored_action(action, before) if before is not None else undo(action)
+            assert applied is not None
+            morning["undone"].append({"action": applied.as_dict(), "before": before, "why": why})
         morning["by_hand"] = list(plan.by_hand)
         state = dict(after_night)
         undos = iter(ports.actions[action_start:])
         for number, line in enumerate(morning["lines"]):
             text = line.split("  ", 1)[1]
-            kind = "kept" if text.startswith("KEEP ") else "undone" if text.startswith("UNDO ") else "countersigned"
+            kind = ("kept" if text.startswith("KEEP ") else "undone" if text.startswith(("UNDO ", "RESTORE "))
+                    else "countersigned")
             before = dict(state)
             if kind == "undone":
                 operation = next(undos)
                 state = dict(operation["flags_after"])
             steps.append(step(
                 f"morning-{number}", "dawn", kind, morning_at,
-                "Keep the new checkout off" if kind == "kept" else "Undo the temporary cache change" if kind == "undone"
+                "Keep the new checkout off" if kind == "kept"
+                else "Restore the cache flag to how it was before the night" if kind == "undone"
                 else "Priya merges the demo countersign", text,
                 data={"source": "actual countersign result, demo merge"}, flags_before=before, flags_after=state,
             ))

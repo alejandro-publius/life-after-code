@@ -11,7 +11,10 @@ holds a URL, a token or the push topic.
   request_note      the newest note by the watch flow's service account, written after the ask, that holds
                     a night-orders-request block
   apply             flag_set: the Feature Flags API, changing only the named environment's scopes;
-                    traffic_to_revision: the Cloud Run Admin API v2, 100% of traffic to the named revision
+                    traffic_to_revision: the Cloud Run Admin API v2, 100% of traffic to the named revision.
+                    Both return a Change with a snapshot of the target from before the action
+  restore           the target back exactly as that snapshot says: the environment's earlier strategies, or
+                    the earlier traffic allocation
   page              a push to an ntfy topic, and the page as a note on the incident (the thumbs-up target)
   thumbs_up         every thumbsup reaction on that page note, oldest first; decide.approve_suggestion checks
                     who and when, so a teammate's reaction cannot block the on-call person's
@@ -44,7 +47,7 @@ from urllib.parse import quote
 
 import httpx
 
-from .model import Action
+from .model import Action, Change, describe_before
 
 TIMEOUT_SECONDS = 10.0
 METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
@@ -215,16 +218,7 @@ def flag_changes(flag: dict, environment: str, to: str) -> dict | None:
     if to == "off":
         if not flag_reaches(flag, environment):
             return None
-        changes = []
-        for strategy in strategies:
-            scopes = _scopes(strategy)
-            exact = [s for s in scopes if s.get("environment_scope") == environment]
-            if not exact:
-                continue
-            if len(exact) == len(scopes):
-                changes.append({"id": strategy["id"], "_destroy": True})
-            else:
-                changes.append({"id": strategy["id"], "scopes": [{"id": s["id"], "_destroy": True} for s in exact]})
+        changes = _drop_environment(strategies, environment)
         for strategy in strategies:
             for scope in _scopes(strategy):
                 wide = str(scope.get("environment_scope", ""))
@@ -246,6 +240,105 @@ def flag_changes(flag: dict, environment: str, to: str) -> dict | None:
             raise RelayError(f"flag {name} is inactive; turning it on would also turn it on for {', '.join(others)}")
         update["active"] = True
     return update
+
+
+def _drop_environment(strategies: list[dict], environment: str) -> list[dict]:
+    """Strategy changes that remove the environment's exact scopes: a whole strategy when that is all it has."""
+    changes = []
+    for strategy in strategies:
+        scopes = _scopes(strategy)
+        exact = [s for s in scopes if s.get("environment_scope") == environment]
+        if not exact:
+            continue
+        if len(exact) == len(scopes):
+            changes.append({"id": strategy["id"], "_destroy": True})
+        else:
+            changes.append({"id": strategy["id"], "scopes": [{"id": s["id"], "_destroy": True} for s in exact]})
+    return changes
+
+
+def _environment_strategies(flag: dict, environment: str) -> list[dict]:
+    """The strategies that reach this environment, ids dropped, with only the scopes that cover it."""
+    found = []
+    for strategy in flag.get("strategies") or []:
+        if not isinstance(strategy, dict):
+            continue
+        scopes = [{"environment_scope": str(s.get("environment_scope", ""))} for s in _scopes(strategy)
+                  if scope_covers(str(s.get("environment_scope", "")), environment)]
+        if scopes:
+            found.append({"name": strategy.get("name"), "parameters": dict(strategy.get("parameters") or {}),
+                          "scopes": scopes})
+    return found
+
+
+def flag_snapshot(flag: dict, name: str, environment: str) -> dict:
+    """The JSON-safe record of what a flag does in one environment, kept so the morning can put it back."""
+    return {"kind": "flag", "flag": name, "environment": environment, "active": bool(flag.get("active")),
+            "strategies": _environment_strategies(flag, environment)}
+
+
+def _same_strategies(first: list[dict], second: list[dict]) -> bool:
+    def key(strategy: dict) -> str:
+        return json.dumps(strategy, sort_keys=True)
+    return sorted(map(key, first)) == sorted(map(key, second))
+
+
+def same_flag_state(first: dict, second: dict) -> bool:
+    return bool(first.get("active")) == bool(second.get("active")) and _same_strategies(
+        first.get("strategies") or [], second.get("strategies") or [])
+
+
+def flag_restore_changes(flag: dict, environment: str, before: dict) -> tuple[dict | None, dict]:
+    """The Feature Flags API update that puts one environment back as the snapshot says, and the state
+    expected afterwards.
+
+    The environment's exact scopes are removed (as for "off") and the snapshot's strategies re-created with a
+    scope for this environment only. A strategy that reached the environment through a wider scope (* say) was
+    never touched at night, so it is left alone. A snapshot with no strategies means off in this environment.
+    Returns (None, wanted) when the flag is already as the snapshot says.
+    """
+    strategies = [s for s in flag.get("strategies") or [] if isinstance(s, dict)]
+    wanted_strategies = [dict(s) for s in before.get("strategies") or []]
+    update: dict = {}
+    if not _same_strategies(_environment_strategies(flag, environment), wanted_strategies):
+        changes = _drop_environment(strategies, environment)
+        changes += [{"name": s["name"], "parameters": dict(s.get("parameters") or {}),
+                     "scopes": [{"environment_scope": environment}]}
+                    for s in wanted_strategies
+                    if any(scope.get("environment_scope") == environment for scope in s.get("scopes") or [])]
+        if changes:
+            update["strategies"] = changes
+    active_now = bool(flag.get("active"))
+    wanted_active = bool(before.get("active"))
+    if not wanted_active and active_now:
+        others = {str(s.get("environment_scope")) for strategy in strategies for s in _scopes(strategy)
+                  if s.get("environment_scope") != environment}
+        if others:
+            wanted_active = True  # the flag serves other environments now, so it stays active
+    if wanted_active != active_now:
+        update["active"] = wanted_active
+    wanted = {**before, "active": wanted_active, "strategies": wanted_strategies}
+    return (update or None), wanted
+
+
+REVISION_TARGET = "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION"
+
+
+def _serving(traffic: list) -> list[dict]:
+    """The traffic targets that get any traffic, as plain dicts."""
+    return [dict(t) for t in traffic or [] if isinstance(t, dict) and t.get("percent")]
+
+
+def traffic_all_on(traffic: list, revision: str) -> bool:
+    """Whether every bit of traffic already goes to this revision."""
+    serving = _serving(traffic)
+    return (len(serving) == 1 and serving[0].get("type") == REVISION_TARGET
+            and serving[0].get("revision") == revision and serving[0].get("percent") == 100)
+
+
+def traffic_snapshot(service: str, current: dict) -> dict:
+    return {"kind": "traffic", "service": service,
+            "traffic": [dict(t) for t in current.get("traffic") or [] if isinstance(t, dict)]}
 
 
 @dataclass
@@ -381,42 +474,91 @@ class GitLabPorts:
                          expect=(200, 201), json=body)
 
     # Production changes. The action and its target come from the Watch, which takes them from the signed file.
+    # Every change returns a snapshot of the target from before it, and restore puts that snapshot back.
 
-    def apply(self, action: Action, at: datetime) -> None:
+    def apply(self, action: Action, at: datetime) -> Change:
         if action.kind == "flag_set" and action.flag and action.environment and action.to:
-            self._set_flag(action.flag, action.environment, action.to)
-        elif action.kind == "traffic_to_revision" and action.service and action.revision:
-            self._send_traffic(action.service, action.revision)
-        else:
-            raise RelayError(f"apply: {action.kind} is not on the menu")
+            return self._set_flag(action.flag, action.environment, action.to)
+        if action.kind == "traffic_to_revision" and action.service and action.revision:
+            return self._send_traffic(action.service, action.revision)
+        raise RelayError(f"apply: {action.kind} is not on the menu")
 
-    def _set_flag(self, name: str, environment: str, to: str) -> None:
-        path = f"/feature_flags/{quote(name, safe='')}"
+    def restore(self, action: Action, before: dict, at: datetime) -> Change:
+        kind = (before or {}).get("kind")
+        if action.kind == "flag_set" and kind == "flag" and action.flag and action.environment:
+            return self._restore_flag(action.flag, action.environment, before)
+        if action.kind == "traffic_to_revision" and kind == "traffic" and action.service:
+            return self._restore_traffic(action.service, before)
+        raise RelayError(f"restore: the snapshot ({kind}) does not fit {action.kind}")
+
+    def _flag_path(self, name: str) -> str:
+        return f"/feature_flags/{quote(name, safe='')}"
+
+    def _set_flag(self, name: str, environment: str, to: str) -> Change:
+        path = self._flag_path(name)
         flag = self.gitlab.json(f"read flag {name}", "GET", path)
+        before = flag_snapshot(flag, name, environment)
         update = flag_changes(flag, environment, to)
         if update is None:
-            return
+            return Change(changed=False, before=before, detail=f"already {to} in {environment}, nothing changed")
         after = self.gitlab.json(f"set flag {name}", "PUT", path, json=update)
         done = flag_on_for_all(after, environment) if to == "on" else not flag_reaches(after, environment)
         if not done:
             raise RelayError(f"flag {name}: GitLab did not report it {to} in {environment} after the change")
+        return Change(changed=True, before=before, detail=f"{name} was {describe_before(before)} in {environment}")
 
-    def _send_traffic(self, service: str, revision: str) -> None:
+    def _restore_flag(self, name: str, environment: str, before: dict) -> Change:
+        path = self._flag_path(name)
+        flag = self.gitlab.json(f"read flag {name}", "GET", path)
+        now = flag_snapshot(flag, name, environment)
+        update, wanted = flag_restore_changes(flag, environment, before)
+        words = describe_before(wanted)
+        if update is None:
+            return Change(changed=False, before=now, detail=f"{name} already {words} in {environment}, nothing changed")
+        after = self.gitlab.json(f"restore flag {name}", "PUT", path, json=update)
+        if not same_flag_state(flag_snapshot(after, name, environment), wanted):
+            raise RelayError(f"flag {name}: GitLab did not report it back as before in {environment} after the change")
+        return Change(changed=True, before=now, detail=f"{name} is {words} in {environment} again")
+
+    def _service(self, service: str) -> tuple[str, dict, dict]:
+        """The Cloud Run service's URL, auth header and current description."""
         if not (self.gcp_project and self.gcp_region and self.google_token):
             raise RelayError("Cloud Run traffic: GCP_PROJECT_ID and GCP_REGION are not set")
         url = f"{CLOUD_RUN_API}/projects/{self.gcp_project}/locations/{self.gcp_region}/services/{service}"
         headers = {"Authorization": f"Bearer {self.google_token()}"}
         current = self.http.call(f"Cloud Run read {service}", "GET", url, headers=headers).json()
+        return url, headers, current
+
+    def _patch_traffic(self, service: str, url: str, headers: dict, current: dict, traffic: list[dict]) -> None:
         # Send the whole service back with only the traffic changed, so nothing else can be reset even if the
         # update mask were ignored. The etag makes the update fail if someone changed the service meanwhile.
         body = {key: value for key, value in current.items() if key not in CLOUD_RUN_OUTPUT_ONLY}
-        body["traffic"] = [{"type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION", "revision": revision, "percent": 100}]
+        body["traffic"] = traffic
         operation = self.http.call(f"Cloud Run send {service} traffic", "PATCH", url, headers=headers,
                                    params={"updateMask": "traffic"}, json=body).json()
         error = operation.get("error") if isinstance(operation, dict) else None
         if error:
             message = error.get("message", "failed") if isinstance(error, dict) else "failed"
             raise RelayError(f"Cloud Run send {service} traffic: {' '.join(str(message).split())[:160]}")
+
+    def _send_traffic(self, service: str, revision: str) -> Change:
+        url, headers, current = self._service(service)
+        before = traffic_snapshot(service, current)
+        if traffic_all_on(before["traffic"], revision):
+            return Change(changed=False, before=before,
+                          detail=f"{service} traffic already all on revision {revision}, nothing changed")
+        self._patch_traffic(service, url, headers, current,
+                            [{"type": REVISION_TARGET, "revision": revision, "percent": 100}])
+        return Change(changed=True, before=before, detail=f"{service} traffic was {describe_before(before)}")
+
+    def _restore_traffic(self, service: str, before: dict) -> Change:
+        url, headers, current = self._service(service)
+        now = traffic_snapshot(service, current)
+        words = describe_before(before)
+        if _serving(now["traffic"]) == _serving(before.get("traffic") or []):
+            return Change(changed=False, before=now, detail=f"{service} traffic already {words}, nothing changed")
+        self._patch_traffic(service, url, headers, current, [dict(t) for t in before.get("traffic") or []])
+        return Change(changed=True, before=now, detail=f"{service} traffic is {words} again")
 
     # Waking a person, and the one tap she can answer with.
 
