@@ -8,6 +8,7 @@ For Alex, updated **Sun 11 Oct 2026**.
 
 - The whole loop runs offline: decision code, dusk drafter, relay, demo shop, browser demo at `/demo`, three Duo flows, CI. The suite passes (see [STATUS.md](STATUS.md) for the count).
 - Added on 11 Oct: the day-one probe script, the test-night runner, the day sheet the relay posts at dusk, readiness and one-tick-at-a-time for the relay, an exact restore at the morning countersign (reviewed and fixed), and Codex's three-service deploy, reviewed and merged ([STATUS.md](STATUS.md)).
+- Added later on 11 Oct: a kept change now ends by itself when its fix is deployed, the dusk flow never waits on you at bedtime, a stricter pipeline, a refusal gallery (23 attempts, 0 changes), Devpost gallery images, an adoption guide, and a page of live gates. Two sources in [research/oncall_case.md](research/oncall_case.md) need ten minutes of checking by you.
 - Nothing has run on GitLab.com or Google Cloud yet. That is the only thing between us and a real night, and it needs three things from you.
 
 ## Your three steps (phone, about 15 minutes)
@@ -22,7 +23,7 @@ For Alex, updated **Sun 11 Oct 2026**.
 
 | When | Who | What |
 |---|---|---|
-| Within 48 hours of the token | Claude Code | The live gate: [scripts/day_one.py](../scripts/day_one.py). It reports your role, whether you can merge, creates the two flags and the watch issue, and starts a probe flow through the Flows API. Results go in [STATUS.md](STATUS.md). |
+| Within 48 hours of the token | Claude Code | The live gate: [scripts/day_one.py](../scripts/day_one.py). It reports your role, whether you can merge, creates the two flags and the watch issue, and starts a probe flow through the Flows API. Its JSON feeds [scripts/live_gates.py](../scripts/live_gates.py), which rewrites [LIVE_GATES.md](LIVE_GATES.md): each gate passed with a link, or pending. |
 | Same day, 15 min on a laptop | Alex | Create the four flows in GitLab and enable them, following [FLOWS_SETUP.md](FLOWS_SETUP.md) (or the script does it through the API if our role allows). |
 | Tue 13 or Wed 14 Oct, 30 min in Cloud Shell | Alex | Run `deploy/setup_gcp.sh` from [deploy/README.md](../deploy/README.md), paste the two hidden secrets when asked (the GitLab token and the Unleash instance ID), then press Play on the three deploy jobs. Install the ntfy app and subscribe to the topic the setup prints. |
 | Sat 17 or Sun 18 Oct, evening and morning | Alex | First test night ([TEST_NIGHT.md](TEST_NIGHT.md)): merge the orders, sleep, one thumbs-up if paged, countersign over coffee. |
