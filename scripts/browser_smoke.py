@@ -143,6 +143,8 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
     page.keyboard.press("Enter")
     ready(page, "inventory")
     expect(page.locator("#chapter-heading")).to_be_focused()
+    if screen == "phone":
+        readable(page)
     expect(page.locator("#wake-message .phone-line")).to_have_count(3)
     expect(page.locator("#wake-message .phone-ask")).to_have_count(1 if signed else 0)  # the thumbs-up ask
     expect(page.locator("#wake-message")).to_contain_text("Checkout")
@@ -164,6 +166,8 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
     fits_screen(page)
     page.locator("#next-step").click()
     ready(page, "checkout")
+    if screen == "phone":
+        readable(page)
     expect(page.locator("#chapter-heading")).to_have_text(
         "This time, Priya stays asleep." if signed else "Without a signature, Priya is needed again."
     )
@@ -182,8 +186,9 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
     expect(page.locator(".three-ways tbody tr")).to_have_count(3)
     if signed:  # the kept change is a lease, and the replay shows it ending when the fix ships
         expect(page.locator(".lease-line").first).to_contain_text("A lease, not forever.")
-        expect(page.locator(".lease-line").nth(1)).to_contain_text("15:40: !39 reached production.")
-    expect(page.get_by_text("Tonight's permission expires.", exact=True)).to_be_visible()
+        expect(page.locator(".lease-line").nth(1)).to_contain_text("!39 reached production. At 15:40 code put it back")
+    expect(page.get_by_text("Tonight's permission expires." if signed else "Nothing was signed tonight.",
+                            exact=True)).to_be_visible()
     page.locator("#evidence-details > summary").click()
     expect(page.get_by_role("heading", name="Demo signature and expiry")).to_be_visible()
     expect(page.get_by_text("What was checked", exact=True)).to_be_visible()

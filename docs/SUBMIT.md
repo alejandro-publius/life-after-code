@@ -10,7 +10,7 @@ Only Alex can do four things: create the GitLab token, create the Google Cloud p
 |---|---|---|
 | Public GitLab repository with the MIT licence visible in About | The code is on GitHub only | The token; then Claude Code pushes and checks the licence (day-one `publish` step) |
 | CI/CD pipeline history visible and showing the automation running | `.gitlab-ci.yml` ready and pinned; the same checks pass on GitHub | The first push to GitLab runs it |
-| The project uses the GitLab Duo Agent Platform (pass or fail) | Four flows written and validated against GitLab's schema; none has run | Flows enabled in the project, then the day-one `flow` step and one test night |
+| The project uses the GitLab Duo Agent Platform (pass or fail) | Three flows (dusk, watch, dawn) and a probe flow written and validated against GitLab's schema; Duo Code Review rules in `.gitlab/duo/`; none has run | Flows enabled in the project, then the day-one `flow` step and one test night |
 | An English text description | Final draft in [DEVPOST.md](DEVPOST.md) | Replace the pending links |
 | A public YouTube video under 3:00 | Two scripts in [VIDEO.md](VIDEO.md), paced and checked | Filming, after a test night (Plan A) or from the browser demo (Plan B) |
 | Explain what was added during the submission period | Everything here was made on or after 5 Oct; the git history shows it | One paragraph, below |
@@ -41,16 +41,16 @@ If the token never arrives, there is no valid entry: the rules require a public 
 | Project name | Night Orders |
 | Tagline | Before bed, sign what the agent may do alone tonight. Everything else wakes you. |
 | About the project | The sections of [DEVPOST.md](DEVPOST.md) from "Inspiration" to "Potential impact and what comes next", with the pending links replaced |
-| Built with | python, fastapi, gitlab-duo-agent-platform, gitlab-ci, gitlab-feature-flags, google-cloud-run, cloud-scheduler, ntfy, playwright |
-| Try it out | The public GitLab repository; the relay's public URL (its `/demo` and `/`) once deployed |
+| Built with | python, fastapi, gitlab-duo-agent-platform, gitlab-ci, gitlab-feature-flags, gitlab-pages, google-cloud-run, cloud-scheduler, ntfy, playwright |
+| Try it out | The browser demo on GitLab Pages (the pipeline publishes it); the public GitLab repository; the relay's public URL (its `/demo` and `/`) once deployed |
 | Video | The YouTube link |
 | Image gallery | [docs/images/gallery/](images/gallery/), files 01 to 05, with the captions in [DEVPOST.md](DEVPOST.md#image-gallery) |
 | Path | Path A: Start Fresh |
-| Autonomy category | Supervised, unless the live run shows otherwise ([DEVPOST.md](DEVPOST.md)) |
+| Autonomy category | Supervised: "your agents run the workflow, you approve the outcome" ([DEVPOST.md](DEVPOST.md)) |
 | Google Cloud bonus | Claim only with a public Cloud Run URL that answers, and the deploy pipeline visible |
 | Environmentally Impactful prize | Do not opt in: nothing was measured with the SCI framework |
 
-**What was added during the submission period** (paste where the form asks): Everything in this repository was created on or after 5 Oct 2026: the decision code and its tests, the relay, the demo shop, the four Duo Agent Platform flows and the skill they follow, the GitLab pipeline, the browser demo, the Cloud Run deployment code, and the documentation. The git history shows each change with its date.
+**What was added during the submission period** (paste where the form asks): Everything in this repository was created on or after 5 Oct 2026: the decision code and its tests, the relay, the demo shop, the three Duo Agent Platform flows (dusk, watch, dawn), a probe flow for the day-one test, the skill they follow, the Duo Code Review rules, the GitLab pipeline, the browser demo, the Cloud Run deployment code, and the documentation. The git history shows each change with its date.
 
 ## Before pressing Submit
 

@@ -26,8 +26,8 @@ from scripts.browser_smoke import STILL, application, ready  # noqa: E402
 LABEL = "Demo replay: simulated shop, planted faults, recorded agent replies. Decisions by the real Watch code."
 SLIDES = [
     ("01-dusk", "Before bed", "She signs what the agent may do alone tonight.",
-     "At most three orders, each one reversible action with a measured condition. Each was tried on staging "
-     "first, and anything that cannot be undone is left out, so it wakes her.", ["dusk-orders"]),
+     "At most three orders, each one reversible action with a measured condition. Each was checked before she "
+     "signed, and anything that cannot be undone is left out, so it wakes her.", ["dusk-orders"]),
     ("02-decline", "01:52", "The model can say no. It cannot say more.",
      "Code would have allowed order 1. The model saw the old checkout failing too, declined, and woke her "
      "with three lines and one fix to approve with a thumbs-up.", ["wake-veto", "wake-phone"]),
@@ -75,15 +75,23 @@ def capture(page, base: str, shots: Path) -> None:
     shot(".morning-list", "morning-list")
 
 
+def cut(answer: str, limit: int = 145) -> str:
+    """Code's own words, whole sentences only: never cut mid-word."""
+    if len(answer) <= limit:
+        return answer
+    end = answer.rfind(". ", 0, limit)
+    return answer[:end + 1] if end > 0 else answer[:limit - 3].rstrip() + "..."
+
+
 def refusals_html() -> str:
     from nightorders.refusals import rows, summary
     found = rows()
-    wanted = ("obeys a log line", "not on the menu", "merged tonight's orders", "payment errors", "2 checkouts a minute",
+    wanted = ("obeys a log line", "never answers", "gives the 01:52 suggestion", "payment errors", "2 checkouts a minute",
               "switched-off path")
     picked = [found[0]] + [next(row for row in found[1:] if key in row.tried) for key in wanted]
     body = "".join(
         f"<tr><td class='who'>{html.escape(row.who)}</td><td>{html.escape(row.tried)}</td>"
-        f"<td>{html.escape(row.answer if len(row.answer) < 120 else row.answer[:117].rstrip() + '...')}</td>"
+        f"<td>{html.escape(cut(row.answer))}</td>"
         f"<td class='{'yes' if row.changed else 'no'}'>{'yes' if row.changed else 'no'}</td></tr>" for row in picked)
     return (f"<table class='refusals'><thead><tr><th>Who</th><th>What was tried</th><th>What code did, in its own "
             f"words</th><th>Changed</th></tr></thead><tbody>{body}</tbody></table>"

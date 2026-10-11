@@ -45,6 +45,7 @@ uv run --project .. python -m nightorders.refusals
 - **The control row** runs the same harness with everything in order: the signature, the clock, the numbers and a reply naming order 1. Code acts. Without it, a table of refusals could come from a harness that never acts at all.
 - **The watch flow** rows are model replies. The reply can name a signed order or decline; anything else (an extra key, prose, a suggestion off the menu or off the target list) wakes the on-call person, and the action always comes from the signed file.
 - **The shop** rows are the numbers: too little traffic, a second alert during a re-check, recovery before the reply, and a switched-off path that reads 0% while the whole shop still fails.
+- **alex-velazquez** is the on-call username in the demo: Alex's GitLab account plays the demo persona Priya.
 - **The files** rows are what people and flows write: orders the dusk flow drafts, and the morning countersign. Code refuses them before they can grant anything.
 
 What this does not show: a live GitLab or Duo run. The same functions run in the live relay; the live gates are in [STATUS.md](STATUS.md).

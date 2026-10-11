@@ -2,17 +2,21 @@
 
 **Before bed, you sign what the agent may do alone tonight. Everything else wakes you. The orders end at 07:00.**
 
-> **03:12.** The new checkout starts failing. Priya is asleep. At 22:06 she signed one order: if new checkout errors stay above 5% for five minutes, turn the new checkout off. Code checks her signature, the expiry and the numbers; the model checks that the order fits this incident. At 03:13 the flag goes off, the whole shop is re-checked at 03:23, and her phone stays dark. Earlier that night, at 01:52, the same order's numbers matched, but the model saw the old checkout failing too, declined, and woke her with one fix to approve. *Demo night: invented persona and shop, planted faults, decisions by the real code.*
+> **03:12.** The new checkout starts failing. Priya is asleep. At 22:06 she signed two orders. Order 1 says: if new checkout errors stay above 5% for five minutes, turn the new checkout off. Code checks her signature, the expiry and the numbers; the model checks that the order fits this incident. At 03:13 the flag goes off, the whole shop is re-checked at 03:23, and her phone stays dark. Earlier that night, at 01:52, the same order's numbers matched, but the model saw the old checkout failing too, declined, and woke her with one fix to approve. *Demo night: invented persona and shop, planted faults, decisions by the real code.*
 
 For the engineer on call for a small team, an obvious reversible fix can still mean a broken night's sleep. Night Orders lets that person permit a few exact actions before bed, while keeping every other decision with them.
 
-Why it matters: Google's SRE book puts the ceiling at two incidents per 12-hour shift, because each takes about six hours to handle properly ([source](https://sre.google/sre-book/being-on-call/), unverified), and a survey of on-call workers outside software found that 56% slept worse on on-call nights even when no call came ([source](https://pmc.ncbi.nlm.nih.gov/articles/PMC5876943/), unverified). A small team cannot staff its way under that ceiling at night. [Notes and what is still to check](docs/research/oncall_case.md).
+The agent work runs as three custom **GitLab Duo Agent Platform** flows: dusk drafts the orders from the day's merges, watch reads each incident and names a signed order or declines, and dawn proposes the morning countersign. Code checks everything they say, and GitLab holds the record: the orders are a merge request, each alert is an incident, each action is a feature flag change, and the morning is a second merge request.
+
+Why it matters: on a small team one person often holds the pager with nobody behind them, so a single page at 03:00 costs a night's sleep and the next day's work. A survey of on-call workers outside software found that 56% slept worse on on-call nights even when no call came ([source](https://pmc.ncbi.nlm.nih.gov/articles/PMC5876943/), unverified), and Google's SRE book counts about six hours of follow-up work behind each incident ([source](https://sre.google/sre-book/being-on-call/), unverified). [Notes and what is still to check](docs/research/oncall_case.md).
 
 An entry for [Life After Code, the GitLab Transcend Hackathon](https://gitlab-transcend.devpost.com/), Path A. Built by Alex Velazquez. [MIT licence](LICENSE).
 
 ## Try one night in the browser
 
-From the repository root, with Python 3.11 or newer and [uv](https://docs.astral.sh/uv/getting-started/installation/):
+**No install:** the pipeline publishes this demo on GitLab Pages; its public link goes here once the project is on GitLab (pending, see [LIVE_GATES.md](docs/LIVE_GATES.md)).
+
+To run it yourself, from the repository root, with Python 3.11 or newer and [uv](https://docs.astral.sh/uv/getting-started/installation/):
 
 ```sh
 uv sync --locked
@@ -23,7 +27,7 @@ uv run --project .. uvicorn main:app --host 127.0.0.1 --port 8080
 Open **[http://localhost:8080/demo](http://localhost:8080/demo)** on a laptop or phone-sized browser window. No credentials are needed.
 
 1. Review Priya's two orders, each with the line the rehearsal code wrote after trying it on a simulated staging shop, and what was left out tonight. Then choose **Sign demo orders** or **Leave unsigned**.
-2. Both checkout paths fail. Read the three-line wake-up and choose **Approve demo fallback** or **Decline** when a suggestion is available.
+2. Both checkout paths fail. Read the three-line wake-up and choose **Approve cached stock** or **Decline cached stock** when a suggestion is available.
 3. Only the new checkout fails. See whether the signed order permits code to turn it off, and inspect the old and new checkout chart against the 5% limit.
 4. Read the morning brief, the actual replay counts and the recorded keep-or-undo decision. Open **Read the decision evidence** for the signature, checks and ledger.
 
@@ -65,9 +69,9 @@ The model chooses where to look. Code decides what is true. A human decides when
 
 ![One night, dusk to dawn: the person signs, Duo flows draft and judge, code checks and acts, GitLab and Cloud Run hold the record](docs/images/night-orders-loop.svg)
 
-- **Before bed:** the dusk drafter proposes at most three orders from the day's changes. Each names a condition and one reversible action: set a feature flag, or move a Cloud Run service's traffic to a named earlier revision. A database migration gets no order.
+- **Before bed:** the dusk Duo flow proposes at most three orders from the day's changes. Each names a condition and one reversible action: set a feature flag, or move a Cloud Run service's traffic to a named earlier revision. A database migration gets no order.
 - **Rehearsal:** before anyone signs, the relay tries each drafted flag order on staging, checks the staging shop still serves a checkout, restores the flag and posts the result on the merge request; a traffic order is checked for a revision that exists.
-- **Signature:** in the intended GitLab workflow, the on-call person's merge or approval signs the orders. The dusk flow never waits on her at bedtime: a question it has goes in the merge request, answered by editing the file. Unsigned orders grant no authority.
+- **Signature:** in the intended GitLab workflow, the on-call person's merge or approval signs the orders. GitLab Duo Code Review reads the drafted orders first, with this project's own rules ([.gitlab/duo/mr-review-instructions.yaml](.gitlab/duo/mr-review-instructions.yaml)). The dusk flow never waits on her at bedtime: a question it has goes in the merge request, answered by editing the file. Unsigned orders grant no authority.
 - **During the night:** both keys must agree. Code checks the signature, expiry, measured condition, exact permitted action and first use tonight. The watch reply must name the order and explain why it fits. The action comes from the signed file, never from free text in the reply or a log.
 - **Outside the orders:** the engineer gets a short page and, when available, one suggestion requiring their approval. In the replay, both checkout paths failing causes the recorded watch reply to decline the new checkout order.
 - **Over coffee:** authority ends at 07:00. Expiry does not automatically undo existing changes. The morning countersign decides what stays; code restores every change she did not keep to how it was before the night, from the snapshot it took before acting (a pilot rollout comes back as a pilot rollout, not on for everyone). The default replay keeps the new checkout off and restores the temporary inventory fallback. A night she never countersigns is carried into the next morning, so nothing changed overnight is forgotten; when no model proposes a countersign, code opens one that keeps nothing until she says what to keep.
@@ -77,19 +81,19 @@ Payment errors, a second alert during a re-check, expired permission, a malforme
 
 ## Life after code, stage by stage
 
-What runs after a change is merged, and where to read it:
+GitLab names nine DevSecOps stages ([GitLab](https://about.gitlab.com/topics/devops/)). Night Orders works in all nine, after the code is merged:
 
-| Stage | What Night Orders does | Where |
+| Stage | What Night Orders does there | Where to read it |
 |---|---|---|
-| Verify | The merge request pipeline checks tonight's orders and the morning countersign file against the targets and the floor, and the Duo flows against GitLab's schema | [.gitlab-ci.yml](.gitlab-ci.yml), [cli.py](relay/nightorders/cli.py) |
-| Secure | SAST, IaC scanning, secret detection, a hash-checked dependency audit with an SBOM; log text reaches the model fenced as data | [.gitlab-ci.yml](.gitlab-ci.yml), [watch.py](relay/nightorders/watch.py) |
-| Release | Each drafted order is tried on staging and restored before anyone signs; the dusk flow drafts from the day's merges | [rehearsal.py](relay/nightorders/rehearsal.py), [dusk.yml](flows/dusk.yml) |
-| Deploy | Keyless Cloud Run deploys, manual, from the protected default branch only | [deploy/](deploy/README.md) |
-| Monitor | The relay reads the shop's numbers every minute and applies the alert rules, ignoring thin traffic | [signals.py](relay/nightorders/signals.py) |
-| Respond | An incident with an evidence pack; two keys (code and the watch flow); a three-line page with at most one fix to approve | [decide.py](relay/nightorders/decide.py), [watch.yml](flows/watch.yml) |
-| Recover | The signed action, then a re-check of the whole shop ten minutes later; anything else wakes her | [watch.py](relay/nightorders/watch.py) |
-| Restore | The countersign restores every change not kept to its snapshot; a kept change ends when its fix is deployed | [morning.py](relay/nightorders/morning.py), [kept.py](relay/nightorders/kept.py) |
-| Learn | The watch log, a timeline on each incident, and each night's report kept as a pipeline artifact | [dawn.py](relay/nightorders/dawn.py), [night_report.py](scripts/night_report.py) |
+| Plan | The standing watch issue holds the night: code posts the day sheet at 21:00, the watch log at 07:00, and each kept change until it ends; every alert opens an incident with a timeline | [daysheet.py](relay/nightorders/daysheet.py), [issue template](.gitlab/issue_templates/Night%20watch.md) |
+| Create | The dusk Duo flow writes tonight's orders as a merge request; Duo Code Review reads it with the project's rules; the dawn flow writes the countersign merge request; code owners guard both files | [dusk.yml](flows/dusk.yml), [dawn.yml](flows/dawn.yml), [mr-review-instructions.yaml](.gitlab/duo/mr-review-instructions.yaml) |
+| Verify | The merge request pipeline checks the orders and the countersign against the allowed targets and the always-wake list (payment errors always wake her), validates the flows against GitLab's schema, and runs the test suite, lint and a phone and laptop browser walk; each drafted flag order is tried on staging and put back before she signs | [.gitlab-ci.yml](.gitlab-ci.yml), [rehearsal.py](relay/nightorders/rehearsal.py) |
+| Package | The relay and shop images are built from one Dockerfile and pushed to the project's container registry | [.gitlab-ci.yml](.gitlab-ci.yml), [deploy/Dockerfile](deploy/Dockerfile) |
+| Secure | SAST, IaC, secret, dependency and container scanning, a hash-checked dependency audit with an SBOM; log text reaches the model fenced as data, and model text can never become an action or a quick action | [.gitlab-ci.yml](.gitlab-ci.yml), [REFUSALS.md](docs/REFUSALS.md) |
+| Release | Feature flags are the night's actions; the browser demo is published on GitLab Pages; each default-branch pipeline cuts a tagged GitLab Release | [gitlab_ports.py](relay/nightorders/gitlab_ports.py), [build_pages.py](scripts/build_pages.py) |
+| Configure | Keyless Cloud Run deploys from the protected default branch, Cloud Scheduler for the relay's tick, and the night's limits as code in `ops/` | [deploy/](deploy/README.md), [ops/](ops/) |
+| Monitor | The relay reads the shop's numbers every minute, opens incidents with an evidence pack, and re-checks the whole shop ten minutes after any action | [signals.py](relay/nightorders/signals.py), [watch.py](relay/nightorders/watch.py) |
+| Govern | Only the on-call person's merge or approval signs (code checks the signer, and code owners ask GitLab to require her approval); orders expire at 07:00; nothing changed overnight is forgotten; a kept change ends when its fix is deployed; every night leaves a report artifact | [decide.py](relay/nightorders/decide.py), [morning.py](relay/nightorders/morning.py), [kept.py](relay/nightorders/kept.py) |
 
 ## GitLab workflow and current limits
 
@@ -97,11 +101,11 @@ Status: **11 Oct 2026**. The whole loop runs offline here, with **498 passing te
 
 Three custom GitLab Duo Agent Platform flows are defined: [dusk](flows/dusk.yml) drafts orders, [watch](flows/watch.yml) reads incident evidence, and [dawn](flows/dawn.yml) proposes the morning countersign. Their files are validated against the checked-in GitLab flow schema and tool list. That validation checks configuration; it is not proof of a live Duo run.
 
-The intended runtime connects those flows to the [FastAPI relay](relay/README.md), GitLab incidents, merge requests and feature flags, and Cloud Run. The relay's night start depends on a working GitLab Flows API integration. If that API will not start a flow for this account, the relay has a fallback setting, Standing Orders: no model at night, code alone carries out the signed orders and says so on every incident. The demo night replayed that way (`--standing`) shows what the model's key is for: code turns the new checkout off on the numbers alone, and the re-check has to wake Priya ten minutes later. [Deployment code](deploy/README.md) uses GitLab CI and keyless Google Cloud authentication, but has not deployed this project. The [pipeline configuration](.gitlab-ci.yml) is present and strict: locked dependencies, pinned tools and images, coverage, lint, the browser walk, GitLab SAST, IaC scanning and secret detection, and a hash-checked dependency audit with a CycloneDX SBOM; a scheduled job keeps each night's report as an artifact. Every relay note on an incident also adds a GitLab incident timeline event. Visible running GitLab pipeline history is still pending.
+The intended runtime connects those flows to the [FastAPI relay](relay/README.md), GitLab incidents, merge requests and feature flags, and Cloud Run. The relay's night start depends on a working GitLab Flows API integration. If that API will not start a flow for this account, the relay has a fallback setting, Standing Orders: no model at night, code alone carries out the signed orders and says so on every incident. The demo night replayed that way (`--standing`) shows what the model's key is for: code turns the new checkout off on the numbers alone, and the re-check has to wake Priya ten minutes later. [Deployment code](deploy/README.md) uses GitLab CI and keyless Google Cloud authentication, but has not deployed this project. The [pipeline configuration](.gitlab-ci.yml) is present and strict: locked dependencies, pinned tools and images, coverage, lint, the browser walk, GitLab SAST, IaC, secret, dependency and container scanning, and a hash-checked dependency audit with a CycloneDX SBOM. On the default branch it pushes the images to the project's registry, publishes the demo on GitLab Pages and cuts a tagged release; a scheduled job keeps each night's report as an artifact. Every relay note on an incident also adds a GitLab incident timeline event. Visible running GitLab pipeline history is still pending.
 
-The current browser improvement is one guided story through the existing core, with two human choices, measured simulated chart samples and inspectable evidence. It demonstrates the bounded permission workflow locally. It does not establish a deployed or operationally tested integration.
+The browser demo is one guided story through the same decision code, with two choices for the viewer, chart samples from the simulated shop and the evidence behind each decision. The pipeline publishes it on GitLab Pages, so it opens from a link with nothing to install. It shows the permission workflow; it does not show a deployed or live-tested integration.
 
-The submission is planned for Path A. **Supervised is the current category recommendation, pending a live end-to-end run and a final rules check.** Nightly human approval and morning review mean the Hands-off category should not be treated as settled. The [official rules](https://gitlab-transcend.devpost.com/rules) require actual GitLab Duo Agent Platform use.
+Path A, category **Supervised**: "your agents run the workflow, you approve the outcome." The on-call person approves the night's bounds before bed and the outcome over coffee, and nobody approves the 03:13 action itself. The rules also require actual GitLab Duo Agent Platform use; that live run is a gate in [docs/LIVE_GATES.md](docs/LIVE_GATES.md), still pending.
 
 ## Evidence and submission materials
 
@@ -131,4 +135,4 @@ uv run --project .. python -m nightorders.demo_night ../demo/night-2026-10-20
 
 The CLI uses the same labelled demo night and decision code. The separate gcloud flag audit in [deploy/tests/test_cli_flags.py](deploy/tests/test_cli_flags.py) requires the pinned Google Cloud SDK image configured in CI.
 
-Source layout: [agent/](agent/) is the dusk drafter, [flows/](flows/) contains the Duo definitions, [ops/](ops/) sets targets and policy, [relay/](relay/) contains the decision core and app, [shop/](shop/) is the demo shop, [scripts/](scripts/) holds the day-one test and the test-night runner, and [deploy/](deploy/) contains deployment setup. The rules for agents building this repository are in [AGENTS.md](AGENTS.md).
+Source layout: [agent/](agent/) is the dusk job for local runs without GitLab (a direct model call, or its recorded answer; in GitLab the dusk Duo flow does this job), [flows/](flows/) contains the Duo definitions, [ops/](ops/) sets targets and policy, [relay/](relay/) contains the decision core and app, [shop/](shop/) is the demo shop, [scripts/](scripts/) holds the day-one test and the test-night runner, and [deploy/](deploy/) contains deployment setup. The rules for agents building this repository are in [AGENTS.md](AGENTS.md).

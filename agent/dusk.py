@@ -3,8 +3,8 @@
     python agent/dusk.py demo/night-2026-10-20/today.json --out /tmp/night-orders.yml
 
 In GitLab this job is the dusk Duo flow (flows/dusk.yml), started when the on-call person
-assigns the watch issue to it. This script is the same job outside GitLab: for local runs, and
-as the fallback path in CI if a flow cannot be started. Both read the same rules from
+assigns the watch issue to it. This script is the same job outside GitLab, for local runs; no
+CI job runs it. Both read the same rules from
 skills/night-orders/SKILL.md, and in both, code validates the draft before anyone can sign it.
 
 Model: Claude Opus 5.5 through the Anthropic API, with a JSON-schema response. With no

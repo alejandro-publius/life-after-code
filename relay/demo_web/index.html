@@ -35,11 +35,12 @@
         <p class="intro-safety">Simulated shop, planted faults and recorded agent replies. Buttons here change nothing outside this page.</p>
       </section>
 
-      <nav class="journey-nav" aria-label="Replay chapters">
+      <nav class="journey-nav" aria-label="Replay chapters" aria-describedby="nav-hint">
         <button class="step-button active" data-step="dusk" aria-current="step" type="button"><span class="step-number">1</span><span><span class="step-label">Before bed</span><span class="step-status">22:06 · Set the limits</span></span></button>
         <button class="step-button" data-step="night" type="button" disabled><span class="step-number">2</span><span><span class="step-label">During the night</span><span class="step-status">A wake-up, then a check</span></span></button>
         <button class="step-button" data-step="dawn" type="button" disabled><span class="step-number">3</span><span><span class="step-label">Over coffee</span><span class="step-status">07:42 · Keep or restore</span></span></button>
       </nav>
+      <p class="small-copy nav-hint" id="nav-hint">Chapters 2 and 3 open after you choose below.</p>
 
       <p id="replay-status" class="screen-reader-only" role="status" aria-live="polite" aria-atomic="true"></p>
       <div id="replay-root" data-view="dusk" data-scene="dusk" aria-busy="true">
