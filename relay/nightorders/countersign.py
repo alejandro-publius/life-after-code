@@ -22,7 +22,7 @@ from .orders import OrdersError, action_problems
 
 STATE_KEYS = frozenset({"flag", "environment", "keep", "until"})
 SERVICE_KEYS = frozenset({"service", "keep", "until"})
-TOP_KEYS = frozenset({"flags", "services"})
+TOP_KEYS = frozenset({"night", "flags", "services"})  # night ties the file to one night; the morning checks it
 
 
 @dataclass(frozen=True)
@@ -56,7 +56,7 @@ def parse_state(data: dict | None, targets: Targets) -> list[Kept]:
     problems: list[str] = []
     extra_top = sorted(set(data) - TOP_KEYS)
     if extra_top:
-        problems.append(f"ops/state.yml: unknown keys {', '.join(extra_top)} (only flags and services are read)")
+        problems.append(f"ops/state.yml: unknown keys {', '.join(extra_top)} (only night, flags and services are read)")
     flags = data.get("flags") or []
     services = data.get("services") or []
     if not isinstance(flags, list):

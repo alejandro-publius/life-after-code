@@ -224,7 +224,7 @@ def test_a_services_entry_on_another_revision_or_an_unknown_section_is_refused(t
                                       "it to revision shop-00041"]
     with pytest.raises(OrdersError) as refused:
         parse_state({"flag": [{"flag": "new_checkout", "environment": "production", "keep": "off"}]}, targets)
-    assert refused.value.problems == ["ops/state.yml: unknown keys flag (only flags and services are read)"]
+    assert refused.value.problems == ["ops/state.yml: unknown keys flag (only night, flags and services are read)"]
     with pytest.raises(OrdersError) as refused:
         parse_state({"services": [{"service": "shop", "keep": "shop-00041"}, {"service": "shop", "keep": "shop-00041"}]},
                     targets)

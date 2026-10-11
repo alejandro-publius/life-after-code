@@ -52,6 +52,7 @@ from .model import Action, Change, describe_before
 TIMEOUT_SECONDS = 10.0
 METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
 CLOUD_RUN_API = "https://run.googleapis.com/v2"
+STATE_FILE = "ops/state.yml"  # the morning countersign
 REQUEST_MARK = "```night-orders-request"
 REQUEST_MARKS = (REQUEST_MARK, "```json")  # a flow note labelled json is read too; notes.py still checks the keys
 # Agent privileges for the night watch flow: 2 read_only_gitlab, 3 read_write_gitlab. No files, commands,
@@ -485,6 +486,55 @@ class GitLabPorts:
         return sorted(lines, key=lambda line: line[0])
 
     # The morning: the watch log and the dawn flow on the standing watch issue. Without one, both do nothing.
+
+    def _project(self) -> dict:
+        if getattr(self, "_project_json", None) is None:
+            self._project_json = self.gitlab.json("read project", "GET", "")
+        return self._project_json
+
+    def morning_push(self, lines: tuple[str, ...], at: datetime) -> None:
+        """One quiet push in the morning (ntfy's default priority: no alarm), opening the watch issue."""
+        link = None
+        web = str(self._project().get("web_url") or "")
+        if self.watch_issue is not None and web.startswith("https://"):
+            link = f"{web.rstrip('/')}/-/issues/{self.watch_issue}"
+        push(self.http, self._ntfy_url, "Night Orders: good morning", lines, click=link, priority="default")
+
+    def dawn_flow_ready(self) -> bool:
+        return self.watch_issue is not None and bool(self.dawn_consumer_id)
+
+    def countersign_request_open(self) -> int | None:
+        """An open merge request into the default branch that changes ops/state.yml, by anyone, or None."""
+        branch = str(self._project()["default_branch"])
+        requests = self.gitlab.json("list open merge requests", "GET", "/merge_requests",
+                                    params={"state": "opened", "target_branch": branch, "order_by": "created_at",
+                                            "sort": "desc", "per_page": 10})
+        for request in requests[:10]:
+            diffs = self.gitlab.json("read merge request changes", "GET", f"/merge_requests/{request['iid']}/diffs",
+                                     params={"per_page": 100})
+            if any(STATE_FILE in (d.get("new_path"), d.get("old_path")) for d in diffs):
+                return int(request["iid"])
+        return None
+
+    def open_countersign_request(self, night: str, state_text: str, title: str, description: str) -> int:
+        """Branch, commit and merge request for a countersign written by code. The commit creates its own branch
+        from the default branch; a name already taken gets -2, -3 and so on."""
+        branch = str(self._project()["default_branch"])
+        exists = self.gitlab.raw_file(STATE_FILE, branch) is not None
+        action = {"action": "update" if exists else "create", "file_path": STATE_FILE, "content": state_text}
+        for attempt in range(1, 6):
+            name = f"countersign/{night}-code" + ("" if attempt == 1 else f"-{attempt}")
+            answer = self.gitlab.call("commit the countersign file", "POST", "/repository/commits", expect=(201, 400),
+                                      json={"branch": name, "start_branch": branch, "commit_message": title,
+                                            "actions": [action]})
+            if answer.status_code == 201:
+                break
+        else:
+            raise RelayError("commit the countersign file: every branch name was taken")
+        request = self.gitlab.json("open the countersign merge request", "POST", "/merge_requests", expect=(201,),
+                                   json={"source_branch": name, "target_branch": branch, "title": title,
+                                         "description": description, "remove_source_branch": True})
+        return int(request["iid"])
 
     def watch_note(self, text: str, at: datetime) -> None:
         if self.watch_issue is not None:

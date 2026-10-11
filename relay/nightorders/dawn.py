@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from .decide import Night
-from .model import Action
+from .model import Action, describe_before
 
 SHOWN = ("alert", "asked", "acted", "failed", "declined", "woke", "approved", "refused", "recovered", "stood_down",
          "expired")
@@ -113,14 +113,22 @@ def render_watch_log(night: Night) -> str:
     return "\n".join(lines) + "\n"
 
 
-def dawn_goal(night: Night, watch_issue: int) -> str:
-    """The goal the relay gives the dawn flow at the watch end. Facts come from the ledger, not the model."""
+def dawn_goal(night: Night, watch_issue: int, ends: list[LooseEnd] | None = None) -> str:
+    """The goal the relay gives the dawn flow at the watch end. Facts come from the ledger, not the model.
+
+    ends defaults to this night's loose ends; the morning passes its record's, which also carries any earlier
+    night that was never countersigned.
+    """
     title_night = night.orders.night.strftime("%a %d %b") if night.orders else "last night"
-    ends = loose_ends(night)
+    ends = loose_ends(night) if ends is None else ends
     lines = [f"Watch issue #{watch_issue}, night of {title_night}. Code posted the watch log there."]
+    if night.orders:
+        lines.append(f'Night date: {night.orders.night.isoformat()}. Write night: "{night.orders.night.isoformat()}" '
+                     "at the top of ops/state.yml.")
     if ends:
-        lines.append("Loose ends, changed tonight and still in place. Propose keep or undo for each:")
-        lines += [f"- {end.action.describe()} ({end.why})" for end in ends]
+        lines.append("Loose ends, changed overnight and still in place. Propose keep or restore for each:")
+        lines += [f"- {end.action.describe()} ({end.why}). Before the night: {describe_before(end.before)}."
+                  for end in ends]
     else:
         lines.append("Loose ends: none. Post one note saying nothing needs a countersign, and open no merge request.")
     return "\n".join(lines)

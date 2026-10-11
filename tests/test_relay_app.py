@@ -199,7 +199,9 @@ def replayed(tmp_path_factory):
 
 def test_the_demo_night_through_the_relay_matches_the_in_memory_replay(replayed):
     plain_ports, plain_night, relay_ports, rig = replayed
-    assert relay_ports.log == plain_ports.log
+    pushes = [line for line in relay_ports.log if "PUSH (quiet)" in line]
+    assert len(pushes) == 1 and pushes[0].startswith("07:00  PUSH (quiet) to the on-call phone: Woken ")
+    assert [line for line in relay_ports.log if "PUSH (quiet)" not in line] == plain_ports.log
     saved = [(e["kind"], e["text"], datetime.fromisoformat(e["at"])) for e in rig.doc()["watch"]["ledger"]]
     assert saved == [(e.kind, e.text, e.at) for e in plain_night.ledger.events]
     by_time = {s["at"]: s for s in rig.summaries}

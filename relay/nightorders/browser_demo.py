@@ -23,6 +23,7 @@ from .demo_night import DemoShop, RecordingPorts, countersign, restored_action, 
 from .gitlab_ports import Http
 from .model import Action, OnCall, Targets
 from .orders import load_yaml, watch_window
+from .morning import push_lines
 from .rehearsal import rehearse
 
 DATA = Path(__file__).with_name("demo_story_data")
@@ -284,6 +285,7 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
     return {
         "label": LABEL, "choices": {"signed": signed, "approved": approved},
         "repo_url": REPO_URL,
+        "morning_push": {"time": night.oncall.hhmm(expires), "lines": list(push_lines(night, len(ends)))},
         "rehearsal": rehearsed,
         "objects": gitlab_objects(night, ports, objects, signed, morning, rehearsed),
         "three_ways": list(three_ways()),

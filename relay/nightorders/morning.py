@@ -17,12 +17,16 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Protocol
 
+from datetime import timedelta
+
 from .countersign import describe_restored, parse_state, plan_morning, undo
 from .dawn import LooseEnd, action_from, dawn_goal, loose_ends, render_watch_log
 from .decide import Night
-from .model import Action, Change, Signature
+from .model import Action, Change, Signature, describe_before
 from .orders import OrdersError, watch_window
 ALREADY_BACK = " (already as before the night)"
+DAWN_GRACE = timedelta(minutes=20)  # after this, with no countersign request open, code opens one itself
+STATE_PATH = "ops/state.yml"
 
 
 class MorningPorts(Protocol):
@@ -42,23 +46,82 @@ class StateFile:
     problem: str | None = None
 
 
-def new_record(night: Night) -> dict:
+def _target(action: dict) -> tuple:
+    return ("flag", action.get("flag"), action.get("environment")) if action.get("action") == "flag_set" \
+        else ("service", action.get("service"))
+
+
+def new_record(night: Night, carried: dict | None = None) -> dict:
     """What the relay keeps about one finished night until its countersign is applied.
 
     ended_at is the watch end itself, not the tick that noticed it, so a countersign signed while the
-    relay was down still counts when it comes back.
+    relay was down still counts when it comes back. When the night before was never countersigned, its
+    loose ends are carried into this record: nothing is forgotten, and for a target changed on both nights
+    the earlier snapshot is kept, because that is how it was before the first night.
     """
     assert night.orders is not None
     _, end = watch_window(night.orders, night.oncall)
+    ends: dict[tuple, dict] = {}
+    nights: list[str] = []
+    if carried and carried.get("countersign") is None:
+        nights = list(carried.get("nights") or [carried["night"]])
+        for item in carried.get("loose_ends") or []:
+            ends[_target(item["action"])] = dict(item)
+    for loose in loose_ends(night):
+        item = {"action": loose.action.as_dict(), "why": loose.why, "before": loose.before}
+        key = _target(item["action"])
+        if key in ends:
+            item["before"] = ends[key].get("before")  # how it was before the first of these nights
+        ends[key] = item
     return {
         "night": night.orders.night.isoformat(),
+        "nights": nights + [night.orders.night.isoformat()],
         "ended_at": end.isoformat(),
-        "loose_ends": [{"action": end.action.as_dict(), "why": end.why, "before": end.before}
-                       for end in loose_ends(night)],
+        "loose_ends": list(ends.values()),
         "log_posted": False,
         "flow_started": False,
+        "pushed": False,
+        "code_request": None,
         "countersign": None,
     }
+
+
+def push_lines(night: Night, loose: int) -> tuple[str, ...]:
+    """The quiet good-morning push: what the night did, and what waits for her."""
+    woke = len(night.ledger.of("woke"))
+    handled = len({e.incident for e in night.ledger.of("acted")} - {e.incident for e in night.ledger.of("woke")})
+    first = f"Woken {woke} time{'' if woke == 1 else 's'}. Handled while you slept: {handled}."
+    second = (f"{loose} change{'' if loose == 1 else 's'} to keep or restore. The countersign merge request is on "
+              "the watch issue." if loose else "Nothing changed overnight, so nothing needs a countersign.")
+    return first, second
+
+
+def countersign_request(record: dict) -> tuple[str, str, str]:
+    """The countersign merge request code opens when no model proposed one: (state file, title, description).
+
+    The file keeps nothing, so merging it as it is restores every change; the description says how to keep one.
+    """
+    night = record["night"]
+    state_text = (f"# Countersign for the night of {night}, written by code: no model proposed anything this "
+                  "morning.\n# Merged as it is, it keeps nothing, and code restores every change below to how it "
+                  "was before the night.\n# To keep a change, add it under flags or services (see the merge "
+                  f'request).\nnight: "{night}"\nflags: []\nservices: []\n')
+    lines = [f"Countersign for the night of {night}. Written by code: no model proposed anything this morning.", "",
+             "Changed overnight and still in place:", ""]
+    for item in record["loose_ends"]:
+        action = action_from(item["action"])
+        lines.append(f"- {action.describe()} ({item.get('why', '')}). Before the night: "
+                     f"{describe_before(item.get('before'))}.")
+    lines += ["", "Merged as it is, this restores every change above to how it was before the night.",
+              "To keep one, add it to ops/state.yml in this merge request before merging, for example:", "",
+              "```yaml",
+              "flags:",
+              '  - {flag: new_checkout, environment: production, keep: "off", until: "the fix ships"}',
+              "services:",
+              "  - {service: shop, keep: shop-00041, until: \"the image cache is reverted\"}",
+              "```", "",
+              "Merge (or approve) to countersign. Nothing changes until it is signed."]
+    return state_text, f"Countersign {night} (written by code)", "\n".join(lines)
 
 
 def loose_from(record: dict) -> list[LooseEnd]:
@@ -73,8 +136,10 @@ def step(relay_doc: dict, night: Night, watch_expired: bool, state_file: StateFi
     orders = night.orders
     record = relay_doc.get("dawn")
     if watch_expired and orders is not None and (record is None or record.get("night") != orders.night.isoformat()):
-        record = relay_doc["dawn"] = new_record(night)
-        done.append(f"night of {record['night']} ended with {len(record['loose_ends'])} loose end(s) awaiting the countersign")
+        record = relay_doc["dawn"] = new_record(night, carried=record)
+        carried = len(record["nights"]) - 1
+        done.append(f"night of {record['night']} ended with {len(record['loose_ends'])} loose end(s) awaiting the "
+                    "countersign" + (f", including {carried} earlier night(s) never countersigned" if carried else ""))
     if record is None:
         return done
 
@@ -82,10 +147,26 @@ def step(relay_doc: dict, night: Night, watch_expired: bool, state_file: StateFi
         record["log_posted"] = True  # set first: a log posted twice is noise, a log never posted is worse than once
         ports.watch_note(render_watch_log(night), now)
         done.append("watch log posted")
+    if not record.get("pushed", True) and hasattr(ports, "morning_push"):
+        record["pushed"] = True  # once a night; a quiet push, never an urgent one
+        ports.morning_push(push_lines(night, len(record["loose_ends"])), now)
+        done.append("good-morning push sent")
     if watch_issue is not None and not record["flow_started"] and record["loose_ends"]:
         record["flow_started"] = True
-        ports.start_dawn_flow(dawn_goal(night, watch_issue), now)
+        ports.start_dawn_flow(dawn_goal(night, watch_issue, loose_from(record)), now)
         done.append("dawn flow started")
+    # code_request is None until code has looked (a record from before this existed has no key: left alone).
+    if (record["loose_ends"] and record["countersign"] is None and record.get("code_request", 0) is None
+            and hasattr(ports, "open_countersign_request")):
+        flow_ready = getattr(ports, "dawn_flow_ready", lambda: False)()
+        ended = datetime.fromisoformat(record["ended_at"])
+        if not flow_ready or now >= ended + DAWN_GRACE:
+            if ports.countersign_request_open() is None:
+                state_text, title, description = countersign_request(record)
+                record["code_request"] = ports.open_countersign_request(record["night"], state_text, title, description)
+                done.append(f"countersign merge request !{record['code_request']} opened by code")
+            else:
+                record["code_request"] = -1  # the dawn flow opened one; nothing for code to do
 
     if record["countersign"] is None and state_file is not None:
         result = countersign(record, state_file, night, ports, now)
@@ -125,6 +206,11 @@ def countersign(record: dict, state_file: StateFile, night: Night, ports: Any, n
         return result
     if state_file.problem:
         result["problems"] = [state_file.problem, "Nothing was changed."]
+        return result
+    named = (state_file.data or {}).get("night")
+    if named is not None and str(named) != record["night"]:
+        result["problems"] = [f"ops/state.yml is the countersign for the night of {named}, not of {record['night']}.",
+                              "Nothing was changed."]
         return result
     try:
         plan = plan_morning(loose_from(record), parse_state(state_file.data, night.targets))

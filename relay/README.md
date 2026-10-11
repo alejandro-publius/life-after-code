@@ -33,8 +33,12 @@ A small FastAPI service on Cloud Run, and the only part of Night Orders that cha
    restores every night change they did not keep to how it was before the night, from the snapshot each
    change recorded (a flag's earlier strategies for that environment, a service's earlier traffic
    allocation). A change that found its target already in place is recorded as such and needs no restore.
-   A countersign code refuses (signed by someone else, or keeping a value the night did not set) is said
-   once on the watch issue and the morning stays open for a corrected file.
+   A countersign code refuses (signed by someone else, for another night, or keeping a value the night did
+   not set) is said once on the watch issue and the morning stays open for a corrected file. One quiet push
+   (no alarm) tells her what the night did. When no dawn flow is set, or it opens nothing within 20 minutes,
+   code opens the countersign merge request itself, keeping nothing until she adds what to keep. A night that
+   is never countersigned is carried into the next morning's record, with its first snapshot, so nothing
+   changed overnight is ever forgotten.
 6. Saves its memory. If GitLab, the shop or the store fails three ticks in a row, it pages.
 
 Only one tick runs at a time, across Cloud Run instances: a tick first takes a short lease in the state store

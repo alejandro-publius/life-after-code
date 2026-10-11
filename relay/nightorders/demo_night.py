@@ -94,6 +94,9 @@ class RecordingPorts:
         self.log.append(f"{self._t(at)}  incident #{number} opened: {title}")
         return number
 
+    def morning_push(self, lines: tuple[str, ...], at: datetime) -> None:
+        self.log.append(f"{self._t(at)}  PUSH (quiet) to the on-call phone: " + " | ".join(lines))
+
     def recent_log_lines(self, at: datetime) -> list[tuple[datetime, str]]:
         return [(when, text) for when, text in self.log_lines if when <= at]
 
@@ -308,6 +311,10 @@ def main(argv: list[str] | None = None) -> int:
         print(line)
     print()
     print(render_watch_log(night).rstrip("\n"))
+    from .dawn import loose_ends as _loose
+    from .morning import push_lines
+    print()
+    print(f"07:00  PUSH (quiet) to the on-call phone: " + " | ".join(push_lines(night, len(_loose(night)))))
     morning = countersign(folder, ports, night)
     if morning:
         print()

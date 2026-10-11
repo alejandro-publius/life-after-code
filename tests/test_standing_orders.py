@@ -238,7 +238,9 @@ def test_the_demo_night_through_a_standing_relay_matches_the_in_memory_replay(tm
     monkeypatch.setattr(demo_night, "Watch", ThroughTheRelay)
     relay_ports, _ = demo_night.run(DEMO, standing=True)
     rig = ThroughTheRelay.rig
-    assert relay_ports.log == plain_ports.log
+    pushes = [line for line in relay_ports.log if "PUSH (quiet)" in line]
+    assert len(pushes) == 1 and pushes[0].startswith("07:00  PUSH (quiet) to the on-call phone: Woken ")
+    assert [line for line in relay_ports.log if "PUSH (quiet)" not in line] == plain_ports.log
     assert all(s["mode"] == "standing" for s in rig.summaries)
     saved = [(e["kind"], e["text"]) for e in rig.doc()["watch"]["ledger"]]
     assert saved == [(e.kind, e.text) for e in plain_night.ledger.events]
