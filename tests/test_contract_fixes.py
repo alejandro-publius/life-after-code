@@ -12,16 +12,15 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
 
-from conftest import OPS, REPO, at, put, series, switched_off
-from nightorders import Act, Action, Alert, Ask, Change, Metrics, OrdersError, Request, Wake, check_request, render_request, triage
+from conftest import REPO, at, put, series, switched_off
+from nightorders import Action, Alert, Ask, Metrics, OrdersError, Request, Wake, check_request, render_request, triage
 from nightorders.countersign import parse_state, plan_morning
 from nightorders.dawn import LooseEnd
-from nightorders.decide import STANDING
 from nightorders.gitlab_ports import GitLab, GitLabPorts, GoogleToken, Http
 from nightorders.morning import StateFile, step
 from nightorders.notes import Malformed, parse_request
 from nightorders.orders import load_yaml
-from nightorders.watch import Watch, parse_alert_rules
+from nightorders.watch import Watch
 from test_standing_orders import Ports, bad_minutes, rules
 from test_morning import FakePorts as MorningPorts, local, night as demo_night_fixture, signed  # noqa: F401
 

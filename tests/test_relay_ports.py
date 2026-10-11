@@ -82,8 +82,9 @@ def test_close_incident_posts_the_note_then_closes():
                      ("PUT", f"{API}/issues/7"): {"iid": 7, "state": "closed"}})
     ports_for(server).close_incident(7, "Signals back to normal at 03:40.", NOW)
     note, close = server.requests
-    assert (note.method, note.url.path, body(note)) == ("POST", f"{API}/issues/7/notes",
-                                                         {"body": "Signals back to normal at 03:40."})
+    # NOW is 10:12 UTC: the /timeline quick action adds the moment to the incident's timeline in GitLab.
+    assert (note.method, note.url.path, body(note)) == ("POST", f"{API}/issues/7/notes", {
+        "body": "Signals back to normal at 03:40.\n\n/timeline Signals back to normal at 03:40 | 2026-10-21 10:12"})
     assert (close.method, close.url.path, body(close)) == ("PUT", f"{API}/issues/7", {"state_event": "close"})
 
 
@@ -410,7 +411,8 @@ def test_page_pushes_to_ntfy_and_posts_the_page_note_for_the_thumbs_up():
     ports.page(7, lines, NOW)
     [posted] = server.sent("POST", f"{API}/issues/7/notes")
     assert body(posted)["body"] == ("Page sent to the on-call person:\n\n```text\n" + lines[0] + "\n"
-                                    "Not the 'new' checkout.\n" + lines[2] + "\n```")
+                                    "Not the 'new' checkout.\n" + lines[2] + "\n```"
+                                    "\n\n/timeline Paged the on-call person | 2026-10-21 10:12")
     [pushed] = server.sent("POST", "/test-topic-not-real")
     assert str(pushed.url) == TOPIC_URL
     assert pushed.content.decode() == "\n".join(lines)
@@ -485,3 +487,10 @@ def test_raw_file_paths_are_url_encoded_and_a_missing_file_is_none():
     assert gitlab.raw_file("ops/night-orders.yml", "main") is None
     first = server.requests[0]
     assert b"/repository/files/ops%2Foncall.yml/raw?ref=main" in first.url.raw_path
+
+
+def test_the_timeline_line_is_one_code_written_sentence_without_the_separator():
+    from nightorders.gitlab_ports import TIMELINE_CHARS, timeline
+    line = timeline("Order 1 carried out 03:13: a | b.\nChecks: signed. More.", NOW)
+    assert line == "\n\n/timeline Order 1 carried out 03:13: a / b | 2026-10-21 10:12"
+    assert len(timeline("x" * 900, NOW)) == len("\n\n/timeline ") + TIMELINE_CHARS + len(" | 2026-10-21 10:12")

@@ -22,7 +22,7 @@ from nightorders.orders import load_context
 from nightorders.rehearsal import MAX_RESTORE_TRIES, SHOP_FETCH_WAIT_SECONDS
 from nightorders.watch import Watch
 from test_daysheet import API as DAY_API, NOW as DAY_NOW, Server, gitlab_for, routes
-from test_rehearsal import ORDERS, SHA, World, run, staging_scopes
+from test_rehearsal import SHA, World, run, staging_scopes
 from test_standing_orders import Ports, bad_minutes, rules
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))

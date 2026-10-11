@@ -1,96 +1,199 @@
 # Night Orders pipeline.
 #
-# Test: unit tests (one per reason code refuses to act) and the demo night replay.
-# Verify: tonight's orders checked against the schema, targets and floor; the morning countersign
-#         file checked against the targets; Duo flow files checked against GitLab's flow schema and
-#         tool list.
-# Secure: GitLab SAST and secret detection.
+# Test: unit tests with coverage (one test per reason code refuses to act), lint, the demo night replay,
+#       and a phone and laptop walk through the browser demo.
+# Verify: tonight's orders checked against the schema, targets and floor; the morning countersign file
+#         checked against the targets; Duo flow files checked against GitLab's flow schema and tool list.
+# Secure: GitLab SAST, secret detection and IaC scanning; pip-audit of the locked dependencies, with a
+#         CycloneDX SBOM.
 # Audit: every gcloud flag the deploy uses, checked inside the pinned Google Cloud SDK image.
 # Deploy: keyless deploys to Cloud Run (deploy/gitlab-ci-deploy.yml: three manual jobs, shop, shop-staging
 #         and relay, on the protected default branch: a person decides when each ships).
+# Report: on the morning schedule, the night's record from the relay's /status.json, kept as an artifact.
+
+workflow:
+  rules:
+    # Merge request pipelines for merge requests (the orders and countersign files are checked there), branch
+    # pipelines otherwise, never both for one push.
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS && $CI_PIPELINE_SOURCE == "push"
+      when: never
+    - if: $CI_COMMIT_BRANCH
+  auto_cancel:
+    on_new_commit: interruptible
 
 stages:
   - test
   - verify
   - audit
   - deploy
+  - report
 
 include:
   - template: Jobs/SAST.gitlab-ci.yml
+  - template: Jobs/SAST-IaC.gitlab-ci.yml
   - template: Jobs/Secret-Detection.gitlab-ci.yml
   - local: deploy/gitlab-ci-deploy.yml
 
 default:
   interruptible: true
 
+variables:
+  UV_VERSION: "0.12.19"          # the same uv as .github/workflows/checks.yml
+  PLAYWRIGHT_VERSION: "1.62.0"   # the same Playwright as scripts/browser_smoke.py
+
 .python:
-  image: python:3.12-slim
+  image: python:3.12-slim-bookworm
+  needs: []
   variables:
     UV_LINK_MODE: copy
+    UV_CACHE_DIR: .uv-cache
     PIP_DISABLE_PIP_VERSION_CHECK: "1"
+    PYTHONDONTWRITEBYTECODE: "1"
+  cache:
+    key:
+      files:
+        - uv.lock
+    paths:
+      - .uv-cache
   before_script:
-    - pip install --quiet uv
-    - uv sync --quiet
+    - pip install --quiet "uv==$UV_VERSION"
+    - uv sync --locked --quiet
+  after_script:
+    - uv cache prune --ci --quiet || true
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
 
 unit_tests:
   extends: .python
   stage: test
   script:
-    - uv run pytest -q --junitxml=report.xml
+    - uv run --locked pytest -q --junitxml=report.xml --cov=relay --cov=shop --cov=agent --cov-report=term
+      --cov-report=xml:coverage.xml
+  coverage: '/^TOTAL.*\s(\d+)%$/'
   artifacts:
     when: always
+    expire_in: 30 days
     reports:
       junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+lint:
+  extends: .python
+  stage: test
+  script:
+    # Syntax errors, undefined names and unused imports (pyproject.toml, [tool.ruff]). Codex's deploy/ is
+    # left to its own checks.
+    - uvx --from ruff==0.14.0 ruff check relay shop agent scripts tests flows
 
 demo_night:
   extends: .python
   stage: test
   script:
     - cd relay
-    - uv run --project .. python -m nightorders.demo_night ../demo/night-2026-10-20 | tee ../demo-night.txt
-    - uv run --project .. python -m nightorders.demo_night ../demo/night-2026-10-20 --standing | tee ../demo-night-standing-orders.txt
-    - uv run --project .. python -m nightorders.compare ../demo/night-2026-10-20 | tee ../demo-night-three-ways.txt
+    - uv run --locked --project .. python -m nightorders.demo_night ../demo/night-2026-10-20 | tee ../demo-night.txt
+    - uv run --locked --project .. python -m nightorders.demo_night ../demo/night-2026-10-20 --standing
+      | tee ../demo-night-standing-orders.txt
+    - uv run --locked --project .. python -m nightorders.compare ../demo/night-2026-10-20 | tee ../demo-night-three-ways.txt
   artifacts:
     expose_as: "Demo night replay (demo data)"
+    expire_in: 30 days
     paths:
       - demo-night.txt
       - demo-night-standing-orders.txt
       - demo-night-three-ways.txt
 
+browser_smoke:
+  extends: .python
+  stage: test
+  timeout: 15m
+  script:
+    # Chromium and its system libraries for the pinned Playwright, then the same walk GitHub runs: three paths
+    # on a phone and on a laptop, the relay's own page, no JavaScript, and a failed load with a retry.
+    - uv run --locked --with "playwright==$PLAYWRIGHT_VERSION" python -m playwright install --with-deps chromium
+    - uv run --locked --with "playwright==$PLAYWRIGHT_VERSION" python scripts/browser_smoke.py --screenshots screenshots
+  artifacts:
+    when: always
+    expose_as: "Browser demo screenshots"
+    expire_in: 30 days
+    paths:
+      - screenshots/
+
 deploy_unit_tests:
-  image: python:3.12-slim
+  image: python:3.12-slim-bookworm
+  stage: test
+  needs: []
+  script:
+    - pip install --quiet "pyyaml==6.0.3"   # the pipeline contract test reads deploy/gitlab-ci-deploy.yml
+    - python3 -m unittest discover -s deploy/tests -p "test_*.py" -v
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+
+dependency_audit:
+  extends: .python
   stage: test
   script:
-    - pip install --quiet pyyaml   # the pipeline contract test reads deploy/gitlab-ci-deploy.yml
-    - python3 -m unittest discover -s deploy/tests -p "test_*.py" -v
+    # Every locked runtime dependency, with hashes, checked against the Python advisory database. The same run
+    # writes a CycloneDX SBOM for GitLab's dependency list.
+    - uv export --quiet --locked --format requirements-txt --no-dev --no-emit-project -o requirements.lock.txt
+    - uvx --from pip-audit==2.9.0 pip-audit -r requirements.lock.txt --disable-pip --require-hashes
+    - uvx --from pip-audit==2.9.0 pip-audit -r requirements.lock.txt --disable-pip --require-hashes
+      -f cyclonedx-json -o gl-sbom-python.cdx.json
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - gl-sbom-python.cdx.json
+    reports:
+      cyclonedx: gl-sbom-python.cdx.json
 
 validate_orders:
   extends: .python
   stage: verify
   script:
     - cd relay
-    - uv run --project .. python -m nightorders.cli validate ../ops/night-orders.yml --ops ../ops
+    - uv run --locked --project .. python -m nightorders.cli validate ../ops/night-orders.yml --ops ../ops
 
 validate_state:
   extends: .python
   stage: verify
   script:
     - cd relay
-    - uv run --project .. python -m nightorders.cli state ../ops/state.yml --ops ../ops
+    - uv run --locked --project .. python -m nightorders.cli state ../ops/state.yml --ops ../ops
 
 validate_flows:
   extends: .python
   stage: verify
   script:
-    - uv run python flows/validate.py
+    - uv run --locked python flows/validate.py
 
 cli_audit:
   stage: audit
+  needs: []
   # Google Cloud SDK 587.0.0 with the alpha and beta components, the same image the deploy job uses.
   image: gcr.io/google.com/cloudsdktool/google-cloud-cli@sha256:be4876b4311056bf3ce236a14a7dea1288e70b7cfea2454ea15e4165c819921f
   script:
     - python3 -m unittest -v deploy/tests/test_cli_flags.py
   rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
         - deploy/**/*
+
+night_report:
+  extends: .python
+  stage: report
+  # A pipeline schedule at 07:30 in the on-call time zone with NIGHT_REPORT=1 and RELAY_URL set. The relay
+  # keeps one night at a time; this keeps each night's record in GitLab for 90 days.
+  script:
+    - uv run --locked python scripts/night_report.py "$RELAY_URL" --out night-report.md
+  artifacts:
+    expose_as: "Night report"
+    expire_in: 90 days
+    paths:
+      - night-report.md
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHT_REPORT == "1" && $RELAY_URL

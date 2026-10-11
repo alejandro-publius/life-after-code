@@ -5,7 +5,7 @@ The demo night is demo data; every URL and number here is test data.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone
 
 from nightorders import status_page
 from nightorders.signals import Metrics

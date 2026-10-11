@@ -362,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
     from .dawn import loose_ends as _loose
     from .morning import push_lines
     print()
-    print(f"07:00  PUSH (quiet) to the on-call phone: " + " | ".join(push_lines(night, len(_loose(night)))))
+    print("07:00  PUSH (quiet) to the on-call phone: " + " | ".join(push_lines(night, len(_loose(night)))))
     morning = countersign(folder, ports, night)
     if morning:
         print()

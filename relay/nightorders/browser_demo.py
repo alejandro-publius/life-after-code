@@ -21,7 +21,7 @@ from .dawn import loose_ends, render_watch_log
 from .countersign import undo
 from .demo_night import DemoShop, RecordingPorts, countersign, lease_end, restored_action, run
 from .gitlab_ports import Http
-from .model import Action, OnCall, Targets, describe_before
+from .model import OnCall, Targets, describe_before
 from .orders import load_yaml, watch_window
 from .morning import push_lines
 from .rehearsal import rehearse

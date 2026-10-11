@@ -6,13 +6,11 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import httpx
-import pytest
 import yaml
 
-from conftest import REPO, OPS
+from conftest import OPS
 from nightorders.countersign import parse_state
-from nightorders.morning import StateFile, countersign_request, push_lines, step
+from nightorders.morning import StateFile, push_lines, step
 from nightorders.orders import load_context
 from test_morning import FakePorts, local, night, signed  # noqa: F401
 from test_relay_ports import API, Server, body, ports_for

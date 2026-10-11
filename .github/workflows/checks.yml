@@ -37,8 +37,14 @@ jobs:
           enable-cache: false
       - name: Install locked dependencies
         run: uv sync --locked
-      - name: Test app and decision code
-        run: uv run --locked pytest -q
+      - name: Lint (errors, undefined names, unused imports)
+        run: uvx --from ruff==0.14.0 ruff check relay shop agent scripts tests flows
+      - name: Test app and decision code, with coverage
+        run: uv run --locked pytest -q --cov=relay --cov=shop --cov=agent --cov-report=term
+      - name: Audit locked dependencies (pip-audit, hashes required)
+        run: |
+          uv export --quiet --locked --format requirements-txt --no-dev --no-emit-project -o "$RUNNER_TEMP/requirements.lock.txt"
+          uvx --from pip-audit==2.9.0 pip-audit -r "$RUNNER_TEMP/requirements.lock.txt" --disable-pip --require-hashes
       - name: Test deployment fixtures
         run: python3 -m unittest discover -s deploy/tests -p "test_*.py" -v
       - name: Validate Duo flows

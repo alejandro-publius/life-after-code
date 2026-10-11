@@ -106,7 +106,7 @@ def render_watch_log(night: Night) -> str:
         for end in ends:
             lines.append(f"- {end.action.describe()} ({end.why})")
         lines.append("")
-        lines.append("The dawn flow proposes keep or undo for each in ops/state.yml. You decide by merging. "
+        lines.append("The dawn flow proposes keep or undo for each in ops/state.yml. You decide by merging or approving. "
                      "What is not kept, code restores to how it was before the night.")
     else:
         lines.append("Loose ends: none.")

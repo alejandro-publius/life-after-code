@@ -1,0 +1,17 @@
+# Who must approve changes to the files that grant or move authority. Code already refuses a signature by anyone
+# but the on-call person (relay/nightorders/sources.py); on a GitLab tier with code owner approval, this also asks
+# GitLab to require that person's approval on the merge request. alex-velazquez is the placeholder username used
+# in ops/oncall.yml: set the real GitLab username in both files on day one.
+
+[Signed files]
+/ops/night-orders.yml @alex-velazquez
+/ops/state.yml @alex-velazquez
+
+[What an order may touch, and who is on call]
+/ops/targets.yml @alex-velazquez
+/ops/oncall.yml @alex-velazquez
+/ops/alerts.yml @alex-velazquez
+
+[Deploys and the pipeline]
+/deploy/ @alex-velazquez
+/.gitlab-ci.yml @alex-velazquez

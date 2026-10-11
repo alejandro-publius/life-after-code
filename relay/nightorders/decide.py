@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 
 from .ledger import Ledger
 from .model import Action, Alert, OnCall, Order, Orders, Signature, Targets
-from .notes import Malformed, Request, parse_request, suggestion_action
+from .notes import Malformed, parse_request, suggestion_action
 from .orders import MENU, action_problems, floor_signals, signature_problems, watch_window
 from .signals import Metrics, condition_holds, recheck_after_action
 

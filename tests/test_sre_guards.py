@@ -8,7 +8,7 @@ from datetime import timedelta
 
 import pytest
 
-from conftest import OPS, REPO, at, put, series, switched_off
+from conftest import OPS, at, put, series, switched_off
 from nightorders import Alert, Ask, Metrics, OrdersError, Wake, parse_orders, triage
 from nightorders.decide import recheck
 from nightorders.orders import load_yaml

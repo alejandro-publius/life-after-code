@@ -41,7 +41,7 @@ import json
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable
 from urllib.parse import quote
 
@@ -166,6 +166,21 @@ def push(http: Http, url: str, title: str, lines: tuple[str, ...] | list[str], *
         headers["Click"] = click
     http.call("push to the on-call phone", "POST", url, headers=headers, content="\n".join(lines).encode("utf-8"),
               detail=False)
+
+
+TIMELINE_CHARS = 250
+
+
+def timeline(text: str, at: datetime) -> str:
+    """A /timeline quick action for an incident note, so the incident's timeline in GitLab shows the night.
+
+    Only code-written text goes in it (the first sentence, on one line, with no "|", which the quick action
+    reads as the separator before the time). The time is written in UTC. If GitLab does not run the quick
+    action for this token, the line stays visible in the note and nothing else changes.
+    """
+    words = " ".join(str(text).split()).replace("|", "/")
+    first = words.split(". ")[0].rstrip(".")[:TIMELINE_CHARS]
+    return f"\n\n/timeline {first} | {at.astimezone(timezone.utc):%Y-%m-%d %H:%M}"
 
 
 def parse_time(text: Any) -> datetime | None:
@@ -426,10 +441,10 @@ class GitLabPorts:
                                 json={"body": body})
 
     def note(self, incident: int, text: str, at: datetime) -> None:
-        self._post_note(incident, text)
+        self._post_note(incident, text + timeline(text, at))
 
     def close_incident(self, incident: int, text: str, at: datetime) -> None:
-        self._post_note(incident, text)
+        self._post_note(incident, text + timeline(text, at))
         self.gitlab.call("close incident", "PUT", f"/issues/{incident}", json={"state_event": "close"})
 
     # The watch flow: the model's only way in is one note that code reads.
@@ -716,7 +731,8 @@ class GitLabPorts:
         # The note is posted inside a code block, so text the agent wrote cannot mention people or add links.
         shown = "\n".join(line.replace("`", "'") for line in lines)
         try:
-            note = self._post_note(incident, f"Page sent to the on-call person:\n\n```text\n{shown}\n```")
+            note = self._post_note(incident, f"Page sent to the on-call person:\n\n```text\n{shown}\n```"
+                                   + timeline("Paged the on-call person", at))
             self.memory.page_notes[incident] = int(note["id"])
         except (RelayError, KeyError, TypeError, ValueError) as error:
             problems.append(str(error) if isinstance(error, RelayError) else "GitLab post note: unexpected answer")
