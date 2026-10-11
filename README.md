@@ -4,6 +4,8 @@
 
 For the engineer on call for a small team, an obvious reversible fix can still mean a broken night's sleep. Night Orders lets that person permit a few exact actions before bed, while keeping every other decision with them.
 
+Why it matters: Google's SRE book puts the ceiling at two incidents per 12-hour shift, because each takes about six hours to handle properly ([source](https://sre.google/sre-book/being-on-call/), unverified), and a survey of on-call workers outside software found that 56% slept worse on on-call nights even when no call came ([source](https://pmc.ncbi.nlm.nih.gov/articles/PMC5876943/), unverified). A small team cannot staff its way under that ceiling at night. [Notes and what is still to check](docs/research/oncall_case.md).
+
 An entry for [Life After Code, the GitLab Transcend Hackathon](https://gitlab-transcend.devpost.com/), Path A. Built by Alex Velazquez. [MIT licence](LICENSE).
 
 ## Try one night in the browser

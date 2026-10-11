@@ -1,6 +1,6 @@
 # Devpost submission draft
 
-English draft, updated **5 Oct 2026 (Pacific Time)**. Keep the status statements until real execution evidence replaces them.
+English draft, updated **11 Oct 2026 (Pacific Time)**. Keep the status statements until real execution evidence replaces them.
 
 ## Submission fields
 
@@ -18,6 +18,18 @@ English draft, updated **5 Oct 2026 (Pacific Time)**. Keep the status statements
 | Google Cloud bonus | Not claimed. No deployment has run. |
 
 The [official rules](https://gitlab-transcend.devpost.com/rules) define the categories. Supervised is the closest current recommendation because a person approves the nightly scope and reviews the morning outcome. The recorded night demonstrates bounded automatic action within that scope, but does not demonstrate a full Hands-off loop from code to production. This recommendation remains tentative.
+
+## Image gallery
+
+Upload in this order. Each is 1500 x 1000 (3:2), made by [scripts/gallery.py](../scripts/gallery.py) from components the browser captured from the running demo, and each carries the demo label.
+
+| File | Caption for Devpost |
+|---|---|
+| [01-dusk.png](images/gallery/01-dusk.png) | Before bed, she signs at most three orders. Each was tried on staging first. |
+| [02-decline.png](images/gallery/02-decline.png) | 01:52: code would have allowed order 1. The model declined, and woke her with one fix to approve. |
+| [03-handled.png](images/gallery/03-handled.png) | 03:13: the signed order ran, the whole shop was re-checked, and her phone stayed dark. |
+| [04-morning.png](images/gallery/04-morning.png) | 07:00: one quiet push, a countersign over coffee, and a kept change that ends when its fix ships. |
+| [05-refusals.png](images/gallery/05-refusals.png) | 23 attempts against the real decision code, 0 production changes, and a control that acts. |
 
 ## Inspiration
 
@@ -66,6 +78,8 @@ Expiry and morning cleanup are separate decisions. Ending the grant at seven doe
 ## Accomplishments and what we learned
 
 The local demo now makes the boundary visible to someone who has never read the code: one unsigned branch, one necessary wake-up, one eligible automatic action and one morning account. Its charts and counters come from the backend replay rather than canned success states.
+
+Every refusal the README claims is run, not described: 23 attempts against the real decision code (model replies, a planted log line, a teammate's merge or thumbs-up, the clock, thin traffic, a switched-off path that reads 0%, files people write), 0 production changes, and a control row that does act. A test keeps that page equal to the code's output. Building it found one real defect (a fourth drafted order made the orders check print the whole file back), now fixed. Every grant ends: the orders at 07:00, a night never countersigned is carried into the next morning, and a kept change can name the merge request whose deployment ends it.
 
 The design lesson is that useful autonomy can be narrow. The agent helps investigate and can decline an order; code verifies the facts; a person grants and renews permission for consequential actions.
 

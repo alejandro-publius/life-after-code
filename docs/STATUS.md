@@ -29,6 +29,8 @@ Last updated: **Sun 11 Oct 2026, about 17:00 UTC**.
 - The refusal gallery ([REFUSALS.md](REFUSALS.md), `relay/nightorders/refusals.py`): 23 attempts against the real decision code, 0 production changes, and a control row that acts. A test keeps the page equal to the code's output. Writing it found that a fourth drafted order made the orders check print the whole file back; the message now says "at most 3 allowed, found 4".
 - [ADOPT.md](ADOPT.md): what another team needs and the eight steps to run Night Orders on its own project, with today's limits.
 - `scripts/video_pace.py`: both shot tables in [VIDEO.md](VIDEO.md) fit their slots and 3:00 (a test runs it); it found a cold-open scene with 23 words in 5 seconds, now rebalanced. It also writes captions.
+- Devpost gallery: five 3:2 images in `docs/images/gallery/`, made by `scripts/gallery.py` from components the browser captured from the running demo; the README screenshots are refreshed and show the kept change's lease.
+- The case for impact, with sources marked (unverified) until Alex opens them: [research/oncall_case.md](research/oncall_case.md).
 - The flows: the dusk flow never waits on a person (its question goes in the merge request), the commit writers see their tool results and pass the branch on, and a test checks every prompt placeholder is wired.
 
 ## Verified locally on 11 Oct
