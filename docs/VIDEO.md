@@ -25,6 +25,8 @@ Labels that stay on screen the whole time, bottom left, small and grey: **"Demo 
 
 What to capture on the test night is listed in [TEST_NIGHT.md](TEST_NIGHT.md). Before upload: under 3:00 by the YouTube player's count, labels readable on a phone, no token or topic URL visible, Public visibility, the link checked from a logged-out browser.
 
+**If the night runs on Standing Orders** (decision D3 in [PLAN.md](PLAN.md): the Flows API would not start the watch flow, so the relay runs with `WATCH_MODE=standing`), the 0:58 to 1:28 scene changes and the video says so: at 01:50 code turns the new checkout off on the numbers alone, the note on the incident says "no model tonight, so nobody checked the reason", and at 02:00 the re-check sees the old path still failing and wakes her without a suggestion. Narration: "Tonight no model was there to check the reason, so code did what she signed, and ten minutes later admitted it had not helped and woke her." The dusk and dawn flows still run; the 1:28 scene drops the request note and keeps the code verdict and the planted log line.
+
 ## Plan B: the browser replay
 
 This version can be filmed from the current local browser app. Start it using the [README quickstart](../README.md#try-one-night-in-the-browser), then record `http://localhost:8080/demo`. Every app shot below exists in this replay. No live GitLab, cloud, model or phone notification footage is assumed.

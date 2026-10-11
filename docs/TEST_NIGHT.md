@@ -61,6 +61,7 @@ If the page does not arrive within 15 minutes of minute 3, the relay's own probl
 |---|---|
 | No incident opens | The Scheduler job is resumed; `GET /readyz` on the relay; the shop's `/metrics.json` shows the error rate |
 | Incident opens but no flow note within 8 minutes | The flow session in GitLab (AI, Sessions); `FLOW_CONSUMER_ID` and `FLOW_SERVICE_ACCOUNT`; the Flows API answer in the relay's logs |
+| The Flows API refuses to start the watch flow at all (decision D1 in [PLAN.md](PLAN.md)) | Redeploy the relay with `WATCH_MODE=standing` (Standing Orders): no model at night, code carries out the first signed order whose numbers hold and says so on the incident. The night's timeline changes: at about minute 8 code turns `new_checkout` off on the numbers alone, and at about minute 18 the re-check sees the old path still failing and pages (no suggestion). Say so in the video. |
 | The page does not reach the phone | The ntfy topic subscription; the relay's logs ("push to the on-call phone") |
 | The thumbs-up does nothing | It must be on the page note, from the on-call account, within 60 minutes of the page |
 | Nothing at 07:00 | `WATCH_ISSUE_IID` and `DAWN_FLOW_CONSUMER_ID` set; the relay's tick summary has a `morning` list |
