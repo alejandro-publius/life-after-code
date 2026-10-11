@@ -2,8 +2,13 @@
 # Run by Alex in Cloud Shell. This creates no service account keys.
 
 set -euo pipefail
+set +x
 # shellcheck source=deploy/lib.sh
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
+# shellcheck source=deploy/bootstrap_secrets.sh
+source "$DEPLOY_DIRECTORY/bootstrap_secrets.sh"
+# shellcheck source=deploy/bootstrap_ops.sh
+source "$DEPLOY_DIRECTORY/bootstrap_ops.sh"
 
 require_tools
 configure_names
@@ -12,6 +17,11 @@ required GITLAB_NAMESPACE_ID
 export GITLAB_DEFAULT_BRANCH="${GITLAB_DEFAULT_BRANCH:-main}"
 [[ "$GITLAB_DEFAULT_BRANCH" =~ ^[A-Za-z0-9_./-]+$ ]] || fail 'Invalid default branch name.'
 [[ "${GCP_DEDICATED_PROJECT:-false}" == true ]] || fail 'Set GCP_DEDICATED_PROJECT=true only for a separate project created for this entry.'
+for key in FLOW_CONSUMER_ID DAWN_FLOW_CONSUMER_ID WATCH_ISSUE_IID; do
+  [[ -z "${!key:-}" || "${!key}" =~ ^[0-9]+$ ]] || fail "$key must be a number or blank."
+done
+[[ -z "${FLOW_SERVICE_ACCOUNT:-}" || "$FLOW_SERVICE_ACCOUNT" =~ ^[A-Za-z0-9_.-]+$ ]] || \
+  fail 'FLOW_SERVICE_ACCOUNT must be a GitLab username or blank.'
 
 gcloud projects describe "$GCP_PROJECT_ID" --format=json >"$RESOURCE_JSON"
 export GCP_PROJECT_NUMBER
@@ -32,6 +42,10 @@ if [[ -f "$STATE_FILE" || -n "$existing_owner" ]]; then
 else
   python3 "$STATE_HELPER" new "$STATE_FILE"
 fi
+for key in GCP_SHOP_SERVICE GCP_STAGING_SERVICE GCP_RELAY_SERVICE GCP_SHOP_SERVICE_ACCOUNT \
+    GCP_STAGING_SERVICE_ACCOUNT GCP_RELAY_SERVICE_ACCOUNT STATE_BUCKET; do
+  state config "$key" "${!key}"
+done
 state set complete false
 state set teardown_complete false
 state set teardown_resources_removed false
@@ -46,7 +60,8 @@ fi
 gcloud services list --enabled --project="$GCP_PROJECT_ID" --format=json >"$WORK_DIRECTORY/apis.json"
 apis=(serviceusage.googleapis.com cloudresourcemanager.googleapis.com iam.googleapis.com \
   iamcredentials.googleapis.com sts.googleapis.com run.googleapis.com artifactregistry.googleapis.com \
-  cloudbuild.googleapis.com storage.googleapis.com logging.googleapis.com cloudbilling.googleapis.com billingbudgets.googleapis.com)
+  cloudbuild.googleapis.com storage.googleapis.com logging.googleapis.com cloudbilling.googleapis.com billingbudgets.googleapis.com \
+  secretmanager.googleapis.com cloudscheduler.googleapis.com monitoring.googleapis.com)
 for api in "${apis[@]}"; do
   if ! python3 - "$WORK_DIRECTORY/apis.json" "$api" <<'PY'
 import json, sys
@@ -131,12 +146,28 @@ gcloud storage buckets update "gs://$GCP_SOURCE_BUCKET" --project="$GCP_PROJECT_
   --uniform-bucket-level-access --public-access-prevention --soft-delete-duration=0 \
   --lifecycle-file="$WORK_DIRECTORY/lifecycle.json" --quiet >/dev/null
 
-for kind in deploy build runtime; do
+if describe_optional gcloud storage buckets describe "gs://$STATE_BUCKET" \
+    --project="$GCP_PROJECT_ID" --format=json; then
+  assert_owned labels.lac-owner "$GITLAB_PROJECT_ID"
+  owns_resource state-bucket || fail 'The state bucket lacks a saved creation journal.'
+else
+  journal_resource state-bucket
+  gcloud storage buckets create "gs://$STATE_BUCKET" --project="$GCP_PROJECT_ID" \
+    --location="$GCP_REGION" --uniform-bucket-level-access --public-access-prevention \
+    --soft-delete-duration=0 --quiet >/dev/null
+  gcloud storage buckets update "gs://$STATE_BUCKET" --project="$GCP_PROJECT_ID" \
+    --update-labels="lac-owner=$GITLAB_PROJECT_ID" --quiet >/dev/null
+fi
+gcloud storage buckets update "gs://$STATE_BUCKET" --project="$GCP_PROJECT_ID" \
+  --uniform-bucket-level-access --public-access-prevention --soft-delete-duration=0 --quiet >/dev/null
+
+for kind in deploy build shop staging relay; do
   account_id="lac-${GITLAB_PROJECT_ID}-${kind}"
   account_email="$account_id@$GCP_PROJECT_ID.iam.gserviceaccount.com"
   if describe_optional gcloud iam service-accounts describe "$account_email" \
       --project="$GCP_PROJECT_ID" --format=json; then
     assert_owned description "$OWNER_DESCRIPTION"
+    owns_resource "sa-$kind" || fail 'The service account lacks a saved creation journal.'
   else
     journal_resource "sa-$kind"
     gcloud iam service-accounts create "$account_id" --project="$GCP_PROJECT_ID" \
@@ -207,27 +238,60 @@ gcloud storage buckets add-iam-policy-binding "gs://$GCP_SOURCE_BUCKET" --projec
 project_binding "$GCP_SERVICE_ACCOUNT" roles/cloudbuild.builds.editor
 project_binding "$GCP_SERVICE_ACCOUNT" roles/serviceusage.serviceUsageConsumer
 project_binding "$GCP_BUILD_SERVICE_ACCOUNT" roles/logging.logWriter
-for account in "$GCP_BUILD_SERVICE_ACCOUNT" "$GCP_RUNTIME_SERVICE_ACCOUNT"; do
+project_binding "$GCP_RELAY_SERVICE_ACCOUNT" roles/logging.viewer
+for account in "$GCP_BUILD_SERVICE_ACCOUNT" "$GCP_SHOP_SERVICE_ACCOUNT" \
+    "$GCP_STAGING_SERVICE_ACCOUNT" "$GCP_RELAY_SERVICE_ACCOUNT"; do
   gcloud iam service-accounts add-iam-policy-binding "$account" --project="$GCP_PROJECT_ID" \
     --member="serviceAccount:$GCP_SERVICE_ACCOUNT" --role=roles/iam.serviceAccountUser \
     --condition=None --quiet >/dev/null
 done
 
-if describe_optional gcloud run services describe "$GCP_RUN_SERVICE" \
-    --region="$GCP_REGION" --project="$GCP_PROJECT_ID" --format=json; then
-  assert_owned metadata.labels.lac-owner "$GITLAB_PROJECT_ID"
-else
-  journal_resource run-service
-  gcloud run deploy "$GCP_RUN_SERVICE" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
-    --image=us-docker.pkg.dev/cloudrun/container/hello \
-    --service-account="$GCP_RUNTIME_SERVICE_ACCOUNT" --labels="lac-owner=$GITLAB_PROJECT_ID" \
-    --no-invoker-iam-check --min=0 --min-instances=0 --max-instances=1 \
-    --cpu=1 --memory=256Mi --concurrency=20 --timeout=30 \
-    --cpu-throttling --no-cpu-boost --quiet >/dev/null
-fi
-gcloud run services add-iam-policy-binding "$GCP_RUN_SERVICE" --project="$GCP_PROJECT_ID" \
-  --region="$GCP_REGION" --member="serviceAccount:$GCP_SERVICE_ACCOUNT" \
-  --role=roles/run.developer --condition=None --quiet >/dev/null
+gcloud storage buckets add-iam-policy-binding "gs://$STATE_BUCKET" --project="$GCP_PROJECT_ID" \
+  --member="serviceAccount:$GCP_RELAY_SERVICE_ACCOUNT" --role=roles/storage.objectUser --quiet >/dev/null
+for account in "$GCP_SHOP_SERVICE_ACCOUNT" "$GCP_STAGING_SERVICE_ACCOUNT"; do
+  gcloud iam service-accounts add-iam-policy-binding "$account" --project="$GCP_PROJECT_ID" \
+    --member="serviceAccount:$GCP_RELAY_SERVICE_ACCOUNT" --role=roles/iam.serviceAccountUser \
+    --condition=None --quiet >/dev/null
+done
+setup_service_secrets
+
+for target in shop staging relay; do
+  case "$target" in
+    shop) service="$GCP_SHOP_SERVICE"; runtime="$GCP_SHOP_SERVICE_ACCOUNT"; url_key=SHOP_URL ;;
+    staging) service="$GCP_STAGING_SERVICE"; runtime="$GCP_STAGING_SERVICE_ACCOUNT"; url_key=SHOP_STAGING_URL ;;
+    relay) service="$GCP_RELAY_SERVICE"; runtime="$GCP_RELAY_SERVICE_ACCOUNT"; url_key=RELAY_URL ;;
+  esac
+  if describe_optional gcloud run services describe "$service" \
+      --region="$GCP_REGION" --project="$GCP_PROJECT_ID" --format=json; then
+    assert_owned metadata.labels.lac-owner "$GITLAB_PROJECT_ID"
+    owns_resource "run-$target" || fail 'The Cloud Run service lacks a saved creation journal.'
+  else
+    journal_resource "run-$target"
+    if [[ "$target" == relay ]]; then
+      settings=(--memory=256Mi --timeout=60 --cpu-throttling)
+    else
+      settings=(--memory=512Mi --timeout=30 --no-cpu-throttling)
+    fi
+    gcloud run deploy "$service" --project="$GCP_PROJECT_ID" --region="$GCP_REGION" \
+      --image=us-docker.pkg.dev/cloudrun/container/hello \
+      --service-account="$runtime" --labels="lac-owner=$GITLAB_PROJECT_ID" \
+      --no-invoker-iam-check --min=0 --min-instances=0 --max-instances=1 \
+      --cpu=1 --concurrency=20 --no-cpu-boost "${settings[@]}" --quiet >/dev/null
+  fi
+  gcloud run services add-iam-policy-binding "$service" --project="$GCP_PROJECT_ID" \
+    --region="$GCP_REGION" --member="serviceAccount:$GCP_SERVICE_ACCOUNT" \
+    --role=roles/run.developer --condition=None --quiet >/dev/null
+  if [[ "$target" != relay ]]; then
+    gcloud run services add-iam-policy-binding "$service" --project="$GCP_PROJECT_ID" \
+      --region="$GCP_REGION" --member="serviceAccount:$GCP_RELAY_SERVICE_ACCOUNT" \
+      --role=roles/run.developer --condition=None --quiet >/dev/null
+  fi
+  gcloud run services describe "$service" --project="$GCP_PROJECT_ID" \
+    --region="$GCP_REGION" --format=json >"$RESOURCE_JSON"
+  printf -v "$url_key" '%s' "$(python3 "$STATE_HELPER" get "$RESOURCE_JSON" status.url)"
+  export "${url_key?}"
+done
+setup_service_ops
 
 if [[ -z "$budget_name" ]]; then
   journal_resource budget
@@ -257,3 +321,4 @@ printf '%s\n' 'Setup complete. The budget sends alerts; it does not cap spending
   'Keep the default branch protected. Paste the following public identifiers into deploy/gcp.env and commit the file:' \
   '# Public deployment identifiers. Never put a key or token in this file.'
 print_variables
+print_service_variables

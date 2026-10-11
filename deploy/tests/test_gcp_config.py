@@ -13,8 +13,12 @@ DEPLOY = Path(__file__).resolve().parents[1]
 KEYS = (
     "GCP_PROJECT_ID", "GCP_PROJECT_NUMBER", "GCP_REGION", "GCP_WIF_POOL",
     "GCP_WIF_PROVIDER", "GCP_SERVICE_ACCOUNT", "GCP_BUILD_SERVICE_ACCOUNT",
-    "GCP_RUNTIME_SERVICE_ACCOUNT", "GCP_ARTIFACT_REPOSITORY", "GCP_SOURCE_BUCKET",
-    "GCP_RUN_SERVICE", "GITLAB_PROJECT_ID", "GITLAB_PROJECT_PATH",
+    "GCP_ARTIFACT_REPOSITORY", "GCP_SOURCE_BUCKET", "GCP_SHOP_SERVICE",
+    "GCP_STAGING_SERVICE", "GCP_RELAY_SERVICE", "GCP_SHOP_SERVICE_ACCOUNT",
+    "GCP_STAGING_SERVICE_ACCOUNT", "GCP_RELAY_SERVICE_ACCOUNT", "GITLAB_PROJECT_ID",
+    "GITLAB_PROJECT_PATH", "GITLAB_URL", "SHOP_URL", "SHOP_STAGING_URL", "RELAY_URL",
+    "SHOP_METRICS_URL", "STATE_BUCKET", "STATE_OBJECT", "UNLEASH_URL",
+    "FLOW_CONSUMER_ID", "FLOW_SERVICE_ACCOUNT", "DAWN_FLOW_CONSUMER_ID", "WATCH_ISSUE_IID",
 )
 
 
@@ -69,13 +73,20 @@ class PublicConfigTests(unittest.TestCase):
     def test_ci_helper_loads_committed_file_before_authentication(self):
         for name in ("ci_deploy.sh", "gcp_config.sh"):
             shutil.copyfile(DEPLOY / name, self.directory / name)
-        values = dict(zip(KEYS, (
-            "demo-project-123", "123456789", "us-central1", "lac-99-pool", "gitlab",
-            "lac-99-deploy@demo-project-123.iam.gserviceaccount.com",
-            "lac-99-build@demo-project-123.iam.gserviceaccount.com",
-            "lac-99-runtime@demo-project-123.iam.gserviceaccount.com",
-            "lac-99", "demo-project-123-lac-99-source", "lac-99", "99", "demo/project",
-        )))
+        values = {
+            "GCP_PROJECT_ID": "demo-project-123", "GCP_PROJECT_NUMBER": "123456789",
+            "GCP_REGION": "us-central1", "GCP_WIF_POOL": "lac-99-pool",
+            "GCP_WIF_PROVIDER": "gitlab",
+            "GCP_SERVICE_ACCOUNT": "lac-99-deploy@demo-project-123.iam.gserviceaccount.com",
+            "GCP_BUILD_SERVICE_ACCOUNT": "lac-99-build@demo-project-123.iam.gserviceaccount.com",
+            "GCP_ARTIFACT_REPOSITORY": "lac-99", "GCP_SOURCE_BUCKET": "demo-project-123-lac-99-source",
+            "GCP_SHOP_SERVICE": "shop", "GCP_STAGING_SERVICE": "shop-staging", "GCP_RELAY_SERVICE": "relay",
+            "GCP_SHOP_SERVICE_ACCOUNT": "lac-99-shop@demo-project-123.iam.gserviceaccount.com",
+            "GCP_STAGING_SERVICE_ACCOUNT": "lac-99-staging@demo-project-123.iam.gserviceaccount.com",
+            "GCP_RELAY_SERVICE_ACCOUNT": "lac-99-relay@demo-project-123.iam.gserviceaccount.com",
+            "GITLAB_PROJECT_ID": "99", "GITLAB_PROJECT_PATH": "demo/project",
+            "UNLEASH_URL": "https://gitlab.com/api/v4/feature_flags/unleash/99",
+        }
         self.config.write_text("# Demo identifiers only\n" + "".join(
             f"{key}={value}\n" for key, value in values.items()))
         binary = self.directory / "bin"
