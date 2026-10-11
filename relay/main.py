@@ -107,7 +107,7 @@ PAGE_HEADERS = {
 DEMO_PAGE_HEADERS = {
     "Cache-Control": "no-store",
     "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; "
-                               "connect-src 'self'; img-src 'self'; base-uri 'none'; "
+                               "connect-src 'self'; img-src 'self' data:; base-uri 'none'; "
                                "form-action 'none'; frame-ancestors 'none'",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "same-origin",

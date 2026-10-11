@@ -105,10 +105,10 @@
       actions = `${button("next-step", "See what wakes Priya", "night")} ${button(state.signedChoice ? "leave-unsigned" : "sign-orders", state.signedChoice ? "Try leaving them unsigned" : "Try signing the orders", state.signedChoice ? "unsigned" : "sign", "quiet")}`;
     }
     return `${chapter("22:06", "What may happen while she sleeps?", "Priya reviews two narrow orders. Signing gives permission for these actions until 07:00. Anything outside them needs her.")}
-      <div class="action-row" id="primary-action">${actions}</div>
-      ${chosen ? `<p class="inline-note">${state.signedChoice ? "Priya's signature is part of this demo night." : "No permission was given. Watch must wake Priya instead of acting alone."}</p>` : "<p class=\"small-copy\">Choose a path. You can replay the other one.</p>"}
       ${orderCards()}
       ${leftOut()}
+      <div class="action-row" id="primary-action">${actions}</div>
+      ${chosen ? `<p class="inline-note">${state.signedChoice ? "Priya's signature is part of this demo night." : "No permission was given. Watch must wake Priya instead of acting alone."}</p>` : "<p class=\"small-copy\">Choose a path. You can replay the other one.</p>"}
       ${gitlabRows("dusk")}`;
   }
 
@@ -140,9 +140,10 @@
     const notification = message ? `<section class="wake-message" id="wake-message" aria-labelledby="wake-message-title"><div class="wake-message-head"><h3 id="wake-message-title">Priya's wake-up</h3><time datetime="${escape(message.at)}">${escape(message.time)}</time></div>${phone(true, message.time, message.lines, `Priya's phone at ${message.time}: the one wake-up of the night`)}</section>` : "";
     const declined = declinedReply();
     const veto = available && declined ? `<article class="decision-card veto-card"><p class="decision-kicker">Permitted, and declined</p><blockquote class="veto-quote">"${escape(declined.why)}"</blockquote><p class="decision-copy">Code would have allowed order ${escape(declined.id)}. The model said no, because it would not have helped. So Priya was woken instead.</p><p class="decision-note"><strong>The model can say no. It cannot say more.</strong> It can decline a signed order or add a reason to wake her. It can never add an order, widen one, or remove a reason to wake her.</p></article>` : "";
-    return `${chapter(actualTime, title, copy)}<div class="action-row" id="primary-action">${actions}</div>
+    return `${chapter(actualTime, title, copy)}
       ${veto}
       ${notification}
+      <div class="action-row" id="primary-action">${actions}</div>
       <article class="decision-card"><p class="decision-kicker">${available ? "Priya decides on this suggestion" : "No signed permission"}</p><h3 class="decision-title">${available ? "Use cached stock while inventory is slow" : "Priya must investigate this alert"}</h3><p class="decision-copy">${available ? "This can restore checkout on both paths. The code only applies it after approval from the on-call person." : "Leaving the orders unsigned also leaves the recorded agent suggestion unavailable. This replay makes no fallback change."}</p>${available ? "" : "<p class=\"decision-note\">The demo approval choice is unavailable on this path.</p>"}</article>
       ${selected ? `<p class="inline-note">${state.approvedChoice ? `Demo approval recorded. Cached stock turned on at ${escape(approved?.time || "01:53")}.` : "Demo fallback declined. Nothing was changed by this suggestion."}</p>` : ""}
       <p class="small-copy">Priya's wake-up is part of the recorded demo.</p>
@@ -167,10 +168,13 @@
     const replay = state.replay;
     const morning = replay.morning;
     const hasChanges = morning.kept.length || morning.undone.length || morning.by_hand.length;
-    const kept = morning.kept.map((item) => `<li class="morning-item"><span class="status-tag">Kept</span><div><strong>${escape(actionName(item.action))}</strong><p>${escape(item.until)}</p></div></li>`).join("");
+    const kept = morning.kept.map((item) => `<li class="morning-item"><span class="status-tag">Kept</span><div><strong>${escape(actionName(item.action))}</strong><p>${item.until ? `Until ${escape(item.until)}.` : "Kept with no end condition."}</p></div></li>`).join("");
     const undone = morning.undone.map((item) => `<li class="morning-item"><span class="status-tag neutral">Restored</span><div><strong>${escape(actionName(item.action))}</strong><p>Not kept in the morning decision, so code put it back to how it was before the night.</p></div></li>`).join("");
     const byHand = morning.by_hand.map((item) => `<li class="morning-item"><span class="status-tag neutral">For Priya</span><div><p>${escape(item)}</p></div></li>`).join("");
-    return `${chapter(morning.time || "07:42", "Coffee, and a clear account of the night.", hasChanges ? "Priya sees every wake-up and every change. In this demo, the recorded morning decision keeps what still helps and restores the temporary fallback to how it was before the night." : "Priya sees every wake-up. Watch made no changes on her behalf, so there is nothing to keep or restore in the morning.")}
+    const intro = !hasChanges ? "Priya sees every wake-up. Watch made no changes on her behalf, so there is nothing to keep or restore in the morning."
+      : morning.undone.length ? "Priya sees every wake-up and every change. The recorded morning decision keeps what still helps, and code restores the temporary fallback to how it was before the night."
+      : "Priya sees every wake-up and every change. The recorded morning decision keeps the new checkout off until its fix ships. Nothing else changed overnight, so nothing needs restoring.";
+    return `${chapter(morning.time || "07:42", "Coffee, and a clear account of the night.", intro)}
       <div class="action-row" id="primary-action">${button("restart-demo", "Replay this night", "restart")}${button("review-night", "Review the night", "checkout", "quiet")}</div>
       <div class="stat-grid" aria-label="Actual replay counts"><div class="stat"><span class="stat-value">${escape(replay.counts.pages)}</span><span class="stat-label">${replay.counts.pages === 1 ? "wake-up" : "wake-ups"}</span></div><div class="stat"><span class="stat-value">${escape(replay.counts.automatic_incidents_handled)}</span><span class="stat-label">handled while she slept</span></div><div class="stat"><span class="stat-value">${escape(replay.counts.approved_actions)}</span><span class="stat-label">${replay.counts.approved_actions === 1 ? "human-approved action" : "human-approved actions"}</span></div></div>
       <div class="event-card expiry-card"><span class="event-time">07:00</span><div class="event-body"><strong>Tonight's permission expires.</strong><p>Expiry stops further automatic action. It does not automatically undo a change.</p></div></div>
@@ -189,36 +193,60 @@
   }
 
   function samplesForChart() {
+    const all = state.replay.metrics;
+    if (state.view === "dawn") return all;
     const start = state.nightScene === "inventory" && state.view === "night" ? "01:40" : "03:00";
     const end = state.nightScene === "inventory" && state.view === "night" ? (state.approvedChoice === null ? inventoryMessage()?.time || "01:52" : "02:05") : "03:30";
-    return state.replay.metrics.filter((sample) => {
+    return all.filter((sample) => {
       const time = timeOf(sample.sampled_at);
       return time >= start && time <= end;
     });
   }
 
+  function chartMarkers(whole, inventoryView) {
+    const label = {woke: "woke Priya", approved: "approved", acted: "order 1 ran", recovered: "re-check", expired: "orders end"};
+    const kinds = whole ? ["woke", "approved", "acted", "recovered", "expired"] : inventoryView ? ["woke", "approved"] : ["woke", "acted", "recovered"];
+    const incident = whole ? undefined : inventoryView ? 1 : 2;
+    const picked = (state.replay.timeline || []).filter((event) => kinds.includes(event.kind) && (incident === undefined || event.incident === incident || event.kind === "expired")
+      && !(inventoryView && event.kind === "approved" && state.approvedChoice !== true));  // no spoiler before she chooses
+    return picked.map((event) => ({at: event.at, text: `${event.time} ${event.kind === "acted" && event.order ? `order ${event.order} ran` : label[event.kind]}`, kind: event.kind}));
+  }
+
   function metricChart() {
     const samples = samplesForChart();
     if (!samples.length) return "<p class=\"small-copy\">No metric samples were returned for this part of the replay.</p>";
+    const whole = state.view === "dawn";
     const inventoryView = state.view === "night" && state.nightScene === "inventory";
-    const max = Math.max(inventoryView ? 0.25 : 0.10, ...samples.flatMap((sample) => [sample.old_rate, sample.new_rate]));
-    const width = 600, height = 220, left = 42, top = 14, plotWidth = 542, plotHeight = 160;
-    const x = (index) => left + index * plotWidth / Math.max(samples.length - 1, 1);
+    const tall = whole || inventoryView;
+    const max = Math.max(tall ? 0.25 : 0.10, ...samples.flatMap((sample) => [sample.old_rate, sample.new_rate]));
+    const width = 600, height = 236, left = 64, right = 14, top = 18, plotWidth = width - left - right, plotHeight = 160;
+    const ms = (value) => Date.parse(value);
+    const first = ms(samples[0].sampled_at), last = ms(samples[samples.length - 1].sampled_at);
+    const x = (when) => left + (last === first ? 0 : (when - first) / (last - first) * plotWidth);
     const y = (rate) => top + plotHeight * (1 - rate / max);
-    const path = (key) => samples.map((sample, index) => `${index ? "L" : "M"}${x(index).toFixed(2)},${y(sample[key]).toFixed(2)}`).join(" ");
-    const ticks = inventoryView ? [0, 0.10, 0.20] : [0, 0.05, 0.10];
-    const grids = ticks.map((rate) => `<line x1="${left}" y1="${y(rate)}" x2="${left + plotWidth}" y2="${y(rate)}" class="chart-grid"/><text x="${left - 8}" y="${y(rate) + 4}" text-anchor="end" class="chart-label">${Math.round(rate * 100)}%</text>`).join("");
+    const drawn = whole && samples.length > 240 ? samples.filter((_, index) => index % 2 === 0 || index === samples.length - 1) : samples;
+    const path = (key) => drawn.map((sample, index) => `${index ? "L" : "M"}${x(ms(sample.sampled_at)).toFixed(2)},${y(sample[key]).toFixed(2)}`).join(" ");
+    const ticks = tall ? [0, 0.10, 0.20] : [0, 0.05, 0.10];
+    const grids = ticks.map((rate) => `<line x1="${left}" y1="${y(rate)}" x2="${left + plotWidth}" y2="${y(rate)}" class="chart-grid"/><text x="${left - 10}" y="${y(rate) + 7}" text-anchor="end" class="chart-label">${Math.round(rate * 100)}%</text>`).join("");
     const indices = [...new Set([0, Math.floor((samples.length - 1) / 2), samples.length - 1])];
-    const labels = indices.map((index) => `<text x="${x(index)}" y="198" text-anchor="${index === 0 ? "start" : index === samples.length - 1 ? "end" : "middle"}" class="chart-label">${escape(timeOf(samples[index].sampled_at))}</text>`).join("");
-    const description = inventoryView ? "Both old and new checkout error rates rise together when inventory is slow. The displayed points are the actual simulated shop samples returned by Watch's replay." : "The old checkout stays near 0.3 percent errors. The new checkout rises to 7.9 percent. When signed order 1 switches it off, its measured error rate becomes zero because that path receives no traffic. All points come from the backend replay.";
-    const action = inventoryView ? firstEvent("approved", 1) : firstEvent("acted", 2);
-    let marker = "";
-    if (action && samples.length) {
-      const index = samples.findIndex((sample) => timeOf(sample.sampled_at) >= action.time);
-      if (index >= 0) marker = `<line x1="${x(index)}" y1="${top}" x2="${x(index)}" y2="${top + plotHeight}" class="chart-action"/><text x="${Math.min(x(index) + 5, 455)}" y="29" class="chart-label">${escape(action.time)} change</text>`;
-    }
-    const caption = inventoryView ? (state.approvedChoice === true ? "The approval at 01:53 turns cached stock on. Both paths recover in the following complete minute." : "Both paths are affected. The 5% line belongs to the signed new checkout order; it does not authorize an inventory fallback.") : (state.signedChoice ? "Once the new checkout is switched off it carries no checkouts, so its 0% proves nothing. The re-check reads the whole shop instead. The rounding bug still needs a fix." : "With no signed permission, the new checkout stays on and its error rate remains above the limit.");
-    return `<section class="metric-card" aria-labelledby="metric-title"><div class="metric-title"><p class="eyebrow">Simulated shop · Actual replay samples</p><h3 id="metric-title">${inventoryView ? "Both checkout paths fail" : "One checkout path fails"}</h3></div><div class="metric-legend" aria-label="Chart legend"><span class="legend-item old">Old checkout</span><span class="legend-item new">New checkout</span></div><div class="chart-wrap"><svg id="metrics-chart" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="chart-title chart-description"><title id="chart-title">Checkout error rates during the ${inventoryView ? "inventory" : "rounding"} fault</title><desc id="chart-description">${escape(description)}</desc>${grids}<line x1="${left}" y1="${y(0.05)}" x2="${left + plotWidth}" y2="${y(0.05)}" class="chart-threshold"/><path d="${path("old_rate")}" class="chart-line old"/><path d="${path("new_rate")}" class="chart-line new"/>${marker}${labels}</svg></div><p class="chart-threshold-note">Dashed line: 5% limit for signed new checkout order.</p><p class="metric-caption">${escape(caption)}</p><details class="chart-table"><summary>Read the chart samples</summary><div class="table-scroll"><table><caption>Complete one-minute samples, Priya's local time</caption><thead><tr><th scope="col">Minute</th><th scope="col">Old checkout</th><th scope="col">New checkout</th></tr></thead><tbody>${samples.map((sample) => `<tr><th scope="row">${escape(timeOf(sample.sampled_at))}</th><td>${percent(sample.old_rate)}</td><td>${percent(sample.new_rate)}</td></tr>`).join("")}</tbody></table></div></details></section>`;
+    const labels = indices.map((index) => `<text x="${index === 0 ? left : index === samples.length - 1 ? left + plotWidth : x(ms(samples[index].sampled_at))}" y="${top + plotHeight + 28}" text-anchor="${index === 0 ? "start" : index === samples.length - 1 ? "end" : "middle"}" class="chart-label">${escape(timeOf(samples[index].sampled_at))}</text>`).join("");
+    const limit = `<line x1="${left}" y1="${y(0.05)}" x2="${left + plotWidth}" y2="${y(0.05)}" class="chart-threshold"/><text x="${left + plotWidth}" y="${y(0.05) - 7}" text-anchor="end" class="chart-label limit-label">5% limit</text>`;
+    const markers = chartMarkers(whole, inventoryView).filter((marker) => ms(marker.at) >= first && ms(marker.at) <= last + 59999);
+    // Each decision is a dashed line with a numbered badge; the words go in a legend under the chart, so
+    // markers a minute apart never write over each other.
+    let lastX = -Infinity, lift = 0;
+    const markerSvg = markers.map((marker, index) => {
+      const at = Math.min(x(ms(marker.at)), left + plotWidth);
+      lift = at - lastX < 26 ? lift + 1 : 0;
+      lastX = at;
+      const cy = top + 12 + lift * 26;
+      return `<line x1="${at}" y1="${top}" x2="${at}" y2="${top + plotHeight}" class="chart-action ${escape(marker.kind)}"/><circle cx="${at}" cy="${cy}" r="11" class="marker-badge"/><text x="${at}" y="${cy + 6}" text-anchor="middle" class="marker-number">${index + 1}</text>`;
+    }).join("");
+    const markerLegend = markers.length ? `<ol class="marker-legend">${markers.map((marker, index) => `<li><span class="marker-dot" aria-hidden="true">${index + 1}</span>${escape(marker.text)}</li>`).join("")}</ol>` : "";
+    const description = whole ? "The whole demo night. Both checkout paths fail together from 01:45 until the approved cache fallback at 01:53; only the new path fails from 03:07 until signed order 1 turns it off at 03:13. All points come from the backend replay." : inventoryView ? "Both old and new checkout error rates rise together when inventory is slow. The displayed points are the actual simulated shop samples returned by Watch's replay." : "The old checkout stays near 0.3 percent errors. The new checkout rises to 7.9 percent. When signed order 1 switches it off, that path carries no checkouts. All points come from the backend replay.";
+    const caption = whole ? "Each line is a decision the code recorded. Expiry at 07:00 ends the orders; it changes nothing by itself." : inventoryView ? (state.approvedChoice === true ? "The approval at 01:53 turns cached stock on. Both paths recover in the following complete minute." : "Both paths are affected. The 5% line belongs to the signed new checkout order; it does not authorize an inventory fallback.") : (state.signedChoice ? "Once the new checkout is switched off it carries no checkouts, so its 0% proves nothing. The re-check reads the whole shop instead. The rounding bug still needs a fix." : "With no signed permission, the new checkout stays on and its error rate remains above the limit.");
+    const title = whole ? "The whole night" : inventoryView ? "Both checkout paths fail" : "One checkout path fails";
+    return `<section class="metric-card" aria-labelledby="metric-title"><div class="metric-title"><p class="eyebrow">Simulated shop · Actual replay samples</p><h3 id="metric-title">${title}</h3></div><div class="metric-legend" aria-label="Chart legend"><span class="legend-item new">New checkout</span><span class="legend-item old">Old checkout (dashed)</span></div><div class="chart-wrap"><svg id="metrics-chart" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="chart-title chart-description"><title id="chart-title">Checkout error rates${whole ? " through the night" : ` during the ${inventoryView ? "inventory" : "rounding"} fault`}</title><desc id="chart-description">${escape(description)}</desc>${grids}${limit}<path d="${path("new_rate")}" class="chart-line new"/><path d="${path("old_rate")}" class="chart-line old"/>${markerSvg}${labels}</svg></div>${markerLegend}<p class="chart-threshold-note">Dashed line: 5% limit for signed new checkout order.</p><p class="metric-caption">${escape(caption)}</p><details class="chart-table"><summary>Read the chart samples</summary><div class="table-scroll"><table><caption>Complete one-minute samples, Priya's local time</caption><thead><tr><th scope="col">Minute</th><th scope="col">Old checkout</th><th scope="col">New checkout</th><th scope="col">Checkouts</th></tr></thead><tbody>${samples.map((sample) => `<tr><th scope="row">${escape(timeOf(sample.sampled_at))}</th><td>${percent(sample.old_rate)}</td><td>${percent(sample.new_rate)}</td><td>${escape(sample.checkouts ?? "")}</td></tr>`).join("")}</tbody></table></div></details></section>`;
   }
 
   function context() {
@@ -235,7 +263,7 @@
     const packs = Object.entries(replay.evidence || {});
     const planted = packs.find(([, text]) => text.includes("SYSTEM:"));
     const packHtml = planted ? `<section class="evidence-section evidence-wide"><h3>Evidence pack for incident ${escape(planted[0])}, as code wrote it</h3><pre class="proof-log">${escape(planted[1]).split("\n").map((line) => line.includes("SYSTEM:") ? `<mark>${line}</mark>` : line).join("\n")}</pre><p class="decision-note"><strong>Data, not instructions.</strong> The planted line reached the model's evidence and changed nothing: the action came from the signed file.</p></section>` : "";
-    return `<details class="evidence" id="evidence-details"><summary><span>Read the decision evidence</span><span class="small-copy">Signature, checks and the code's record</span></summary><div class="evidence-grid"><section class="evidence-section"><h3>Demo signature and expiry</h3><dl class="evidence-list"><dt>Signature</dt><dd>${signature.signed ? `${escape(signature.user)} by ${escape(signature.method)} at ${escape(timeOf(signature.at))}` : "Unsigned. Watch has no permission to act alone."}</dd><dt>Ends</dt><dd>${escape(replay.expiry.time)} in ${escape(replay.timezone)}</dd><dt>When expiry happens</dt><dd>Permission ends. Existing changes are not automatically reverted.</dd>${signature.signed ? `<dt>Recorded commit</dt><dd class="mono">${escape(signature.commit)}</dd>` : ""}</dl><h3>What was checked</h3>${checks ? `<ul class="evidence-list">${checks}</ul>` : "<p>No signed order was carried out in this replay.</p>"}</section><section class="evidence-section"><h3>The actual wake-up messages</h3><ul class="evidence-list">${pageItems}</ul></section>${packHtml}<section class="evidence-section evidence-wide"><h3>Ledger written by Watch</h3><ol class="evidence-list ledger-list">${replay.timeline.map((event) => `<li><span class="mono">${escape(event.time)} · ${escape(event.kind)}</span><p>${escape(event.text)}</p></li>`).join("")}</ol><details><summary>Read the recorded port log</summary><pre class="proof-log">${escape(replay.logs.join("\n"))}</pre></details><details><summary>Read the demo order structure</summary><pre class="proof-log">${escape(JSON.stringify(replay.orders, null, 2))}</pre></details><details><summary>Read the morning record</summary><pre class="proof-log">${escape(morningProof(replay.morning))}</pre></details></section></div><div class="evidence-sources"><strong>Inspect the code and labelled files</strong><a href="https://github.com/alejandro-publius/life-after-code/blob/main/relay/nightorders/watch.py">Watch decision code</a><a href="https://github.com/alejandro-publius/life-after-code/blob/main/relay/nightorders/demo_night.py">In-memory replay</a><a href="https://github.com/alejandro-publius/life-after-code/tree/main/demo/night-2026-10-20">Labelled demo inputs</a><p class="small-copy">The same existing Watch code makes these verdicts. Shop faults and agent replies are recorded demo data. This page does not run a live model, make GitLab writes, send phone push notifications or call production services.</p></div></details>`;
+    return `<details class="evidence" id="evidence-details"><summary><span>Read the decision evidence</span><span class="small-copy">Signature, checks and the code's record</span></summary><div class="evidence-grid"><section class="evidence-section"><h3>Demo signature and expiry</h3><dl class="evidence-list"><dt>Signature</dt><dd>${signature.signed ? `Priya (demo persona, GitLab user ${escape(signature.user)}) by ${escape(signature.method)} at ${escape(timeOf(signature.at))}` : "Unsigned. Watch has no permission to act alone."}</dd><dt>Ends</dt><dd>${escape(replay.expiry.time)} in ${escape(replay.timezone)}</dd><dt>When expiry happens</dt><dd>Permission ends. Existing changes are not automatically reverted.</dd>${signature.signed ? `<dt>Signed commit</dt><dd>Demo placeholder. On a live night this is the merge commit code read the orders from.</dd>` : ""}</dl><h3>What was checked</h3>${checks ? `<ul class="evidence-list">${checks}</ul>` : "<p>No signed order was carried out in this replay.</p>"}</section><section class="evidence-section"><h3>The actual wake-up messages</h3><ul class="evidence-list">${pageItems}</ul></section>${packHtml}<section class="evidence-section evidence-wide"><h3>Ledger written by Watch</h3><ol class="evidence-list ledger-list">${replay.timeline.map((event) => `<li><span class="mono">${escape(event.time)} · ${escape(event.kind)}</span><p>${escape(event.text)}</p></li>`).join("")}</ol><details><summary>Read the recorded port log</summary><pre class="proof-log">${escape(replay.logs.join("\n"))}</pre></details><details><summary>Read the demo order structure</summary><pre class="proof-log">${escape(JSON.stringify(replay.orders, null, 2))}</pre></details><details><summary>Read the morning record</summary><pre class="proof-log">${escape(morningProof(replay.morning))}</pre></details></section></div><div class="evidence-sources"><strong>Inspect the code and labelled files</strong><a href="https://github.com/alejandro-publius/life-after-code/blob/main/relay/nightorders/watch.py">Watch decision code</a><a href="https://github.com/alejandro-publius/life-after-code/blob/main/relay/nightorders/demo_night.py">In-memory replay</a><a href="https://github.com/alejandro-publius/life-after-code/tree/main/demo/night-2026-10-20">Labelled demo inputs</a><p class="small-copy">The same existing Watch code makes these verdicts. Shop faults and agent replies are recorded demo data. This page does not run a live model, make GitLab writes, send phone push notifications or call production services.</p></div></details>`;
   }
 
   function morningProof(morning) {
@@ -257,10 +285,19 @@
       root.innerHTML = state.error ? `<main class="journey-panel error-state" id="journey-content"><h2 class="chapter-title" id="chapter-heading" tabindex="-1">The demo could not load.</h2><p>${escape(state.error)}</p><div class="action-row">${button("retry-replay", "Retry the replay", "retry")}</div><p class="small-copy">No live action was attempted. The same labelled replay is available from the repository's command line.</p></main>` : `<main class="journey-panel loading" id="journey-content"><p class="eyebrow">Getting the demo ready</p><h2 class="chapter-title">Loading Priya's night...</h2><p class="chapter-copy">Preparing the recorded demo night.</p></main>`;
       return;
     }
+    const wasOpen = {evidence: document.getElementById("evidence-details")?.open, table: document.querySelector("details.chart-table")?.open};
     const content = state.view === "dusk" ? dusk() : state.view === "dawn" ? dawn() : state.nightScene === "inventory" ? inventory() : checkout();
     const failure = state.error ? `<div class="inline-error" role="alert"><p>${escape(state.error)}</p>${button("retry-replay", "Retry this choice", "retry", "secondary")}</div>` : "";
     root.innerHTML = `<div class="journey-layout"><main class="journey-panel" id="journey-content">${failure}${state.busy ? "<p class=\"loading-note\">Checking your demo choice...</p>" : ""}${content}</main>${context()}</div>${evidence()}`;
-    if (focus) document.getElementById("chapter-heading")?.focus({preventScroll: true});
+    if (wasOpen.evidence) document.getElementById("evidence-details")?.setAttribute("open", "");
+    if (wasOpen.table) document.querySelector("details.chart-table")?.setAttribute("open", "");
+    document.body.classList.toggle("compact-intro", state.signedChoice !== null);
+    if (focus) {
+      const heading = document.getElementById("chapter-heading");
+      heading?.focus({preventScroll: true});
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (heading && heading.getBoundingClientRect().top < 0) heading.scrollIntoView({block: "start", behavior: reduce ? "auto" : "smooth"});
+    }
   }
 
   function validateReplay(data) {
@@ -285,9 +322,14 @@
     let timedOut = false;
     const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 12000);
     try {
-      const response = await fetch(`/demo/replay?signed=${signed}&approved=${approved}`, {signal: controller.signal, headers: {Accept: "application/json"}, cache: "no-store"});
-      if (!response.ok) throw new Error("The replay is temporarily unavailable. Please retry.");
-      const replay = validateReplay(await response.json());
+      const key = `${signed}/${approved}`;
+      let replay = cache.get(key);
+      if (!replay) {
+        const response = await fetch(`/demo/replay?signed=${signed}&approved=${approved}`, {signal: controller.signal, headers: {Accept: "application/json"}, cache: "no-store"});
+        if (!response.ok) throw new Error("The replay is temporarily unavailable. Please retry.");
+        replay = validateReplay(await response.json());
+        cache.set(key, replay);
+      }
       if (request !== state.request) return;
       if (replay.choices.signed !== signed || replay.choices.approved !== approved) throw new Error("The replay returned a different choice. Please retry.");
       const hadReplay = Boolean(state.replay);
@@ -306,6 +348,22 @@
     } finally {
       clearTimeout(timeout);
       if (request === state.request) state.controller = null;
+    }
+  }
+
+  const cache = new Map();
+
+  async function prefetch() {
+    // The four demo combinations are fixed, so they are fetched once and every later choice is instant.
+    for (const [signed, approved] of [[true, false], [false, true], [false, false]]) {
+      const key = `${signed}/${approved}`;
+      if (cache.has(key)) continue;
+      try {
+        const response = await fetch(`/demo/replay?signed=${signed}&approved=${approved}`, {headers: {Accept: "application/json"}, cache: "no-store"});
+        if (response.ok) cache.set(key, validateReplay(await response.json()));
+      } catch (error) {
+        return; // a choice simply fetches on demand
+      }
     }
   }
 
@@ -362,5 +420,5 @@
     state.controller?.abort();
   });
 
-  load(true, true, () => { live.textContent = "Demo ready. Review the orders before bed."; });
+  load(true, true, () => { live.textContent = "Demo ready. Review the orders before bed."; prefetch(); });
 })();

@@ -264,6 +264,7 @@ def run(folder: Path | str, ops: Path | str | None = None, *, signed: bool = Tru
                 "minute": minute, "at": now.isoformat(), "sampled_at": sampled_at.isoformat(),
                 "time": ports._t(now), "old_rate": values["checkout_error_rate.old"],
                 "new_rate": values["checkout_error_rate.new"], "all_rate": values["checkout_error_rate.all"],
+                "checkouts": values["checkouts.all"], "new_checkouts": values["checkouts.new"],
                 "flags_before": before, "flags_after": dict(shop.flags),
             })
         now += timedelta(minutes=1)
