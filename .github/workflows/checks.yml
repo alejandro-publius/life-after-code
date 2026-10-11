@@ -56,7 +56,8 @@ jobs:
   browser-smoke:
     name: Browser smoke
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # The No Mouse baseline search replays the checkout many times in a real browser.
+    timeout-minutes: 20
     steps:
       - name: Check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -78,6 +79,13 @@ jobs:
         run: uv run --with playwright==1.62.0 python -m playwright install --with-deps chromium
       - name: Test phone and laptop flows
         run: uv run --with playwright==1.62.0 python scripts/browser_smoke.py
+      - name: Install the No Mouse walker extra
+        run: uv sync --locked --extra walker
+      - name: Test No Mouse keyboard walks in Chromium
+        env:
+          # A missing browser fails this step instead of skipping the tests.
+          NOMOUSE_REQUIRE_BROWSER: "1"
+        run: uv run --locked --extra walker pytest -q -m browser tests/nomouse
 
   cli-audit:
     name: Pinned gcloud flag audit

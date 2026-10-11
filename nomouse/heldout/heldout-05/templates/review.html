@@ -1,0 +1,13 @@
+<h1>Review your order</h1>
+<div class="card">
+<h2>Your order</h2>
+<p>$product_name, $product_size. $price each.</p>
+<p>Email: $email</p>
+<p>Card number: $card</p>
+</div>
+<form method="post" action="/pay" class="card">
+<input type="hidden" name="email" value="$email">
+<input type="hidden" name="card" value="$card">
+<button type="submit">Pay now, $price</button>
+</form>
+<p><a href="/checkout">Change email or card</a></p>

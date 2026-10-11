@@ -1,0 +1,5 @@
+id: heldout-10
+kind: barrier
+summary: "The Add to cart button on the product page is replaced by a button that shows only a cart icon with no text, label or title, so a screen reader announces just button and a blind shopper cannot tell what it does."
+wcag: "4.1.2"
+author: blind-agent-2026-10-11

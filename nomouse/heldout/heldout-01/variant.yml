@@ -1,0 +1,5 @@
+id: heldout-01
+kind: barrier
+summary: "The card number field on the checkout page shows the words Card number above it as plain text that is not tied to the field, so a screen reader announces an unnamed edit box and a blind shopper cannot tell what to type there."
+wcag: "4.1.2"
+author: blind-agent-2026-10-11

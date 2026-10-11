@@ -1,0 +1,60 @@
+<style>
+.nl-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: flex; align-items: center;
+  justify-content: center; padding: 16px; z-index: 10; }
+.nl-dialog { position: relative; background: var(--card); color: var(--fg); border-radius: 12px; padding: 24px;
+  max-width: 440px; width: 100%; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35); }
+.nl-close { position: absolute; top: 8px; right: 12px; font-size: 28px; line-height: 1; cursor: pointer; padding: 4px 8px;
+  color: var(--muted); user-select: none; }
+.nl-dialog h2 { margin-top: 8px; }
+</style>
+<div id="page-content" inert>
+<h1>Demo Beans</h1>
+<p>Small-batch coffee, roasted every Monday.</p>
+<section class="card" aria-labelledby="beans">
+<h2 id="beans">This week's beans</h2>
+<p><a href="/product/$product_id">$product_name, $product_size, $price</a></p>
+</section>
+</div>
+<div class="nl-backdrop" id="nl">
+<div class="nl-dialog" id="nl-dialog" role="dialog" aria-modal="true" aria-labelledby="nl-title">
+<span class="nl-close" id="nl-close">&times;</span>
+<h2 id="nl-title">Get ten percent off your first bag</h2>
+<p>Join the Demo Beans newsletter for roast days and new beans.</p>
+<label for="nl-email">Email for coffee news</label>
+<input id="nl-email" type="email" autocomplete="email">
+<button type="button" id="nl-join">Sign me up</button>
+<p id="nl-msg" aria-live="polite"></p>
+</div>
+</div>
+<script>
+(function () {
+  var overlay = document.getElementById('nl');
+  var dialog = document.getElementById('nl-dialog');
+  var content = document.getElementById('page-content');
+  function stops() { return dialog.querySelectorAll('input, button'); }
+  function onKey(event) {
+    if (event.key !== 'Tab') { return; }
+    var list = stops();
+    var first = list[0];
+    var last = list[list.length - 1];
+    if (!dialog.contains(document.activeElement)) { event.preventDefault(); first.focus(); return; }
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+  }
+  function onFocus(event) {
+    if (!dialog.contains(event.target)) { stops()[0].focus(); }
+  }
+  document.addEventListener('keydown', onKey, true);
+  document.addEventListener('focusin', onFocus, true);
+  document.getElementById('nl-join').addEventListener('click', function () {
+    document.getElementById('nl-msg').textContent = 'Thanks. Watch your inbox for our next roast day.';
+  });
+  document.getElementById('nl-close').addEventListener('click', function () {
+    document.removeEventListener('keydown', onKey, true);
+    document.removeEventListener('focusin', onFocus, true);
+    overlay.parentNode.removeChild(overlay);
+    content.removeAttribute('inert');
+  });
+  stops()[0].focus();
+})();
+</script>

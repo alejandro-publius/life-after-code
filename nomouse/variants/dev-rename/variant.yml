@@ -1,0 +1,4 @@
+# Development variant (written by the prompt author; not part of the held-out set).
+id: dev-rename
+kind: harmless
+summary: The Pay now button is renamed to Place order.

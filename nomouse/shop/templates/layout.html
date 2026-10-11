@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>$title - Demo Beans (demo shop)</title>
+<style>
+:root { color-scheme: light dark; --bg: #f7f6f1; --fg: #1d201c; --muted: #5c6159; --card: #ffffff;
+  --line: #cfccc2; --accent: #1f5f8b; --banner: #f2c230; --banner-fg: #1d201c; --focus: #b3401a; }
+@media (prefers-color-scheme: dark) { :root { --bg: #141713; --fg: #e9eae4; --muted: #a3a99f;
+  --card: #1d211c; --line: #3d443a; --accent: #8cc4ef; --banner: #f2c230; --banner-fg: #141713; --focus: #ffb38f; } }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.banner { background: var(--banner); color: var(--banner-fg); font-weight: 700; text-align: center; padding: 10px 16px; }
+header, main, footer { max-width: 720px; margin: 0 auto; padding: 8px 16px; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+nav a { margin-left: 12px; }
+a { color: var(--accent); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 12px 0; }
+label { display: block; font-weight: 600; margin-top: 12px; }
+input, select { font: inherit; width: 100%; max-width: 420px; padding: 10px; min-height: 44px; border: 1px solid var(--line); border-radius: 6px; }
+button { font: inherit; min-height: 44px; padding: 10px 18px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; cursor: pointer; margin-top: 16px; }
+@media (prefers-color-scheme: dark) { button { color: #141713; } }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<p class="banner">Demo shop. Demo Beans is not a real store and takes no payment.</p>
+<header>
+<a href="/">Demo Beans home</a>
+<nav aria-label="Shop"><a href="/cart">$cart_label</a></nav>
+</header>
+<main>
+$body
+</main>
+<footer class="muted"><p>Demo data for No Mouse. Orders exist only in this process.</p></footer>
+</body>
+</html>
