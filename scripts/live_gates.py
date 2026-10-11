@@ -35,6 +35,8 @@ DAY_ONE = [  # (day_one.py step, the gate in plain words)
 ]
 MANUAL = [  # (--done name, the gate)
     ("pipeline", "A GitLab pipeline on the default branch passed"),
+    ("pages", "The browser demo is public on GitLab Pages"),
+    ("release", "A tagged GitLab Release links the demo, the images and the pipeline"),
     ("deploy", "The relay and the shop were deployed to Cloud Run by the pipeline"),
     ("video", "The video is public on YouTube, under 3:00"),
 ]

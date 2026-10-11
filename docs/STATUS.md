@@ -31,7 +31,7 @@ Last updated: **Sun 11 Oct 2026, about 17:00 UTC**.
 - `scripts/video_pace.py`: both shot tables in [VIDEO.md](VIDEO.md) fit their slots and 3:00 (a test runs it); it found a cold-open scene with 23 words in 5 seconds, now rebalanced. It also writes captions.
 - Devpost gallery: five 3:2 images in `docs/images/gallery/`, made by `scripts/gallery.py` from components the browser captured from the running demo; the README screenshots are refreshed and show the kept change's lease.
 - The case for impact, with sources marked (unverified) until Alex opens them: [research/oncall_case.md](research/oncall_case.md).
-- [LIVE_GATES.md](LIVE_GATES.md), written by `scripts/live_gates.py` from the day-one JSON, the relay's public status and links a person confirms: 0 of 13 passed today, every gate pending until it has evidence.
+- [LIVE_GATES.md](LIVE_GATES.md), written by `scripts/live_gates.py` from the day-one JSON, the relay's public status and links a person confirms (now including the Pages demo and the tagged release): 0 of 15 passed today, every gate pending until it has evidence.
 - The flows: the dusk flow never waits on a person (its question goes in the merge request), the commit writers see their tool results and pass the branch on, and a test checks every prompt placeholder is wired.
 
 ## Verified locally on 11 Oct

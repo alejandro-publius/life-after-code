@@ -15,7 +15,7 @@ AT = datetime(2026, 10, 18, 14, 0, tzinfo=timezone.utc)
 def test_nothing_is_claimed_without_evidence():
     gates = from_day_one(None) + from_relay(None, None, None) + from_done({})
     text = render(gates, AT)
-    assert "**0 of 13 passed.**" in text and "| passed |" not in text
+    assert "**0 of 15 passed.**" in text and "| passed |" not in text
 
 
 def test_day_one_results_become_gates_with_their_reason():
@@ -48,4 +48,4 @@ def test_the_command_takes_only_https_links_and_writes_the_page(tmp_path, capsys
     saved.write_text(json.dumps({"at": "2026-10-18T13:55", "results": [{"step": "publish", "status": "PASS"}]}))
     assert main(["--day-one", str(saved), "--done", "video=https://youtu.be/abc", "--out", str(out)]) == 0
     text = out.read_text(encoding="utf-8")
-    assert "**2 of 13 passed.**" in text and "[https://youtu.be/abc](https://youtu.be/abc)" in text
+    assert "**2 of 15 passed.**" in text and "[https://youtu.be/abc](https://youtu.be/abc)" in text
