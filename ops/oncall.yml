@@ -8,3 +8,5 @@ watch_ends: "07:00"
 recheck_minutes: 10
 answer_timeout_minutes: 8
 model_runs_per_night: 3
+# When code posts the day sheet on the watch issue, before the dusk flow runs (local time).
+daysheet_at: "21:00"

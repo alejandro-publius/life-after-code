@@ -245,12 +245,13 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-DAYSHEET_AT = time(21, 0)             # local time; the first tick at or after it posts the sheet, once a day
+DAYSHEET_AT = time(21, 0)             # the default for daysheet_at in ops/oncall.yml (local time)
 RETRY_AFTER = timedelta(minutes=5)    # after a failed try, the next try waits this long, until local midnight
 
 
 def step(relay_doc: dict, now: datetime, oncall: OnCall, targets: Targets, gitlab: GitLab, watch_issue: int) -> list[str]:
-    """Called by the relay's tick, outside the watch's own failure accounting: post today's day sheet once.
+    """Called by the relay's tick, outside the watch's own failure accounting: post today's day sheet once,
+    at the first tick at or after daysheet_at in ops/oncall.yml (21:00 when it is not set).
 
     The sheet counts as posted only after GitLab accepted the note. A failed try is tried again every
     RETRY_AFTER until local midnight (a GitLab blip at dusk costs minutes, not the sheet), and the error goes
@@ -258,7 +259,7 @@ def step(relay_doc: dict, now: datetime, oncall: OnCall, targets: Targets, gitla
     """
     local = now.astimezone(oncall.timezone)
     today = local.date().isoformat()
-    if local.time() < DAYSHEET_AT or relay_doc.get("daysheet") == today:
+    if local.time() < oncall.daysheet_at or relay_doc.get("daysheet") == today:
         return []
     last = relay_doc.get("daysheet_last_try") or {}
     if last.get("date") == today and now - datetime.fromisoformat(last["at"]) < RETRY_AFTER:

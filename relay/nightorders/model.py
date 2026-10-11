@@ -207,6 +207,7 @@ class OnCall:
     recheck_minutes: int = 10
     answer_timeout_minutes: int = 8
     model_runs_per_night: int = 3
+    daysheet_at: time = time(21, 0)  # local time the relay posts the day sheet on the watch issue
 
     @property
     def first_name(self) -> str:

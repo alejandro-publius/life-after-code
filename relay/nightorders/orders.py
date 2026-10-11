@@ -58,6 +58,7 @@ def parse_oncall(data: dict) -> OnCall:
         recheck_minutes=int(data.get("recheck_minutes", 10)),
         answer_timeout_minutes=int(data.get("answer_timeout_minutes", 8)),
         model_runs_per_night=int(data.get("model_runs_per_night", 3)),
+        daysheet_at=_hhmm(str(data.get("daysheet_at", "21:00"))),
     )
 
 

@@ -281,3 +281,29 @@ def test_the_relay_runs_the_kept_list_as_a_chore_that_never_fails_a_tick():
     chore = source.split("relay.kept_ports is not None", 1)[1].split("# Keep what the tick did", 1)[0]
     assert "kept.step(relay_doc, now, inputs.oncall, relay.kept_ports)" in chore
     assert 'relay_doc["kept_problem"]' in chore and "except Exception" in chore
+
+
+# The day sheet's time is a setting in ops/oncall.yml, and the status page says when it is due.
+
+def test_the_day_sheet_time_comes_from_the_oncall_file():
+    import dataclasses
+    from datetime import time
+    from nightorders.daysheet import step as daysheet_step
+    from test_daysheet import NOW as DAY_NOW, Server as DayServer, gitlab_for, routes
+    oncall, targets = load_context(OPS)
+    assert oncall.daysheet_at == time(21, 0)
+    late = dataclasses.replace(oncall, daysheet_at=time(22, 0))
+    server = DayServer(routes())
+    doc: dict = {}
+    assert daysheet_step(doc, DAY_NOW, late, targets, gitlab_for(server), 7) == []  # 21:30 local, due at 22:00
+    assert server.requests == []
+    assert daysheet_step(doc, DAY_NOW, oncall, targets, gitlab_for(server), 7)[0].startswith("day sheet posted")
+
+
+def test_the_status_page_says_when_todays_day_sheet_is_due():
+    status = {"checked_at": NOW.isoformat(), "timezone": "America/Los_Angeles", "daysheet_at": "21:00",
+              "watch_issue": 12}
+    page = render_page({"night": "2026-10-21", "relay": {"status": status, "daysheet": "2026-10-20"}}, NOW)
+    assert "Today's day sheet is due at 21:00, before the dusk flow drafts the orders. The last one was for 2026-10-20." in page
+    posted = render_page({"night": "2026-10-21", "relay": {"status": status, "daysheet": "2026-10-21"}}, NOW)
+    assert "Day sheet posted on the watch issue for 2026-10-21." in posted and "is due at" not in posted

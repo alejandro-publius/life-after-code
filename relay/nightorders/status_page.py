@@ -273,13 +273,19 @@ def render(doc: dict | None, now: datetime, unavailable: bool = False) -> str:
                     else "<p>Nothing has happened yet tonight.</p>")
 
         chores = []
-        if relay.get("daysheet"):
+        today = now.astimezone(tz).date().isoformat()
+        if relay.get("daysheet") == today:
+            chores.append(f"Day sheet posted on the watch issue for {_e(relay['daysheet'])}.")
+        elif status.get("daysheet_at") and status.get("watch_issue") and not relay.get("daysheet_problem"):
+            chores.append(f"Today's day sheet is due at {_e(status['daysheet_at'])}, before the dusk flow drafts the "
+                          "orders." + (f" The last one was for {_e(relay['daysheet'])}." if relay.get("daysheet") else ""))
+        elif relay.get("daysheet"):
             chores.append(f"Day sheet posted on the watch issue for {_e(relay['daysheet'])}.")
         sheet_problem = relay.get("daysheet_problem")
         if sheet_problem:
             sheet_day = sheet_problem.get("date")
             why = _e(sheet_problem.get("reason") or "")
-            if sheet_day and sheet_day != now.astimezone(tz).date().isoformat():
+            if sheet_day and sheet_day != today:
                 chores.append(f"The day sheet for {_e(sheet_day)} was not posted ({why}).")
             else:
                 chores.append(f"The day sheet could not be posted yet ({why}); the relay tries again every few "

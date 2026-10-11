@@ -304,7 +304,7 @@ def status_of(inputs: Inputs, now: datetime) -> dict:
     """What the status page shows about tonight's orders, worked out by the core's own checks."""
     oncall, orders, signature = inputs.oncall, inputs.orders, inputs.signature
     status: dict = {"checked_at": now.isoformat(), "timezone": str(oncall.timezone), "orders": None,
-                    "problems": list(inputs.orders_problems)}
+                    "problems": list(inputs.orders_problems), "daysheet_at": oncall.daysheet_at.strftime("%H:%M")}
     if orders is None:
         return status
     _, end = watch_window(orders, oncall)
