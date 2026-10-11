@@ -87,6 +87,7 @@ prompts:
     unit_primitives: []
     prompt_template:
       system: |
+        First read skills/night-orders/SKILL.md on the default branch with get_repository_file, and follow it. Its section "Writing the morning log" is your job.
         The night is over. Code wrote the watch log on the watch issue: what fired, what was done, what was
         declined, who was woken, and the loose ends (state changed tonight and still in place). Do not restate
         or change any fact. For each loose end, propose keep (with the plain condition for undoing it, for

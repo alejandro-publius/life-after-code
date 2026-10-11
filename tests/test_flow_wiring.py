@@ -99,3 +99,16 @@ def test_dawn_writes_the_state_file_the_morning_code_reads():
     assert TOP_KEYS == {"night", "flags", "services"}
     for key in sorted(STATE_KEYS | SERVICE_KEYS):
         assert key in commit, key
+
+
+@pytest.mark.parametrize("path", FLOWS, ids=lambda p: p.name)
+def test_a_component_told_to_follow_the_skill_can_read_it(path):
+    """A custom flow's model sees only its prompt: an optional workspace_agent_skills input that no template
+    names never reaches it. So every component whose prompt relies on the skill reads the file itself."""
+    flow = yaml.safe_load(path.read_text(encoding="utf-8"))
+    for item in flow["components"]:
+        text = prompt(flow, item["prompt_id"]) if "prompt_id" in item else ""
+        if "skill" in text.lower():
+            assert "read skills/night-orders/SKILL.md on the default branch with get_repository_file" in text, item["name"]
+            assert "get_repository_file" in (item.get("toolset") or []), item["name"]
+            assert "project_id" in {i["as"] for i in item.get("inputs") or []}, item["name"]

@@ -282,7 +282,34 @@ def test_catalog_lists_the_enabled_flows_and_prints_the_clicks_without_the_probe
                   "item": {"id": "gid://gitlab/Ai::Catalog::Item/4", "name": "night-orders-probe"}, "serviceAccount": None})
     code, text, data = run(server, "--step", "catalog", "--yes", out_json=tmp_path / "r2.json")
     assert code == 0 and "flow night-orders-probe: consumer id 31" in text and "New flow" not in text
-    assert data["values"]["FLOW_CONSUMER_ID"] == 31
+    assert data["values"]["PROBE_CONSUMER_ID"] == 31 and "FLOW_CONSUMER_ID" not in data["values"]
+
+
+def test_catalog_takes_the_relay_settings_from_the_watch_and_dawn_flows_own_accounts(tmp_path):
+    """Each flow posts as its own service account, held by the group's consumer: the relay must read the watch
+    flow's notes, so FLOW_SERVICE_ACCOUNT is the watch flow's account, never the probe's."""
+    nodes = [
+        {"id": "gid://gitlab/Ai::Catalog::ItemConsumer/31", "enabled": True,
+         "item": {"id": "gid://gitlab/Ai::Catalog::Item/4", "name": "night-orders-probe"}, "serviceAccount": None,
+         "parentItemConsumer": {"serviceAccount": {"username": "ai-night-orders-probe-g"}}},
+        {"id": "gid://gitlab/Ai::Catalog::ItemConsumer/32", "enabled": True,
+         "item": {"id": "gid://gitlab/Ai::Catalog::Item/5", "name": "night-orders-watch"}, "serviceAccount": None,
+         "parentItemConsumer": {"serviceAccount": {"username": "ai-night-orders-watch-g"}}},
+        {"id": "gid://gitlab/Ai::Catalog::ItemConsumer/33", "enabled": True,
+         "item": {"id": "gid://gitlab/Ai::Catalog::Item/6", "name": "night-orders-dawn"}, "serviceAccount": None,
+         "parentItemConsumer": None},
+    ]
+    route = graphql_router({"aiCatalogConfiguredItems": {"aiCatalogConfiguredItems": {"nodes": nodes}}})
+    server = Server({("GET", API): PROJECT, ("POST", "/api/v4/graphql"): route})
+    code, text, data = run(server, "--step", "catalog", "--yes", out_json=tmp_path / "r.json")
+    assert code == 0, text
+    values = data["values"]
+    assert (values["FLOW_CONSUMER_ID"], values["FLOW_SERVICE_ACCOUNT"]) == (32, "ai-night-orders-watch-g")
+    assert (values["PROBE_CONSUMER_ID"], values["PROBE_FLOW_ACCOUNT"]) == (31, "ai-night-orders-probe-g")
+    # GitLab did not say: the name is predicted from the group, and says so.
+    assert values["DAWN_FLOW_SERVICE_ACCOUNT"] == "ai-night-orders-dawn-g"
+    assert "flow night-orders-dawn: consumer id 33, service account ai-night-orders-dawn-g (predicted)" in text
+    assert "parentItemConsumer { serviceAccount { username } }" in route.calls[0]["query"]
 
 
 def test_create_probe_sends_the_flow_yaml_then_enables_it_and_reports_a_permission_error():
@@ -361,7 +388,7 @@ def test_flow_sends_the_flows_api_body_and_waits_for_the_probe_note():
     assert server.sent("POST", "/api/v4/ai/duo_workflows/workflows")[0].headers["PRIVATE-TOKEN"] == TOKEN
     assert "flow started: workflow 42, status created, consumer id 77" in text
     assert clock.slept == [15.0, 15.0] and "after 30 s" in text
-    assert "FLOW_SERVICE_ACCOUNT=ai-night-orders-probe-g" in text
+    assert "PROBE_FLOW_ACCOUNT=ai-night-orders-probe-g (the probe's own account" in text
     assert "--flow-account other-account does not match the note's author ai-night-orders-probe-g" in text
     assert "workflow status now: finished" in text
     assert graphql.calls[0]["variables"] == {"workflowId": "gid://gitlab/Ai::DuoWorkflows::Workflow/42"}

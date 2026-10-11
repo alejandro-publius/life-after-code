@@ -17,7 +17,7 @@ Steps, in order. Each prints PASS, FAIL (with the HTTP status and GitLab's messa
              with --create-probe it creates and enables flows/probe.yml through GraphQL
   incident   the probe incident "Day-one probe incident" (found or created)
   flow       starts the probe flow on the incident through the Flows API, then watches the incident's notes
-             for "probe ok" for up to six minutes; the note's author is FLOW_SERVICE_ACCOUNT
+             for "probe ok" for up to six minutes; the note's author is the probe flow's own account
   signature  a branch, a one-line comment change to ops/night-orders.yml, a merge request, then an approve
              and a merge attempt: which one the role allows decides whether the signature is a merge or an
              approval; the merge request is closed and the branch deleted afterwards unless --keep
@@ -95,7 +95,8 @@ DEVELOPER = 30
 CONFIGURED_ITEMS_QUERY = """
 query($projectId: ProjectID!) {
   aiCatalogConfiguredItems(projectId: $projectId) {
-    nodes { id enabled item { id name } serviceAccount { username } }
+    nodes { id enabled item { id name } serviceAccount { username }
+            parentItemConsumer { serviceAccount { username } } }
   }
 }"""
 FIND_ITEM_QUERY = """
@@ -307,8 +308,22 @@ def watch_template() -> str:
         return f"## {WATCH_TITLE}\n\nThis issue stays open. Each evening the on-call person assigns it to the dusk flow.\n"
 
 
+WATCH_NAME = "night-orders-watch"
+DAWN_NAME = "night-orders-dawn"
+
+
+def predicted_account(flow_name: str, group: str) -> str:
+    """The service account GitLab gives a flow enabled under a top-level group: "ai-<flow>-<group>", parameterized
+    (GitLab source: ee/app/services/ai/catalog/item_consumers/create_service.rb). GitLab uses the group's name;
+    the path stands in for it here, so the result is a prediction to check against a real note."""
+    raw = f"ai-{flow_name}-{group}".lower()
+    return "-".join(part for part in "".join(c if c.isalnum() else "-" for c in raw).split("-") if part)
+
+
 def flow_body(project_id: str, consumer_id: int, issue_iid: int, goal: str) -> dict:
-    """The Flows API body, the same shape the relay sends for the watch flow (gitlab_ports.start_watch_flow)."""
+    """The Flows API body, the same shape the relay sends for the watch flow (gitlab_ports.start_watch_flow).
+    For catalog flows GitLab ignores the three privilege fields (GitLab source: ee/lib/api/ai/duo_workflows/
+    workflows.rb); what limits the flow is its own toolset. They are sent anyway: harmless, and the same body."""
     return {
         "project_id": str(project_id),
         "ai_catalog_item_consumer_id": int(consumer_id),
@@ -566,19 +581,30 @@ class DayOne:
         data = self.graphql("list configured flows", CONFIGURED_ITEMS_QUERY, {"projectId": gid})
         nodes = ((data.get("aiCatalogConfiguredItems") or {}).get("nodes")) or []
         probe_consumer = None
+        group = str(self.project().get("path_with_namespace") or "").split("/")[0]
         for node in nodes:
             if not isinstance(node, dict):
                 continue
             consumer = gid_number(node.get("id"))
             name = str((node.get("item") or {}).get("name") or "?")
-            account = str((node.get("serviceAccount") or {}).get("username") or "")
+            # Each flow posts as its own account, which lives on the group's consumer (the parent), not the project's.
+            account = str((node.get("serviceAccount") or {}).get("username")
+                          or ((node.get("parentItemConsumer") or {}).get("serviceAccount") or {}).get("username") or "")
+            shown = account or (f"{predicted_account(name, group)} (predicted)" if group else "")
             state = "" if node.get("enabled", True) else " (disabled)"
-            lines.append(f"flow {name}: consumer id {consumer}{state}" + (f", service account {account}" if account else ""))
-            if name == PROBE_NAME and consumer is not None and node.get("enabled", True):
-                probe_consumer = consumer
+            lines.append(f"flow {name}: consumer id {consumer}{state}" + (f", service account {shown}" if shown else ""))
+            enabled = consumer is not None and node.get("enabled", True)
+            if enabled and name == WATCH_NAME:
                 self.values["FLOW_CONSUMER_ID"] = consumer
+                self.values["FLOW_SERVICE_ACCOUNT"] = account or predicted_account(name, group)
+            elif enabled and name == DAWN_NAME:
+                self.values["DAWN_FLOW_CONSUMER_ID"] = consumer
+                self.values["DAWN_FLOW_SERVICE_ACCOUNT"] = account or predicted_account(name, group)
+            if name == PROBE_NAME and enabled:
+                probe_consumer = consumer
+                self.values["PROBE_CONSUMER_ID"] = consumer
                 if account:
-                    self.values["FLOW_SERVICE_ACCOUNT_HINT"] = account
+                    self.values["PROBE_FLOW_ACCOUNT"] = account
             elif name == PROBE_NAME and consumer is not None:
                 lines.append(f"{PROBE_NAME} is in the project but disabled: enable it under AI, Flows "
                              "(docs/FLOWS_SETUP.md) before the flow step; its consumer id is not used")
@@ -587,7 +613,7 @@ class DayOne:
         if probe_consumer is None and self.options.create_probe:
             probe_consumer = self._create_probe(gid, lines)
             if probe_consumer is not None:
-                self.values["FLOW_CONSUMER_ID"] = probe_consumer
+                self.values["PROBE_CONSUMER_ID"] = probe_consumer
         if probe_consumer is None:
             lines.extend(PROBE_CLICKS)
             if not self.options.create_probe:
@@ -629,7 +655,7 @@ class DayOne:
         lines.append(f"enabled {PROBE_NAME} in the project: consumer id {number}"
                      + (f", service account {account}" if account else ""))
         if account:
-            self.values["FLOW_SERVICE_ACCOUNT_HINT"] = account
+            self.values["PROBE_FLOW_ACCOUNT"] = account
         return number
 
     def step_incident(self, lines: list[str]) -> None:
@@ -661,7 +687,7 @@ class DayOne:
         return int(iid)
 
     def step_flow(self, lines: list[str]) -> None:
-        consumer = self.options.consumer_id or self.values.get("FLOW_CONSUMER_ID")
+        consumer = self.options.consumer_id or self.values.get("PROBE_CONSUMER_ID")
         if not consumer:
             raise Skip("no consumer id for the probe flow: enable it and run the catalog step, or pass --consumer-id")
         iid = self._incident_iid()
@@ -697,9 +723,10 @@ class DayOne:
                              f"(workflow {workflow}" + (f", status {status}" if status else "") + ")")
         author = str((note.get("author") or {}).get("username") or "?")
         lines.append(f"note {note.get('id')} by {author} after {elapsed:.0f} s: {str(note.get('body') or '').strip()[:80]!r}")
-        self.values["FLOW_SERVICE_ACCOUNT"] = author
+        self.values["PROBE_FLOW_ACCOUNT"] = author
         self.values["FLOW_SECONDS"] = round(elapsed)
-        lines.append(f"FLOW_SERVICE_ACCOUNT={author}")
+        lines.append(f"PROBE_FLOW_ACCOUNT={author} (the probe's own account: the relay's FLOW_SERVICE_ACCOUNT is the "
+                     f"watch flow's account, which the catalog step prints)")
         if not any(hint in author.lower() for hint in ("duo", "flow", "ai-", "bot", "agent")):
             lines.append(f"{author} does not look like a flow's service account: check the flow session in GitLab "
                          "(AI, Sessions) before using this value")
@@ -834,7 +861,8 @@ class DayOne:
         width = max(len(r.step) for r in self.results) if self.results else 8
         for result in self.results:
             self.say(f"  {result.step.ljust(width)}  {result.status}" + (f"  {result.reason}" if result.reason else ""))
-        keys = ("WATCH_ISSUE_IID", "FLOW_CONSUMER_ID", "FLOW_SERVICE_ACCOUNT", "FLOW_SECONDS", "SIGNATURE_METHOD",
+        keys = ("WATCH_ISSUE_IID", "FLOW_CONSUMER_ID", "FLOW_SERVICE_ACCOUNT", "DAWN_FLOW_CONSUMER_ID",
+                "DAWN_FLOW_SERVICE_ACCOUNT", "PROBE_FLOW_ACCOUNT", "FLOW_SECONDS", "SIGNATURE_METHOD",
                 "CAN_MERGE_DEFAULT", "ROLE")
         shown = [(k, self.values[k]) for k in keys if k in self.values]
         if shown:

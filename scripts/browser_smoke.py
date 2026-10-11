@@ -172,7 +172,8 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
         "This time, Priya stays asleep." if signed else "Without a signature, Priya is needed again."
     )
     expect(page.locator("#metrics-chart")).to_be_visible()
-    expect(page.get_by_text("Dashed line: 5% limit for signed new checkout order.", exact=True)).to_be_visible()
+    expect(page.get_by_text("Dashed line: 5% limit for signed new checkout order." if signed
+                            else "Dashed line: the 5% limit order 1 would have had, if signed.", exact=True)).to_be_visible()
     if signed:
         expect(page.locator(".phone.dark .phone-caption")).to_have_text(
             "Nobody approved this at 03:13. She already had, at 22:06.")
