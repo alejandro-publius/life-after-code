@@ -480,6 +480,19 @@ def render_status(doc: dict | None, now: datetime, unavailable: bool = False) ->
             body.append(f"<pre>{_e(watch_log['text'])}</pre>")
         else:
             body.append("<p>Nothing has happened yet tonight.</p>")
+        chores = []
+        if relay_doc.get("daysheet"):
+            chores.append(f"Day sheet posted on the watch issue for {_e(relay_doc['daysheet'])}.")
+        if relay_doc.get("daysheet_problem"):
+            chores.append("The day sheet could not be posted; the relay tries again on the next ticks.")
+        rehearsed = relay_doc.get("rehearsed") or {}
+        if rehearsed:
+            chores.append("Rehearsed on staging: " + ", ".join(f"!{_e(iid)}" for iid in sorted(rehearsed, key=int)) + ".")
+        if relay_doc.get("rehearsal_problem"):
+            chores.append("A rehearsal could not be finished; the relay tries again on the next ticks.")
+        if chores:
+            body.append("<h2>Dusk</h2>")
+            body.append("<ul>" + "".join(f"<li>{line}</li>" for line in chores) + "</ul>")
         dawn = relay_doc.get("dawn")
         if dawn:
             body.append("<h2>Morning countersign</h2>")

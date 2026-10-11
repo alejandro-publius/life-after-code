@@ -64,3 +64,11 @@ def test_watch_log_lists_loose_ends():
     assert "- new_checkout off in production (order 1, 03:13)" in text
     assert "- stock_from_cache on in production (approved by thumbs-up, 01:53)" in text
     assert "What is not kept, code restores to how it was before the night." in text
+
+
+def test_a_json_labelled_block_is_read_when_no_labelled_block_exists():
+    note = 'Decision:\n```json\n{"order": 1, "fits_because": "new path only"}\n```\n'
+    request = parse_request(note)
+    assert isinstance(request, Request) and request.order == 1
+    labelled = note + '```night-orders-request\n{"order": null, "page": ["x"]}\n```\n'
+    assert parse_request(labelled).order is None  # the labelled block wins over the json one

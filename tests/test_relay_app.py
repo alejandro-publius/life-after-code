@@ -425,3 +425,17 @@ def test_the_day_sheet_is_posted_once_at_dusk(tmp_path, relay_key):
     assert len(posted) == 1 and posted[0].url.path.endswith("/issues/7/notes")
     assert json.loads(posted[0].content)["body"].startswith("## Day sheet for Tue 20 Oct")
     assert rig.doc()["relay"]["daysheet"] == "2026-10-20"
+
+
+def test_status_page_shows_the_dusk_chores(tmp_path, relay_key):
+    from test_daysheet import Server, gitlab_for, routes
+
+    rig = Rig(tmp_path, QuietSources(), gitlab=gitlab_for(Server(routes())), watch_issue=7)
+    rig.now = local("21:00")
+    rig.tick()
+    doc = rig.doc()
+    doc["relay"]["rehearsed"] = {"31": "abc123"}
+    rig.store.save(doc)
+    text = rig.client.get("/").text
+    assert "<h2>Dusk</h2>" in text and "Day sheet posted on the watch issue for 2026-10-20." in text
+    assert "Rehearsed on staging: !31." in text

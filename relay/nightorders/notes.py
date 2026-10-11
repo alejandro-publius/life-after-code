@@ -19,6 +19,9 @@ from dataclasses import dataclass
 from .model import Action
 
 FENCE = re.compile(r"```night-orders-request[ \t]*\r?\n(.*?)\r?\n```", re.DOTALL)
+# A model that labels the block json instead is read too, when no labelled block exists: the keys are still
+# checked, and a wrong answer still wakes the on-call person rather than acting.
+JSON_FENCE = re.compile(r"```json[ \t]*\r?\n(.*?)\r?\n```", re.DOTALL)
 ALLOWED_KEYS = {"order", "fits_because", "declined", "page", "suggest"}
 MAX_PAGE_LINES = 3
 MAX_LINE = 160
@@ -40,7 +43,7 @@ class Malformed:
 
 
 def parse_request(text: str) -> Request | Malformed:
-    blocks = FENCE.findall(text or "")
+    blocks = FENCE.findall(text or "") or JSON_FENCE.findall(text or "")
     if len(blocks) != 1:
         return Malformed(f"expected one night-orders-request block, found {len(blocks)}")
     try:
