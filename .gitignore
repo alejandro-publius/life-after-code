@@ -7,3 +7,7 @@ __pycache__/
 demo/**/output/
 .claude/worktrees/
 dist/
+public/
+release-notes.md
+.coverage
+coverage.xml

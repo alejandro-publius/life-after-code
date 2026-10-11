@@ -93,6 +93,10 @@ jobs:
         run: uv run --with playwright==1.62.0 python -m playwright install --with-deps chromium
       - name: Test phone and laptop flows
         run: uv run --with playwright==1.62.0 python scripts/browser_smoke.py
+      - name: Test the static GitLab Pages build of the demo
+        run: |
+          uv run --locked python scripts/build_pages.py --out "$RUNNER_TEMP/public"
+          uv run --with playwright==1.62.0 python scripts/browser_smoke.py --static "$RUNNER_TEMP/public"
 
   cli-audit:
     name: Pinned gcloud flag audit

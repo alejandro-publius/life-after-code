@@ -24,6 +24,7 @@ from playwright.sync_api import expect, sync_playwright
 
 
 ROOT = Path(__file__).resolve().parents[1]
+DEMO_PATH = "/demo"  # "/" for the static GitLab Pages build (--static)
 
 
 @contextmanager
@@ -119,7 +120,7 @@ def capture(page, directory: Path | None, name: str):
 def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | None, screen: str):
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.goto(base + "/demo", wait_until="networkidle")
+    page.goto(base + DEMO_PATH, wait_until="networkidle")
     ready(page, "dusk")
     expect(page.get_by_role("heading", name="Priya wants to sleep.")).to_be_visible()
     # The header carries the safety line on a laptop; on a phone the header is one line and the intro carries it.
@@ -199,12 +200,52 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
     assert errors == [], errors
 
 
+@contextmanager
+def static_site(folder: Path):
+    """Serve a built GitLab Pages folder (scripts/build_pages.py) on a local port, as Pages would."""
+    import functools
+    import http.server
+    import threading
+
+    class Quiet(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *args):  # the walk's own output is enough
+            pass
+
+    handler = functools.partial(Quiet, directory=str(folder))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}"
+    finally:
+        server.shutdown()
+
+
 def main():
+    global DEMO_PATH
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--url", help="Public base URL; defaults to a temporary local server")
+    parser.add_argument("--static", type=Path, help="walk a static GitLab Pages build in this folder instead")
     parser.add_argument("--screenshots", type=Path)
     parser.add_argument("--scale", type=float, default=1.0, help="device pixel ratio for screenshots (2 for README images)")
     args = parser.parse_args()
+    if args.static:
+        DEMO_PATH = "/"
+        with static_site(args.static) as base, sync_playwright() as playwright:
+            browser = playwright.chromium.launch(headless=True, args=["--no-sandbox"],
+                                                 executable_path=os.environ.get("CHROMIUM_EXECUTABLE") or None)
+            try:
+                for screen, width, height in (("phone", 390, 844), ("laptop", 1440, 900)):
+                    context = browser.new_context(viewport={"width": width, "height": height}, reduced_motion="reduce")
+                    for signed, approved in ((True, True), (True, False), (False, True)):
+                        page = context.new_page()
+                        walk(page, base, signed=signed, approved=approved, screenshots=None, screen=screen)
+                        page.close()
+                    context.close()
+                    print(f"static {screen}: signed, declined and unsigned paths passed")
+            finally:
+                browser.close()
+        return
     with application(args.url) as base, sync_playwright() as playwright:
         # CHROMIUM_EXECUTABLE points at a browser already on the machine when the pinned Playwright's own is absent.
         browser = playwright.chromium.launch(headless=True, args=["--no-sandbox"],

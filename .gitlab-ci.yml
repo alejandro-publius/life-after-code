@@ -9,6 +9,10 @@
 # Audit: every gcloud flag the deploy uses, checked inside the pinned Google Cloud SDK image.
 # Deploy: keyless deploys to Cloud Run (deploy/gitlab-ci-deploy.yml: three manual jobs, shop, shop-staging
 #         and relay, on the protected default branch: a person decides when each ships).
+# Package: the relay and shop images, built from deploy/Dockerfile, pushed to this project's container registry
+#          and scanned.
+# Release: the browser demo published on GitLab Pages (a public link, no server), and a tagged GitLab Release
+#          that links the demo, the images and the pipeline.
 # Report: on the morning schedule, the night's record from the relay's /status.json, kept as an artifact.
 
 workflow:
@@ -25,14 +29,18 @@ workflow:
 stages:
   - test
   - verify
+  - package
   - audit
   - deploy
+  - release
   - report
 
 include:
   - template: Jobs/SAST.gitlab-ci.yml
   - template: Jobs/SAST-IaC.gitlab-ci.yml
   - template: Jobs/Secret-Detection.gitlab-ci.yml
+  - template: Jobs/Dependency-Scanning.gitlab-ci.yml
+  - template: Jobs/Container-Scanning.gitlab-ci.yml
   - local: deploy/gitlab-ci-deploy.yml
 
 default:
@@ -41,6 +49,8 @@ default:
 variables:
   UV_VERSION: "0.12.19"          # the same uv as .github/workflows/checks.yml
   PLAYWRIGHT_VERSION: "1.62.0"   # the same Playwright as scripts/browser_smoke.py
+  RELAY_IMAGE: $CI_REGISTRY_IMAGE/relay:$CI_COMMIT_SHORT_SHA
+  SHOP_IMAGE: $CI_REGISTRY_IMAGE/shop:$CI_COMMIT_SHORT_SHA
 
 .python:
   image: python:3.12-slim-bookworm
@@ -184,6 +194,80 @@ cli_audit:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
     - changes:
         - deploy/**/*
+
+package_images:
+  stage: package
+  needs: []
+  image: docker:27.5.1
+  services:
+    - docker:27.5.1-dind
+  variables:
+    DOCKER_TLS_CERTDIR: "/certs"
+  script:
+    # The same Dockerfile the Cloud Run deploy builds (deploy/Dockerfile), once per service.
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - docker build --file deploy/Dockerfile --build-arg APP_DIR=relay --build-arg CI_COMMIT_SHORT_SHA="$CI_COMMIT_SHORT_SHA"
+      --tag "$RELAY_IMAGE" .
+    - docker build --file deploy/Dockerfile --build-arg APP_DIR=shop --build-arg CI_COMMIT_SHORT_SHA="$CI_COMMIT_SHORT_SHA"
+      --tag "$SHOP_IMAGE" .
+    - docker push "$RELAY_IMAGE"
+    - docker push "$SHOP_IMAGE"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+container_scanning:
+  stage: package
+  needs: [package_images]
+  variables:
+    CS_IMAGE: $RELAY_IMAGE
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+pages:
+  extends: .python
+  stage: deploy
+  script:
+    # The browser demo with its four replays computed by the same code, served by GitLab Pages.
+    - uv run --locked python scripts/build_pages.py --out public
+    - uv run --locked python scripts/release_notes.py --out release-notes.md
+  artifacts:
+    expire_in: 30 days
+    paths:
+      - public
+      - release-notes.md
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+release:
+  stage: release
+  needs: [pages, package_images]
+  image: registry.gitlab.com/gitlab-org/cli:v1.120.0
+  script:
+    - echo "Release v0.1.$CI_PIPELINE_IID of $CI_COMMIT_SHORT_SHA"
+  release:
+    tag_name: v0.1.$CI_PIPELINE_IID
+    name: Night Orders v0.1.$CI_PIPELINE_IID
+    ref: $CI_COMMIT_SHA
+    description: release-notes.md
+    assets:
+      links:
+        - name: Browser demo on GitLab Pages
+          url: $CI_PAGES_URL
+        - name: Relay image $CI_COMMIT_SHORT_SHA
+          url: $CI_PROJECT_URL/container_registry
+          link_type: image
+        - name: Pipeline $CI_PIPELINE_ID
+          url: $CI_PIPELINE_URL
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
 night_report:
   extends: .python

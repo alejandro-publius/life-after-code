@@ -15,3 +15,6 @@
 [Deploys and the pipeline]
 /deploy/ @alex-velazquez
 /.gitlab-ci.yml @alex-velazquez
+
+[GitLab Duo review instructions]
+/.gitlab/duo/ @alex-velazquez

@@ -27,6 +27,12 @@
   const firstEvent = (kind, incident) => events(kind, incident)[0];
   const disabled = () => state.busy ? " disabled" : "";
 
+  // On GitLab Pages there is no server, so the four fixed combinations are files computed by the same code.
+  const STATIC = document.body.dataset.static === "1";
+  const replayUrl = (signed, approved) => STATIC
+    ? `replay-${signed ? "signed" : "unsigned"}-${approved ? "approved" : "declined"}.json`
+    : `/demo/replay?signed=${signed}&approved=${approved}`;
+
   function button(id, text, action, type = "primary") {
     return `<button id="${id}" class="button ${type}" type="button" data-action="${action}"${disabled()}>${escape(text)}</button>`;
   }
@@ -269,9 +275,9 @@
   }
 
   function code(path) {
-    // GitHub and GitLab both answer /blob/<ref>/<path> and /tree/<ref>/<path>; GitLab also reads /-/blob/.
+    // GitHub reads /blob/<ref>/<path>; GitLab reads /-/blob/<ref>/<path> (its project pages live under /-/).
     const base = /^https:\/\//.test(state.replay?.repo_url || "") ? state.replay.repo_url.replace(/\/$/, "") : "https://github.com/alejandro-publius/life-after-code";
-    return `${base}/${path}`;
+    return /^https:\/\/github\.com\//.test(base) ? `${base}/${path}` : `${base}/-/${path}`;
   }
 
   function morningProof(morning) {
@@ -334,7 +340,7 @@
       const key = `${signed}/${approved}`;
       let replay = cache.get(key);
       if (!replay) {
-        const response = await fetch(`/demo/replay?signed=${signed}&approved=${approved}`, {signal: controller.signal, headers: {Accept: "application/json"}, cache: "no-store"});
+        const response = await fetch(replayUrl(signed, approved), {signal: controller.signal, headers: {Accept: "application/json"}, cache: "no-store"});
         if (!response.ok) throw new Error("The replay is temporarily unavailable. Please retry.");
         replay = validateReplay(await response.json());
         cache.set(key, replay);
@@ -368,7 +374,7 @@
       const key = `${signed}/${approved}`;
       if (cache.has(key)) continue;
       try {
-        const response = await fetch(`/demo/replay?signed=${signed}&approved=${approved}`, {headers: {Accept: "application/json"}, cache: "no-store"});
+        const response = await fetch(replayUrl(signed, approved), {headers: {Accept: "application/json"}, cache: "no-store"});
         if (response.ok) cache.set(key, validateReplay(await response.json()));
       } catch (error) {
         return; // a choice simply fetches on demand

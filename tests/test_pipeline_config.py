@@ -57,7 +57,7 @@ def test_every_image_is_pinned_to_a_version_or_a_digest():
         image = resolved(name).get("image")
         if image is None:
             continue
-        assert "@sha256:" in image or re.search(r":\d[\w.-]*$", image), f"{name}: {image}"
+        assert "@sha256:" in image or re.search(r":v?\d[\w.-]*$", image), f"{name}: {image}"
         assert not image.endswith(":latest"), name
 
 
@@ -116,3 +116,27 @@ def test_the_code_owner_of_the_signed_files_is_the_on_call_person():
     user = yaml.safe_load((REPO / "ops" / "oncall.yml").read_text(encoding="utf-8"))["user"]
     for path in ("/ops/night-orders.yml", "/ops/state.yml"):
         assert f"{path} @{user}\n" in owners
+
+
+def test_the_images_are_built_from_the_deploy_dockerfile_pushed_to_this_project_and_scanned():
+    script = " ".join(commands(resolved("package_images")))
+    assert "--file deploy/Dockerfile --build-arg APP_DIR=relay" in script and "APP_DIR=shop" in script
+    assert 'docker push "$RELAY_IMAGE"' in script and 'docker push "$SHOP_IMAGE"' in script
+    assert CI["variables"]["RELAY_IMAGE"] == "$CI_REGISTRY_IMAGE/relay:$CI_COMMIT_SHORT_SHA"
+    assert resolved("package_images")["services"] == ["docker:27.5.1-dind"]
+    assert resolved("container_scanning")["variables"]["CS_IMAGE"] == "$RELAY_IMAGE"
+    assert {"template": "Jobs/Container-Scanning.gitlab-ci.yml"} in CI["include"]
+
+
+def test_pages_publishes_the_static_demo_and_the_release_links_it():
+    pages = resolved("pages")
+    assert "uv run --locked python scripts/build_pages.py --out public" in commands(pages)
+    assert "public" in pages["artifacts"]["paths"]
+    release = resolved("release")
+    assert release["needs"] == ["pages", "package_images"]
+    assert release["release"]["description"] == "release-notes.md"
+    assert {link["name"] for link in release["release"]["assets"]["links"]} >= {"Browser demo on GitLab Pages"}
+    for name in ("package_images", "container_scanning", "pages", "release"):
+        rules = resolved(name)["rules"]
+        assert rules[0] == {"if": '$CI_PIPELINE_SOURCE == "schedule"', "when": "never"}, name
+        assert rules[-1] == {"if": "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"}, name
