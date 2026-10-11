@@ -12,6 +12,9 @@ from nightorders import Ledger, Metrics, Night, Signature, parse_oncall, parse_o
 from nightorders.orders import load_yaml
 
 REPO = Path(__file__).resolve().parents[1]
+
+# Fixtures for tests/nomouse live in their own module (see its docstring).
+pytest_plugins = ["nomouse_fixtures"]
 OPS = REPO / "ops"
 
 ORDERS = {

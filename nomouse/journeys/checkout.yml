@@ -1,0 +1,25 @@
+# Recorded on the base Demo Beans shop (demo data). Names are what Chromium's
+# accessibility tree gives a screen reader for each control.
+name: Buy one bag of coffee with a screen reader
+start: /
+key_budget: 60
+order:
+  item: ethiopia
+  quantity: 1
+steps:
+  - {do: find, role: link, name: "Ethiopia Yirgacheffe, 12 ounces, $18.00"}
+  - {do: press, key: Enter}
+  - {do: expect_heading, name: "Ethiopia Yirgacheffe"}
+  - {do: find, role: button, name: "Add to cart"}
+  - {do: press, key: Enter}
+  - {do: expect_heading, name: "Your cart"}
+  - {do: find, role: link, name: "Checkout"}
+  - {do: press, key: Enter}
+  - {do: expect_heading, name: "Checkout"}
+  - {do: find, role: textbox, name: "Email"}
+  - {do: type, text: "robin@example.test"}
+  - {do: find, role: textbox, name: "Card number"}
+  - {do: type, text: "1111 2222 3333 4444"}
+  - {do: find, role: button, name: "Pay now, $18.00"}
+  - {do: press, key: Enter}
+  - {do: expect_heading, name: "Order placed"}

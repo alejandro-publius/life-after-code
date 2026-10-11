@@ -1,0 +1,5 @@
+# Development variant (written by the prompt author; not part of the held-out set).
+id: dev-icons
+kind: barrier
+wcag: "4.1.2"
+summary: The Pay now button becomes a lock icon with no accessible name, next to two other unnamed icon buttons.
