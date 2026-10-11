@@ -394,3 +394,21 @@ def test_the_fixed_variant_can_be_walked_and_places_one_order(variants, isolated
     # two icon buttons that are still there in front of the pay button.
     base = walk(isolated_walker, journey, None)
     assert base.clear and fixed.keys == base.keys + 2
+
+
+def test_a_fix_may_name_the_variant_by_its_real_folder(tmp_path):
+    """With the held-out prefix, the held-out path is accepted and the default path is not."""
+    from nomouse.fix import FixError, apply_fix
+    from nomouse.proposal import Fix
+
+    pages = tmp_path / "h-one" / "templates"
+    pages.mkdir(parents=True)
+    (pages / "cart.html").write_text('<a href="/checkout"><svg></svg></a>')
+    fix = Fix(file="nomouse/heldout/h-one/templates/cart.html", find="<svg></svg>", replace="Checkout")
+    name = apply_fix(tmp_path, "h-one", fix, REPO, "nomouse/heldout")
+    assert (tmp_path / name / "templates" / "cart.html").read_text() == '<a href="/checkout">Checkout</a>'
+    with pytest.raises(FixError):
+        apply_fix(tmp_path, "h-one", Fix(file="nomouse/variants/h-one/templates/cart.html",
+                                         find="<svg></svg>", replace="Checkout"), REPO, "nomouse/heldout")
+    with pytest.raises(FixError):
+        apply_fix(tmp_path, "h-one", fix, REPO, "../outside")

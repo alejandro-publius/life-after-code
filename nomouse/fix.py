@@ -17,7 +17,8 @@ from nomouse.proposal import MAX_FIX_CHARS, Fix
 NAME = re.compile(r"^[a-z0-9][a-z0-9-]{0,47}$")  # the shop's own rule for variant names
 _PAGE = r"([a-z0-9][a-z0-9_-]{0,47}\.html)"
 BASE_PATH = re.compile(rf"nomouse/shop/templates/{_PAGE}")
-VARIANT_PATH = re.compile(rf"nomouse/variants/([a-z0-9][a-z0-9-]{{0,47}})/templates/{_PAGE}")
+DEFAULT_PREFIX = "nomouse/variants"  # where variants live in the repository, unless told otherwise
+_PREFIX = re.compile(r"^[a-z0-9_-]+(/[a-z0-9_-]+)*$")
 MAX_TEMPLATES = 40
 MAX_TEMPLATE_BYTES = 200_000
 RECORD = "fix.json"  # what was applied, kept next to the templates for a person to read
@@ -36,16 +37,16 @@ def fixed_name(variant: str, fix: Fix) -> str:
     return name
 
 
-def _page_of(fix: Fix, variant: str) -> tuple[str, bool]:
+def _page_of(fix: Fix, variant: str, prefix: str) -> tuple[str, bool]:
     """(page file name, whether the fix names the shop's base template)."""
     base = BASE_PATH.fullmatch(fix.file)
     if base:
         return base.group(1), True
-    override = VARIANT_PATH.fullmatch(fix.file)
-    if override and override.group(1) == variant:
-        return override.group(2), False
+    override = re.fullmatch(rf"{re.escape(prefix)}/{re.escape(variant)}/templates/{_PAGE}", fix.file)
+    if override:
+        return override.group(1), False
     raise FixError("fix.file must be nomouse/shop/templates/<page>.html or "
-                   f"nomouse/variants/{variant}/templates/<page>.html")
+                   f"{prefix}/{variant}/templates/<page>.html")
 
 
 def _read(path: Path, root: Path) -> str:
@@ -76,13 +77,20 @@ def _occurrences(text: str, find: str, limit: int = 2) -> int:
     return count
 
 
-def apply_fix(variants_root: Path, variant: str, fix: Fix, repo_root: Path) -> str:
-    """Write the fixed page as a new variant under variants_root and return its name."""
+def apply_fix(variants_root: Path, variant: str, fix: Fix, repo_root: Path,
+              variants_prefix: str = DEFAULT_PREFIX) -> str:
+    """Write the fixed page as a new variant under variants_root and return its name.
+
+    variants_prefix is the repository path the variant's own templates are listed under in
+    the evidence (nomouse/variants, or nomouse/heldout for the held-out set).
+    """
     if not isinstance(variant, str) or not NAME.match(variant):
         raise FixError(f"not a variant name: {variant!r}")
+    if not _PREFIX.match(variants_prefix) or ".." in variants_prefix.split("/"):
+        raise FixError(f"not a variants path: {variants_prefix!r}")
     if not fix.find or len(fix.find) > MAX_FIX_CHARS or len(fix.replace) > MAX_FIX_CHARS:
         raise FixError(f"fix.find must be non-empty and both sides at most {MAX_FIX_CHARS} characters")
-    page, names_base = _page_of(fix, variant)
+    page, names_base = _page_of(fix, variant, variants_prefix)
     root = Path(variants_root).resolve()
     source_dir = root / variant
     if not source_dir.is_dir():

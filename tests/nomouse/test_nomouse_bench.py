@@ -382,3 +382,18 @@ def test_bench_runs_end_to_end_with_recorded_answers(tmp_path: Path):
     assert "| dev-icons | barrier | step 13 on /checkout (broken) |" in markdown
     assert "| t-bench-home |" in markdown and "no X" in markdown
 
+
+
+def test_evidence_names_variant_templates_by_their_real_repository_path(tmp_path):
+    """The held-out set lives in nomouse/heldout; the evidence must not call it nomouse/variants."""
+    from nomouse.bench import page_templates, variants_prefix
+
+    assert variants_prefix(REPO / "nomouse" / "heldout", REPO) == "nomouse/heldout"
+    assert variants_prefix(tmp_path, REPO) == "nomouse/variants"  # a copy outside the repository
+    pages = tmp_path / "v-one" / "templates"
+    pages.mkdir(parents=True)
+    (pages / "cart.html").write_text("<h1>Your cart</h1>")
+    files, source = page_templates(tmp_path, "v-one", "/cart", REPO, "nomouse/heldout")
+    assert files == ["nomouse/heldout/v-one/templates/cart.html"] and "Your cart" in source
+    files, _ = page_templates(tmp_path, "v-one", "/checkout", REPO, "nomouse/heldout")
+    assert files == ["nomouse/shop/templates/checkout.html"]

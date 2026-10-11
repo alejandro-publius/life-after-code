@@ -31,6 +31,7 @@ from typing import Any, Callable
 
 import yaml
 
+from nomouse.fix import DEFAULT_PREFIX
 from nomouse.guards import is_junk_name
 from nomouse.journey import PAGE_TEMPLATES, Journey, Result, evidence, load_journey, replay
 from nomouse.proposal import Fix, Proposal, ProposalError, apply_path, parse
@@ -119,17 +120,31 @@ def select(variants: list[Variant], only: list[str] | None) -> list[Variant]:
     return [variant for variant in variants if variant.id in only]
 
 
-def page_templates(variants_root: Path, variant: str, page: str, repo_root: Path = REPO) -> tuple[list[str], str]:
+def variants_prefix(variants_dir: Path, repo_root: Path = REPO) -> str:
+    """The repository path of a variants directory (nomouse/heldout), as the evidence names it.
+
+    A directory outside the repository (a test's temporary copy) is named nomouse/variants.
+    """
+    try:
+        return Path(variants_dir).resolve().relative_to(Path(repo_root).resolve()).as_posix()
+    except ValueError:
+        return DEFAULT_PREFIX
+
+
+def page_templates(variants_root: Path, variant: str, page: str, repo_root: Path = REPO,
+                   prefix: str = DEFAULT_PREFIX) -> tuple[list[str], str]:
     """(template_files for the evidence, source of that template) for the page where the walk broke.
 
-    The variant's own copy wins, as it does in the shop; otherwise the base template.
+    The variant's own copy wins, as it does in the shop; otherwise the base template. The
+    variant's copy is named by its real repository path, so the model is shown a file that
+    exists where the evidence says it does.
     """
     name = PAGE_TEMPLATES.get(page)
     if not name:
         return [], ""
     override = Path(variants_root) / variant / "templates" / name
     if override.is_file():
-        return [f"nomouse/variants/{variant}/templates/{name}"], override.read_text(encoding="utf-8")
+        return [f"{prefix}/{variant}/templates/{name}"], override.read_text(encoding="utf-8")
     base = Path(repo_root) / "nomouse" / "shop" / "templates" / name
     return [f"nomouse/shop/templates/{name}"], base.read_text(encoding="utf-8") if base.is_file() else ""
 
@@ -259,6 +274,7 @@ class _Bench:
     variants_root: Path
     repo_root: Path
     model: Any
+    prefix: str
     runs: int
     variant_seconds: float
     max_replays: int
@@ -342,7 +358,7 @@ def _check_fix(bench: _Bench, variant: str, fix: Fix, deadline: float) -> dict:
     from nomouse.fix import FixError, apply_fix
 
     try:
-        fixed = apply_fix(bench.variants_root, variant, fix, bench.repo_root)
+        fixed = apply_fix(bench.variants_root, variant, fix, bench.repo_root, bench.prefix)
     except FixError as exc:
         return {"fix_green": False, "fix_reason": f"the fix was not applied: {exc}"}
     result = bench.walk(fixed, bench.journey, collect_evidence=True)
@@ -390,7 +406,7 @@ def _judge_variant(bench: _Bench, variant: Variant, record: dict, deadline: floa
     if result.clear:
         record.update(valid=False, note="does not break the recorded walk", b1=None, b2=None, model=[])
         return
-    files, source = page_templates(bench.variants_root, variant.id, result.page, bench.repo_root)
+    files, source = page_templates(bench.variants_root, variant.id, result.page, bench.repo_root, bench.prefix)
     block = evidence(bench.journey, result, template_files=files)
     record.update(template_files=files, evidence=block)
     failed = result.failed_step if result.failed_step is not None else len(bench.journey.steps) - 1
@@ -495,6 +511,7 @@ def run_bench(variants_dir: Path, out_dir: Path, *, runs: int = 3, model: Any = 
         shutil.copytree(variants_dir, root, ignore=shutil.ignore_patterns("__pycache__"))
         with serve(root) as base_url, Walker(base_url) as walker:
             bench = _Bench(walker=walker, journey=journey, variants_root=root, repo_root=repo_root, model=model,
+                           prefix=variants_prefix(variants_dir, repo_root),
                            runs=runs, variant_seconds=variant_seconds, max_replays=max_replays,
                            search_seconds=search_seconds, max_calls=runs * len(variants) if model else 0)
             sanity = bench.walk(None, journey)
