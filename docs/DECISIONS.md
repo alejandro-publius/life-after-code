@@ -65,7 +65,7 @@ Alex is busy until Oct 23. Every step before then is a phone step of 15 minutes 
 
 ## 2026-10-06: the relay applies the morning countersign
 
-The dawn flow writes the kept changes to `ops/state.yml` in the countersign merge request. When the on-call person signs it (merge, or approval where merging is not allowed) after the watch end, the relay undoes every other night change, once, and notes what it did on the watch issue. A state file cannot make a new change, a countersign by anyone else changes nothing, and a traffic change that is not kept is listed for a person to undo, because code does not know which revision should serve next. Code for this: `relay/nightorders/countersign.py` and `relay/nightorders/morning.py`.
+The dawn flow writes the kept changes to `ops/state.yml` in the countersign merge request. When the on-call person signs it (merge, or approval where merging is not allowed) after the watch end, the relay undoes every other night change, once, and notes what it did on the watch issue. A state file cannot make a new change, a countersign by anyone else changes nothing, and a traffic change that is not kept is listed for a person to undo, because code does not know which revision should serve next. Code for this: `relay/nightorders/countersign.py` and `relay/nightorders/morning.py`. Superseded on 2026-10-11: a change with a snapshot, traffic included, is restored by code to that snapshot (see the exact restore entry below).
 
 ## 2026-10-06: two apps named main.py
 
@@ -91,4 +91,4 @@ On 6 Oct a separate session reopened the concept choice on branch `claude/concep
 
 ## 2026-10-11: the dusk flow reads a day sheet written by code
 
-GitLab's docs say a flow's token is accepted by the Issues, Notes, Merge requests, Commits and Files APIs; deployments and feature flags may be out of reach. So code collects today's merged merge requests, deployments and flag states and posts them as one note on the watch issue ([relay/nightorders/daysheet.py](../relay/nightorders/daysheet.py)); the dusk scout reads that note first and then only the diffs that matter. The same data as JSON feeds the local drafter, so both paths see the same day.
+GitLab's docs list the APIs a flow's token reaches, and deployments and feature flags are not among them ([research note](research/sponsors/gitlab_duo.md), the `ai_workflows` scope; which exact APIs a custom flow's tools can call is (unverified) until the day-one test). So code collects today's merged merge requests, deployments and flag states and posts them as one note on the watch issue ([relay/nightorders/daysheet.py](../relay/nightorders/daysheet.py)); the dusk scout reads that note first and then only the diffs that matter. The same data as JSON feeds the local drafter, so both paths see the same day.

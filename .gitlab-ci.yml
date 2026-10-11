@@ -6,8 +6,8 @@
 #         tool list.
 # Secure: GitLab SAST and secret detection.
 # Audit: every gcloud flag the deploy uses, checked inside the pinned Google Cloud SDK image.
-# Deploy: keyless deploy to Cloud Run (deploy/gitlab-ci-deploy.yml, a manual job on the protected
-#         default branch: a person decides when it ships).
+# Deploy: keyless deploys to Cloud Run (deploy/gitlab-ci-deploy.yml: three manual jobs, shop, shop-staging
+#         and relay, on the protected default branch: a person decides when each ships).
 
 stages:
   - test
@@ -57,6 +57,7 @@ deploy_unit_tests:
   image: python:3.12-slim
   stage: test
   script:
+    - pip install --quiet pyyaml   # the pipeline contract test reads deploy/gitlab-ci-deploy.yml
     - python3 -m unittest discover -s deploy/tests -p "test_*.py" -v
 
 validate_orders:

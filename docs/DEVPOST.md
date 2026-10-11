@@ -31,7 +31,7 @@ The dusk drafter reads the day's changes and proposes at most three orders. Each
 
 In the intended GitLab workflow, the on-call engineer reviews and merges the orders request. That merge is the signature. During the night, code checks the signature, expiry, measured threshold, exact action and first use. The watch flow must also name the order and explain why the evidence fits. The action comes from the signed file, never from the agent's free text. If either key fails, the engineer receives a short page and, when available, one suggestion requiring approval.
 
-The grant ends at 07:00. Expiry stops new automatic actions; it does not automatically revert previous changes. The morning countersign says which changes to keep. Code undoes the others and records the result.
+The grant ends at 07:00. Expiry stops new automatic actions; it does not automatically revert previous changes. The morning countersign says which changes to keep. Code restores the others to how they were before the night, from the snapshot it took before each change, and records the result.
 
 ## The working demonstration
 
@@ -41,7 +41,7 @@ The viewer chooses whether to sign the demo orders and whether to approve an inv
 
 First, both checkout paths fail. The recorded watch reply declines the new checkout order because disabling that path would not resolve the wider inventory fault. Priya gets one necessary wake-up and a suggested fallback. Later, only the new checkout fails above its signed 5% limit for five complete minutes. With a valid signature, code turns that path off and verifies recovery. The chart shows the actual simulated samples returned by this run.
 
-On the signed and approved path, the ledger records one wake-up, one incident handled automatically and one approved action. The morning record keeps the new checkout off and undoes the fallback. Leaving the orders unsigned gives Watch no automatic authority and changes the outcome. The viewer can inspect the signature, checks, wake-up messages, ledger and morning result.
+On the signed and approved path, the ledger records one wake-up, one incident handled automatically and one approved action. The morning record keeps the new checkout off and restores the fallback to how it was before the night. Leaving the orders unsigned gives Watch no automatic authority and changes the outcome. The viewer can inspect the signature, checks, wake-up messages, ledger and morning result.
 
 These counts are evidence about an invented night, not measured production impact or hours of sleep saved.
 

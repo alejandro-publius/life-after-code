@@ -32,7 +32,7 @@ Goal: build done Sat 24 Oct; video and Devpost submission done Mon 26 Oct, 9:00 
 
 - Done: Devpost registration (5 Oct). Alex reports the GitLab workspace registration was approved (about 10 Oct); the workspace link and the GitLab username are not in this repo yet.
 - Done on main: a guided browser demo of the night at `/demo` (5 Oct), GitHub Actions checks, the Devpost draft and judge guide.
-- 11 Oct: the test-night runner ([scripts/test_night.py](../scripts/test_night.py), [TEST_NIGHT.md](TEST_NIGHT.md)). In progress the same day: the day-one probe script, relay hardening (readiness, one tick at a time, exact restore at the countersign), and the review of Codex's three-service deploy. [STATUS.md](STATUS.md) says what landed.
+- 11 Oct: the test-night runner ([scripts/test_night.py](../scripts/test_night.py), [TEST_NIGHT.md](TEST_NIGHT.md)). Also on 11 Oct: the day-one probe script, the day sheet, relay hardening (readiness, one tick at a time, exact restore at the countersign, reviewed and fixed), and Codex's three-service deploy reviewed and merged. [STATUS.md](STATUS.md) has the details.
 - Not started: anything live. No token, no Google project, no flow enabled yet.
 - A review on branch `claude/concept-review` (6 Oct) proposed switching to No Mouse. Night Orders stays ([DECISIONS.md](DECISIONS.md), 11 Oct); the live gate below decides within 48 hours of the token arriving.
 

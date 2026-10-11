@@ -37,7 +37,7 @@ curl -s localhost:8080/metrics.json
 
 ## Deploy
 
-This folder follows the contract in [deploy/README.md](../deploy/README.md): `main.py` exposes the FastAPI object `app`, `requirements.txt` is fully hash-locked for `pip install --require-hashes`, and `GET /healthz` answers `{"ok": true, "commit": <CI_COMMIT_SHORT_SHA or "local">}`. To ship it, `ARG APP_DIR=deploy/hello` in `deploy/Dockerfile` becomes `ARG APP_DIR=shop` (Codex owns `deploy/`).
+This folder follows the contract in [deploy/README.md](../deploy/README.md): `main.py` exposes the FastAPI object `app`, `requirements.txt` is fully hash-locked for `pip install --require-hashes`, and `GET /healthz` answers `{"ok": true, "commit": <CI_COMMIT_SHORT_SHA or "local">}`. The deploy jobs build it with `APP_DIR=shop` ([deploy/gitlab-ci-deploy.yml](../deploy/gitlab-ci-deploy.yml), jobs `deploy_shop` and `deploy_shop_staging`; Codex owns `deploy/`).
 
 `requirements.txt` is generated from `requirements.in`, which pins the versions in `uv.lock`. From the repository root:
 
@@ -47,7 +47,7 @@ uv pip compile shop/requirements.in --python-version 3.12 --generate-hashes --ou
 
 On 2026-10-06 `pip install --no-cache-dir --require-hashes -r shop/requirements.txt` succeeded on Python 3.12, and the app started from a copy of this folder with `python -m uvicorn main:app`, the image's start command.
 
-**Demo traffic on Cloud Run.** The deploy uses `--cpu-throttling` ([deploy/ci_deploy.sh](../deploy/ci_deploy.sh)): CPU is given only while a request is being handled. The traffic loop runs in the background between requests, so on such a service it would run slowly and unevenly (unverified on a live service). The shop service needs CPU always allocated (`--no-cpu-throttling`) for demo nights, or the traffic must come from outside.
+**Demo traffic on Cloud Run.** The traffic loop runs in the background between requests, so the shop services are deployed with CPU always allocated (`--no-cpu-throttling`, 512Mi, one instance) by [deploy/ci_deploy.sh](../deploy/ci_deploy.sh). Not yet verified on a live service.
 
 ## Endpoints
 

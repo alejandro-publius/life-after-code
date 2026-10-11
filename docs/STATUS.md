@@ -1,53 +1,56 @@
 # Status
 
-Last updated: **5 Oct 2026 (Pacific Time)**.
+Last updated: **Sun 11 Oct 2026, about 09:00 UTC**.
 
-## Current result
+## Current state
 
-One chosen improvement is published on main: a guided Night Orders browser demo at `/demo`. It brings the existing decision core into a readable Before bed, During the night and Over coffee story, with two human choices, old and new checkout charts and inspectable evidence. It addresses **Design and Presentation, each 20%** under the [official judging criteria](https://gitlab-transcend.devpost.com/rules). See the [judge guide](GUIDE.md) and [review record](codex/JUDGE_REVIEW.md).
+| Item | State |
+|---|---|
+| Concept | Night Orders. A review on branch `claude/concept-review` (6 Oct) proposed No Mouse; not adopted ([DECISIONS.md](DECISIONS.md), 11 Oct). The live gate below decides, and No Mouse stays the backup. |
+| Works offline | The decision core, dusk drafter, relay, demo shop, browser demo at `/demo`, day sheet, morning countersign with exact restore, three Duo flows plus the probe flow, the day-one script and the test-night runner. `uv run pytest -q`: **326 passed**. `flows/validate.py`: 4 flows ok. |
+| Deploy code | Codex's three-service deploy (shop, shop-staging, relay; scoped identities, five secrets, Scheduler, state bucket, uptime check) reviewed with three lenses and a refuter per finding, then merged on 11 Oct. 48 deploy tests pass locally except the two alpha/beta help checks, which pass in the pinned SDK image (4 tests OK, Google Cloud SDK 587.0.0). Twelve minor follow-ups went to Codex in the session report. |
+| CI | GitHub Actions ([checks.yml](../.github/workflows/checks.yml)) is green on main for every push today. The GitLab pipeline ([.gitlab-ci.yml](../.gitlab-ci.yml)) has not run yet: there is no GitLab project with our code in it. |
+| Live | **Nothing has run on GitLab.com or Google Cloud.** Alex reports the workspace registration was approved on about 10 Oct; the workspace link and a token are not in this environment yet ([MORNING.md](MORNING.md)). |
+| Next | The live gate: [scripts/day_one.py](../scripts/day_one.py) within 48 hours of the token (decision D1 in [PLAN.md](PLAN.md)). Then the flows in GitLab, the Cloud Run deploy, and the first test night on 17 or 18 Oct ([TEST_NIGHT.md](TEST_NIGHT.md)). |
 
-The demo uses a simulated shop, planted faults and recorded model replies. Signing and approval select isolated fixture inputs; they do not merge real orders, push code or send phone notifications. The default path reports 1 wake-up, 1 incident handled automatically and 1 approved action. These are actual counts from the invented night, not production impact measurements.
+## What landed on 11 Oct
 
-**Public live demo URL: pending.** No GitLab or Google Cloud integration is configured for this run. Nothing has run on GitLab.com or Google Cloud, and no live model execution has been demonstrated. The browser improvement and public materials are published to GitHub main at `0812bc9`. [GitHub CI passed](https://github.com/alejandro-publius/life-after-code/actions/runs/37418744092) for that exact commit: Python checks, Browser smoke and the pinned gcloud flag audit. This is not GitLab pipeline or deployment proof.
+- `scripts/day_one.py` and `flows/probe.yml`: the live gate, nine rerunnable steps with 20 offline tests, built on [research/gitlab_day_one_api.md](research/gitlab_day_one_api.md).
+- `scripts/test_night.py` and [TEST_NIGHT.md](TEST_NIGHT.md): a real-time bad night against the live shop, started at a local time so the on-call person really sleeps.
+- The day sheet (`relay/nightorders/daysheet.py`): at 21:00 the relay posts today's merges, deployments and flag states on the watch issue; the dusk flow reads it first.
+- Relay: `GET /readyz`, settings problems count as failed ticks and page, one tick at a time across instances (a lease in Cloud Storage), the day sheet outside the watch's failure path.
+- Night actions record what they changed; the countersign restores each target to its snapshot (a flag's strategies for that environment, user lists included; a service's traffic list). A no-op action leaves no loose end.
+- The hardening change was reviewed with three lenses; 19 findings, 12 verified by a second reviewer, the rest judged by hand. All real ones are fixed ([commit c78f70f](../relay/nightorders/)).
 
-## Verified locally
+## Verified locally on 11 Oct
 
 | Check | Result |
 |---|---|
-| Application and decision suite, `uv run --locked pytest -q` | 256 passed. One upstream Starlette deprecation warning. |
-| Deployment unittest suite | 16 discovered: 15 passed, 1 skipped because local gcloud is absent. |
-| Separate pinned Google Cloud SDK Docker audit | 2 passed, including the gcloud help check skipped locally. This validates command flags, not a cloud deployment. |
-| Browser through actual local HTTP | Signed and approved, signed and declined, and unsigned paths passed at phone width 390 and laptop width 1440. Keyboard and focus behavior, no horizontal overflow, 44px tap targets, retry and no-JavaScript fallback passed. |
-| Relay Docker demo | The non-root container served the demo offline. No credentials or production integration were needed. |
-| Screenshots | Six screenshots captured from the local application, covering before bed, checkout and morning at both widths. |
+| `uv run pytest -q` | 326 passed, 1 upstream Starlette deprecation warning |
+| `uv run python flows/validate.py` | dawn, dusk, probe, watch: ok |
+| `python3 -m unittest discover -s deploy/tests` | 48 tests, 46 pass; the two alpha/beta help checks need the pinned image |
+| The same audit in the pinned SDK image (Docker) | 4 tests OK, 60 command paths and 61 flags |
+| Demo night replay and the orders and state checks | pass (run by GitHub CI on every push) |
+| Long-dash scan of every changed file | none |
 
-| Local demo screenshots | Phone | Laptop |
-|---|---|---|
-| Before bed | [Phone](images/demo-phone-dusk.png) | [Laptop](images/demo-laptop-dusk.png) |
-| Checkout decision | [Phone](images/demo-phone.png) | [Laptop](images/demo-laptop.png) |
-| Morning brief | [Phone](images/demo-phone-morning.png) | [Laptop](images/demo-laptop-morning.png) |
+## Not yet true
 
-## CI and pending integration proof
-
-- The [GitHub Actions checks workflow](../.github/workflows/checks.yml) passed all three hosted jobs on `0812bc938fb06835a12f166a26e2ddb48da9e640` at 22:31 PDT on October 5. [Verified run](https://github.com/alejandro-publius/life-after-code/actions/runs/37418744092). It runs checks only and does not deploy. The hosted deployment suite also ran all 16 tests without the local SDK skip.
-- The [GitLab pipeline configuration](../.gitlab-ci.yml) is present. Visible GitLab pipeline history showing automation running is still pending.
-- The three [Duo flow files](../flows/) are defined and validated against the checked-in schema and tool list. That is configuration validation, not proof of live Duo execution. The actual night start in [Plan, decision D1](PLAN.md) remains the next integration milestone.
-- [Google Cloud deployment code](../deploy/README.md) is present and locally checked. A real deployment and public live URL are pending. No Google Cloud bonus is claimed.
-- The [Devpost draft](DEVPOST.md) and [filmable browser video script](VIDEO.md) are ready. Public GitLab and YouTube links remain pending. Path A is planned; Supervised is the tentative autonomy recommendation.
-- Account and configuration steps for Alex are in [Morning](MORNING.md). Required live GitLab Duo Agent Platform use remains an eligibility requirement under the [official rules](https://gitlab-transcend.devpost.com/rules).
+- No GitLab pipeline history, no flow session, no incident, no flag change, no Cloud Run service, no page on a phone.
+- The dusk drafter has only run on its recorded answer (no Anthropic key here), and no Duo flow has run.
+- No measured benefit: the counts in the demo are from an invented night.
 
 ## Progress
 
 | Part | File | State |
 |---|---|---|
-| Rules | [RULES.md](RULES.md) | Research retained; later primary-source wording in [RULES_CHECK.md](codex/RULES_CHECK.md) controls where the early notes differ. |
-| 1. Past winners | [PAST_WINNERS.md](PAST_WINNERS.md) | Research retained: 102 winners across 15 events. |
-| 2. Patterns | [PATTERNS.md](PATTERNS.md) | Counts, anti-patterns and ten project rules retained. |
-| 3. Current field | [FIELD.md](FIELD.md) | Dated field research retained; it is not a claim about every current competitor. |
-| 4. Sponsors | [SPONSORS.md](SPONSORS.md) | Sponsor research retained. |
-| 5. Ideas | [IDEAS.md](IDEAS.md) | 74 concepts, 57 scored and five briefs; Night Orders chosen. |
-| 6. Build and plan | [PLAN.md](PLAN.md), code and pipeline files | Decision core, dusk drafter, replay, relay, demo shop, countersign and three Duo definitions available offline. Current verification is listed above. |
-| Public materials | [README](../README.md), [GUIDE](GUIDE.md), [DEVPOST](DEVPOST.md), [VIDEO](VIDEO.md), [MORNING](MORNING.md) | Updated around the guided local demo and its limits. |
+| Rules | [RULES.md](RULES.md) | Research retained; [RULES_CHECK.md](codex/RULES_CHECK.md) controls where the early notes differ. |
+| 1. Past winners | [PAST_WINNERS.md](PAST_WINNERS.md) | 102 winners across 15 events. |
+| 2. Patterns | [PATTERNS.md](PATTERNS.md) | Counts, anti-patterns and ten project rules. |
+| 3. Current field | [FIELD.md](FIELD.md) | Dated field research. |
+| 4. Sponsors | [SPONSORS.md](SPONSORS.md) | Sponsor research. |
+| 5. Ideas | [IDEAS.md](IDEAS.md) | 74 concepts, 57 scored, five briefs; Night Orders chosen; the 6 Oct review on its own branch. |
+| 6. Build and plan | [PLAN.md](PLAN.md), code and pipeline files | Everything above the live line. |
+| Public materials | [README](../README.md), [GUIDE](GUIDE.md), [DEVPOST](DEVPOST.md), [VIDEO](VIDEO.md), [MORNING](MORNING.md), [TEST_NIGHT](TEST_NIGHT.md) | Current as of 11 Oct; links to a public GitLab project, a live URL and the video are pending. |
 
 ## Historical research access limits
 

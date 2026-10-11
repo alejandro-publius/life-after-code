@@ -51,7 +51,7 @@ Payment errors, a second alert during a re-check, expired permission, a malforme
 
 ## GitLab workflow and current limits
 
-Status: **5 Oct 2026 (Pacific Time)**. The local application and offline decision workflow are available here, with **256 passing local tests**. A public live demo URL is **pending**. Nothing has run on GitLab.com or Google Cloud yet, and no live model execution has been demonstrated.
+Status: **11 Oct 2026**. The whole loop runs offline here, with **326 passing tests**: the decision core, the relay, the demo shop, the three Duo flows, the day-one test script ([scripts/day_one.py](scripts/day_one.py)) and the test-night runner ([docs/TEST_NIGHT.md](docs/TEST_NIGHT.md)). A public live demo URL is **pending**. Nothing has run on GitLab.com or Google Cloud yet, and no live model execution has been demonstrated; [docs/STATUS.md](docs/STATUS.md) says what is true today.
 
 Three custom GitLab Duo Agent Platform flows are defined: [dusk](flows/dusk.yml) drafts orders, [watch](flows/watch.yml) reads incident evidence, and [dawn](flows/dawn.yml) proposes the morning countersign. Their files are validated against the checked-in GitLab flow schema and tool list. That validation checks configuration; it is not proof of a live Duo run.
 
@@ -87,4 +87,4 @@ uv run --project .. python -m nightorders.demo_night ../demo/night-2026-10-20
 
 The CLI uses the same labelled demo night and decision code. The separate gcloud flag audit in [deploy/tests/test_cli_flags.py](deploy/tests/test_cli_flags.py) requires the pinned Google Cloud SDK image configured in CI.
 
-Source layout: [agent/](agent/) is the dusk drafter, [flows/](flows/) contains the Duo definitions, [ops/](ops/) sets targets and policy, [relay/](relay/) contains the decision core and app, [shop/](shop/) is the demo shop, and [deploy/](deploy/) contains deployment setup. The rules for agents building this repository are in [AGENTS.md](AGENTS.md).
+Source layout: [agent/](agent/) is the dusk drafter, [flows/](flows/) contains the Duo definitions, [ops/](ops/) sets targets and policy, [relay/](relay/) contains the decision core and app, [shop/](shop/) is the demo shop, [scripts/](scripts/) holds the day-one test and the test-night runner, and [deploy/](deploy/) contains deployment setup. The rules for agents building this repository are in [AGENTS.md](AGENTS.md).

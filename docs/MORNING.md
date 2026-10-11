@@ -7,7 +7,7 @@ For Alex, updated **Sun 11 Oct 2026**.
 ## Where we are
 
 - The whole loop runs offline: decision code, dusk drafter, relay, demo shop, browser demo at `/demo`, three Duo flows, CI. The suite passes (see [STATUS.md](STATUS.md) for the count).
-- Added on 11 Oct: the test-night runner, the day sheet the relay posts at dusk, and readiness and one-tick-at-a-time for the relay. Landing the same day, see [STATUS.md](STATUS.md): the day-one probe script, an exact restore at the morning countersign, and Codex's three-service deploy after review.
+- Added on 11 Oct: the day-one probe script, the test-night runner, the day sheet the relay posts at dusk, readiness and one-tick-at-a-time for the relay, an exact restore at the morning countersign (reviewed and fixed), and Codex's three-service deploy, reviewed and merged ([STATUS.md](STATUS.md)).
 - Nothing has run on GitLab.com or Google Cloud yet. That is the only thing between us and a real night, and it needs three things from you.
 
 ## Your three steps (phone, about 15 minutes)
