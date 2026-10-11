@@ -1,0 +1,4 @@
+id: heldout-05
+kind: harmless
+summary: "Checkout gains a review step: the checkout form now ends with a Review order button, and a new review page shows the order, the email and the card number with a clearly named Pay now button that places the order."
+author: blind-agent-2026-10-11

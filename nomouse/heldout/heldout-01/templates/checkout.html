@@ -1,0 +1,14 @@
+<h1>Checkout</h1>
+<style>.field-title { display: block; font-weight: 600; margin-top: 12px; }</style>
+<form method="post" action="/pay" class="card">
+<label for="email">Email</label>
+<input id="email" name="email" type="email" autocomplete="email" required>
+<div class="field-title">Card number</div>
+<input name="card" inputmode="numeric" autocomplete="cc-number" required>
+<label for="delivery">Delivery</label>
+<select id="delivery" name="delivery">
+<option value="standard">Standard, free</option>
+<option value="express">Express, $5.00</option>
+</select>
+<button type="submit">Pay now, $price</button>
+</form>

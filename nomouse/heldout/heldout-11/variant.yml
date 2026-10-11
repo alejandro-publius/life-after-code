@@ -1,0 +1,4 @@
+id: heldout-11
+kind: harmless
+summary: "The Checkout link on the cart page is reworded to Next step: delivery and payment, which is clear in context and still opens the checkout form."
+author: blind-agent-2026-10-11

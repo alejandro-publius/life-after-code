@@ -1,0 +1,4 @@
+id: heldout-14
+kind: harmless
+summary: "The checkout form gains an optional, clearly labelled note field for the roaster just before the submit button, and the submit button, now after that field, reads Pay with the price."
+author: blind-agent-2026-10-11
