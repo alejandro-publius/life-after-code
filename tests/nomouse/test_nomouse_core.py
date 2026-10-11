@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 import pytest
 
 from nomouse.announce import Announcement, from_ax_node
-from nomouse.guards import is_junk_name, press_violation
+from nomouse.guards import is_junk_name, label_not_in_name, press_violation
 from nomouse.journey import (EVIDENCE_BEGIN, EVIDENCE_END, EVIDENCE_LIMIT, JourneyError, Result,
                              evidence, evidence_text, load_journey, parse_step)
 from nomouse.shop.app import SESSION_COOKIE, create_app
@@ -121,3 +121,22 @@ def test_shop_ignores_unknown_or_unsafe_variant_names(tmp_path: Path):
     assert "Variant home" in client.get("/").text
     client.cookies.set("nm_variant", "../ok")
     assert "Variant home" not in client.get("/").text
+
+
+@pytest.mark.parametrize("name, visible, mismatch", [
+    ("Save for later", "Pay now, $18.00", True),            # spoken name hides what the button does
+    ("Pay now, $18.00", "Pay now, $18.00", False),
+    ("Pay now, $18.00, opens the payment step", "Pay now, $18.00", False),  # extra words are fine
+    ("Close", "\u00d7", False),                              # an icon character is not a text label
+    ("Checkout", "", False),                                # nothing visible to compare
+    ("", "Pay now", False),                                 # no name at all is judged elsewhere
+])
+def test_spoken_name_must_contain_the_visible_label(name, visible, mismatch):
+    assert label_not_in_name(Announcement(role="button", name=name, visible=visible)) is mismatch
+
+
+def test_pressing_a_control_whose_name_contradicts_its_label_is_refused():
+    refused = press_violation(Announcement(role="button", name="Save for later", visible="Pay now, $18.00"))
+    assert refused and "visible label" in refused and "Save for later" in refused
+    # A meaningless name is still reported as such, before the label check.
+    assert "says nothing" in press_violation(Announcement(role="button", name="icon-lock", visible="Pay now"))

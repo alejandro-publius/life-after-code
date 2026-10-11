@@ -6,6 +6,7 @@ selector. It presses keys and reads Chromium's accessibility node for whatever h
 
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 import time
 import urllib.parse
@@ -19,6 +20,16 @@ from nomouse.shop.app import SESSION_COOKIE, VARIANT_COOKIE
 
 NAVIGATION_GRACE_MS = 400  # how long to wait after a key press to see whether a page load starts
 MOVE_KEYS = {"Tab", "Shift+Tab"}  # keys that only move focus
+# Rendered text of a control, as a sighted person sees it. Fields have no visible label of
+# their own (their label is separate), so they return "".
+VISIBLE_TEXT_JS = """function () {
+  if (this.tagName === 'INPUT') {
+    const t = (this.type || '').toLowerCase();
+    return ['submit', 'button', 'reset'].includes(t) ? (this.value || '') : '';
+  }
+  if (['TEXTAREA', 'SELECT', 'BODY', 'HTML'].includes(this.tagName)) return '';
+  return (this.innerText || '').slice(0, 300);
+}"""
 
 
 class Walker:
@@ -115,7 +126,16 @@ class Walk:
         nodes = [node for node in tree.get("nodes", []) if not node.get("ignored")]
         if not nodes:
             return Announcement(role="document", name=self.page.title())
-        return from_ax_node(nodes[0])
+        return replace(from_ax_node(nodes[0]), visible=self._visible_text(object_id))
+
+    def _visible_text(self, object_id: str) -> str:
+        """The label a sighted person sees on the element (its rendered text, or a button's value)."""
+        reply = self.cdp.send("Runtime.callFunctionOn", {
+            "objectId": object_id, "returnByValue": True,
+            "functionDeclaration": VISIBLE_TEXT_JS,
+        })
+        value = (reply.get("result") or {}).get("value")
+        return value if isinstance(value, str) else ""
 
     def headings(self) -> list[Announcement]:
         tree = self.cdp.send("Accessibility.getFullAXTree")

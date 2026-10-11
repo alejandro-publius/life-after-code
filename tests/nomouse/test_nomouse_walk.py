@@ -67,3 +67,28 @@ def test_a_missing_heading_breaks_the_walk(walker, journey):
     result = walk_once(walker, journey.with_steps(steps))
     assert result.verdict == "broken" and result.failed_step == 2
     assert "Ethiopia Yirgacheffe, heading level 1" in result.reason
+
+
+def test_the_walker_records_what_a_sighted_person_sees_on_a_control(walker):
+    walk = walker.open()
+    try:
+        walk.goto("/product/ethiopia")
+        for _ in range(6):
+            heard = walk.press("Tab")
+            if heard.name == "Add to cart":
+                break
+        assert heard.visible == "Add to cart"
+        assert heard.spoken() == "Add to cart, button"  # the visible text is checked, never spoken
+    finally:
+        walk.close()
+
+
+def test_a_path_through_a_button_announced_differently_from_its_label_is_refused(walker, journey):
+    """t-mismatch is a test-only variant: the Pay button shows its price but is announced
+    "Save for later". The order would go through, so only the label check stops it."""
+    steps = list(journey.steps)
+    steps[13] = Step(do="find", role="button", name="Save for later")
+    result = walk_once(walker, journey.with_steps(steps), "t-mismatch")
+    assert result.verdict == "refused" and result.failed_step == 14
+    assert "visible label" in result.reason
+    assert result.orders == []

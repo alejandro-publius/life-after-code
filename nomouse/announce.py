@@ -33,6 +33,7 @@ class Announcement:
     level: int | None = None
     states: tuple[str, ...] = field(default_factory=tuple)
     node: str = ""  # backend node id, used only to notice that focus came back to the same element
+    visible: str = ""  # the text a sighted person sees on the control; checked, never spoken
 
     @property
     def is_page(self) -> bool:

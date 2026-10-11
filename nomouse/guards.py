@@ -1,9 +1,10 @@
 """Rules code enforces on every walk, whoever wrote the path: the recorded journey,
 a baseline, or a model.
 
-A walk may never press a control that has no name, or whose name says nothing to a person
-who cannot see it. Those checks are deliberately strict and deliberately simple; they are
-a floor, not a full accessibility audit.
+A walk may never press a control that has no name, whose name says nothing to a person who
+cannot see it, or whose spoken name leaves out the label a sighted person sees on it (a
+button that shows "Pay now" but is announced "Save for later"). Those checks are
+deliberately strict and deliberately simple; they are a floor, not a full accessibility audit.
 """
 
 from __future__ import annotations
@@ -39,6 +40,20 @@ def is_junk_name(name: str) -> bool:
     return not text or bool(_JUNK.search(text)) or bool(_IDENTIFIER.match(text))
 
 
+def _words(text: str) -> str:
+    return " ".join(re.sub(r"[^0-9a-z]+", " ", (text or "").casefold()).split())
+
+
+def label_not_in_name(focused: Announcement) -> bool:
+    """True when the control shows a text label that its spoken name does not contain.
+
+    A sighted person and a screen reader user would then be told different things about the
+    same control (WCAG 2.5.3, Label in Name). Controls with no visible text are not judged here.
+    """
+    visible = _words(focused.visible)
+    return bool(visible) and bool(focused.name.strip()) and visible not in _words(focused.name)
+
+
 def press_violation(focused: Announcement) -> str | None:
     """Why pressing the focused control is refused, or None when it is allowed."""
     if focused.role not in ACTIONABLE:
@@ -47,4 +62,7 @@ def press_violation(focused: Announcement) -> str | None:
         return f"pressed a {focused.role} with no name (heard only \"{focused.spoken()}\")"
     if is_junk_name(focused.name):
         return f"pressed a {focused.role} whose name says nothing (\"{focused.name}\")"
+    if label_not_in_name(focused):
+        return (f"pressed a {focused.role} announced as \"{focused.name}\" whose visible label is "
+                f"\"{' '.join(focused.visible.split())}\"")
     return None
