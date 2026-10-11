@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from conftest import at, series
+from conftest import at, put, series
 from nightorders import (
     Act, Action, Alert, Ask, Ledger, Request, StandDown, Waiting, Wake, approve_suggestion, check_request,
     render_request, triage,
@@ -172,7 +172,7 @@ def test_the_action_comes_from_the_signed_file_not_the_note(oncall, make_night):
 
 def test_condition_cleared_before_acting_stands_down(oncall, make_night):
     metrics = bad_new_path(oncall)
-    metrics.put(NEW, at(oncall, "03:13"), 0.002)  # recovered on its own by 03:14
+    put(metrics, NEW, at(oncall, "03:13"), 0.002)  # recovered on its own by 03:14
     result = ask_then_answer(oncall, make_night(), metrics, request(order=1, fits="New path errors."),
                              answered="03:14")
     assert isinstance(result, StandDown)

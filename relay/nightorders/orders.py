@@ -69,7 +69,10 @@ def parse_targets(data: dict) -> Targets:
         for name, spec in (data.get("signals") or {}).items()
     }
     always_wake = frozenset(str(s) for s in data.get("always_wake", []))
-    return Targets(flags=flags, services=services, signals=signals, always_wake=always_wake)
+    min_per_minute = {str(name): int(spec["min_per_minute"]) for name, spec in (data.get("signals") or {}).items()
+                      if isinstance(spec, dict) and spec.get("min_per_minute") is not None}
+    return Targets(flags=flags, services=services, signals=signals, always_wake=always_wake,
+                   min_per_minute=min_per_minute)
 
 
 def floor_signals(targets: Targets) -> frozenset[str]:
@@ -148,12 +151,18 @@ def parse_orders(data: dict, targets: Targets, oncall: OnCall) -> Orders:
         seen.add(order_id)
 
         when = item["when"]
+        floor_count = targets.min_per_minute.get(str(when["signal"]))
+        asked = when.get("min_count")
+        if asked is not None and floor_count is not None and int(asked) < floor_count:
+            problems.append(f"{label}: min_count {asked} is below the least traffic ops/targets.yml allows "
+                            f"for {when['signal']} ({floor_count} a minute)")
         condition = Condition(
             signal=when["signal"],
             path=when.get("path"),
             above=when.get("above"),
             below=when.get("below"),
             for_minutes=int(when["for_minutes"]),
+            min_count=int(asked) if asked is not None else floor_count,
         )
         if condition.signal in floor:
             problems.append(

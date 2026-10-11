@@ -15,14 +15,14 @@ and the note on the incident says that no model looked at the reason.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 
 from .ledger import Ledger
 from .model import Action, Alert, OnCall, Order, Orders, Signature, Targets
 from .notes import Malformed, Request, parse_request, suggestion_action
 from .orders import MENU, action_problems, floor_signals, signature_problems, watch_window
-from .signals import Metrics, condition_holds, recovered
+from .signals import Metrics, condition_holds, recheck_after_action
 
 APPROVAL_WINDOW_MINUTES = 60
 STANDING = "standing orders: no model tonight, so nobody checked the reason"
@@ -117,9 +117,13 @@ def triage(alerts: list[Alert], night: Night, metrics: Metrics, now: datetime) -
     eligible: list[int] = []
     checks: dict[int, str] = {}
     used: list[int] = []
+    thin: list[str] = []
     for order in night.orders.orders:
         holds, detail = condition_holds(order.when, metrics, now)
         if not holds:
+            # The numbers match but the traffic behind them is too thin to act on: say so on the page.
+            if order.when.min_count and condition_holds(replace(order.when, min_count=None), metrics, now)[0]:
+                thin.append(f"Order {order.id} matches the numbers, but {detail}.")
             continue
         if night.ledger.used(order.id):
             used.append(order.id)
@@ -130,6 +134,8 @@ def triage(alerts: list[Alert], night: Night, metrics: Metrics, now: datetime) -
     if not eligible:
         if used:
             reasons = [f"Order {used[0]} already ran tonight; an order runs once."]
+        elif thin:
+            reasons = thin
         else:
             reasons = ["No signed order covers this alert."]
         return Wake(tuple(reasons), default_page(alerts, reasons, night))
@@ -227,8 +233,9 @@ def standing_order(ask: Ask, night: Night) -> Act:
 
 
 def recheck(order: Order, night: Night, metrics: Metrics, now: datetime) -> tuple[bool, str]:
-    """After an action: recovered means no page; anything else wakes the on-call person."""
-    return recovered(order.when, metrics, now)
+    """After an action: recovered means no page; anything else wakes the on-call person. An emptied path never
+    counts as recovered on its own: the whole shop has to be back too (signals.recheck_after_action)."""
+    return recheck_after_action(order.when, metrics, now)
 
 
 def approve_suggestion(suggestion: Action, reaction_user: str, reaction_at: datetime, paged_at: datetime,

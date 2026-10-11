@@ -12,6 +12,28 @@ from typing import Literal
 from zoneinfo import ZoneInfo
 
 RATE_SIGNALS = ("checkout_error_rate", "http_5xx_ratio", "payment_error_rate")
+# What a rate or a percentile is measured over, per signal: the per-minute count the shop reports beside it.
+# The shop's p95 latency is the checkout latency, so it is counted in checkouts too.
+COUNTED_BY = {"checkout_error_rate": "checkouts", "p95_latency_ms": "checkouts", "http_5xx_ratio": "requests",
+              "payment_error_rate": "payments"}
+
+
+def count_key(signal: str, path: str | None = None) -> str | None:
+    """The per-minute count behind a signal, for example checkouts.new behind checkout_error_rate.new."""
+    if signal == "checkout_error_rate":
+        return f"checkouts.{path or 'all'}"
+    if signal == "p95_latency_ms":
+        return "checkouts.all"
+    return COUNTED_BY.get(signal)
+
+
+def count_noun(signal: str, n: float | int | None) -> str:
+    """'30 checkouts', '1 checkout', 'no requests'."""
+    noun = COUNTED_BY.get(signal, "samples")
+    if not n:
+        return f"no {noun}"
+    whole = int(n)
+    return f"{whole} {noun[:-1] if whole == 1 else noun}"
 
 
 def fmt_value(signal: str, value: float) -> str:
@@ -28,11 +50,23 @@ class Condition:
     path: str | None = None
     above: float | None = None
     below: float | None = None
+    min_count: int | None = None  # an order acts only when every minute had at least this many checkouts or requests
 
     @property
     def key(self) -> str:
         """Metric key, for example checkout_error_rate.new."""
         return f"{self.signal}.{self.path}" if self.path else self.signal
+
+    @property
+    def count_key(self) -> str | None:
+        return count_key(self.signal, self.path)
+
+    @property
+    def label(self) -> str:
+        """The signal in words, for example "checkout error rate (new path)" or "checkout error rate (whole shop)"."""
+        if self.path == "all":
+            return self.signal.replace("_", " ") + " (whole shop)"
+        return self.signal.replace("_", " ") + (f" ({self.path} path)" if self.path else "")
 
     @property
     def threshold(self) -> float:
@@ -185,6 +219,7 @@ class Targets:
     services: dict[str, str]
     signals: dict[str, frozenset[str]]
     always_wake: frozenset[str] = field(default_factory=frozenset)
+    min_per_minute: dict[str, int] = field(default_factory=dict)  # per signal: the least traffic an order acts on
 
 
 @dataclass(frozen=True)

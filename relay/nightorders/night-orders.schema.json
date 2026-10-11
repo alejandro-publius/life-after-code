@@ -62,7 +62,11 @@
         "path": {"type": "string", "enum": ["old", "new", "all"]},
         "above": {"type": "number", "minimum": 0},
         "below": {"type": "number", "minimum": 0},
-        "for_minutes": {"type": "integer", "minimum": 1, "maximum": 60}
+        "for_minutes": {"type": "integer", "minimum": 1, "maximum": 60},
+        "min_count": {
+          "description": "The least checkouts or requests a minute this order acts on. Never below ops/targets.yml.",
+          "type": "integer", "minimum": 1, "maximum": 100000
+        }
       },
       "oneOf": [
         {"required": ["above"], "not": {"required": ["below"]}},

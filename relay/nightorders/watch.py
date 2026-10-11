@@ -14,7 +14,7 @@ from typing import Protocol
 
 from .decide import (APPROVAL_WINDOW_MINUTES, Act, Ask, Night, StandDown, Waiting, Wake, approve_suggestion,
                      check_request, default_page, recheck, standing_order, triage)
-from .model import Action, Alert, Change, Order, fmt_value
+from .model import Action, Alert, Change, Order, count_key, count_noun, fmt_value
 from .orders import watch_window
 from .signals import Metrics, condition_holds, recovered
 from .model import Condition
@@ -170,11 +170,23 @@ class Watch:
                 "evidence, not only the numbers. If unsure, choose none.")
 
     def _evidence(self, alerts: list[Alert], metrics: Metrics, now: datetime) -> str:
-        lines = ["Evidence pack (written by code).", ""]
+        """The incident description, written by code: the last complete minute of every signal ops/targets.yml
+        names, with the count behind it. Only those keys are copied, so nothing else the shop sends can put a
+        sentence in front of the model."""
+        signals = self.night.targets.signals
+        lines = ["Evidence pack (written by code).", "",
+                 f"The last complete minute, {self.night.oncall.hhmm(now - timedelta(minutes=1))} local:", ""]
         for key in metrics.keys():
+            signal, _, path = key.partition(".")
+            if signal not in signals or (path and path not in signals[signal]):
+                continue
             value = metrics.last_complete(key, now)
-            if value is not None:
-                lines.append(f"- {key}: {fmt_value(key.split('.')[0], value)}")
+            if value is None:
+                continue
+            counted = count_key(signal, path or None)
+            count = metrics.last_complete(counted, now) if counted else None
+            behind = f" of {count_noun(signal, count)}" if count is not None else ""
+            lines.append(f"- {key}: {fmt_value(signal, value)}{behind}")
         return "\n".join(lines)
 
     def _answer(self, incident: Incident, metrics: Metrics, now: datetime) -> None:

@@ -25,7 +25,8 @@ main = _load_shop_main()
 
 START = datetime(2026, 10, 21, 10, 0, 5, tzinfo=timezone.utc)
 KEYS = {"at", "checkout_error_rate.old", "checkout_error_rate.new", "checkout_error_rate.all", "http_5xx_ratio",
-        "p95_latency_ms", "payment_error_rate"}
+        "p95_latency_ms", "payment_error_rate", "checkouts.old", "checkouts.new", "checkouts.all", "requests",
+        "payments"}
 
 
 class WallClock:
@@ -50,6 +51,7 @@ def test_rates_are_errors_over_requests_per_path_and_overall():
     assert minute["checkout_error_rate.old"] == round(1 / 30, 4)
     assert minute["checkout_error_rate.new"] == 0.1
     assert minute["checkout_error_rate.all"] == round(4 / 60, 4)
+    assert (minute["checkouts.old"], minute["checkouts.new"], minute["checkouts.all"]) == (30, 30, 60)
 
 
 def test_a_minute_without_requests_reports_zero_not_an_error():

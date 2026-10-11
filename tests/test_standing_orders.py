@@ -9,7 +9,7 @@ from datetime import timedelta
 
 import pytest
 
-from conftest import OPS, REPO, at, series
+from conftest import OPS, REPO, at, put, series, switched_off
 from nightorders import Act, Alert, Ask, Change, Metrics, Request, render_request, standing_order, triage
 from nightorders import demo_night
 from nightorders.decide import STANDING
@@ -69,10 +69,10 @@ def rules():
     return parse_alert_rules(load_yaml(OPS / "alerts.yml"))
 
 
-def bad_minutes(metrics: Metrics, oncall, key: str, start: str, minutes: int, value: float) -> None:
+def bad_minutes(metrics: Metrics, oncall, key: str, start: str, minutes: int, value: float, count: int = 30) -> None:
     first = at(oncall, start)
     for i in range(minutes):
-        metrics.put(key, first + timedelta(minutes=i), value)
+        put(metrics, key, first + timedelta(minutes=i), value, count)
 
 
 # The decision.
@@ -147,13 +147,13 @@ def test_the_re_check_wakes_when_another_alert_of_the_incident_still_fires(oncal
         watch.tick(metrics, at(oncall, "01:51"))  # the reply arrives, code checks it, the order runs
     acted_at = "01:50" if standing else "01:51"
     assert ports.applied == ["new_checkout off in production"]
-    for i in range(12):
-        metrics.put(NEW, at(oncall, acted_at) + timedelta(minutes=i), 0.0)
+    # the whole shop still fails as much as the old path, which now carries every checkout
+    switched_off(metrics, oncall, acted_at, 12, whole_rate=0.203)
     for minute in range(1, 11):
         watch.tick(metrics, at(oncall, acted_at) + timedelta(minutes=minute))
     assert ports.pages == [(
-        f"Order 1 ran at {acted_at} but checkout error rate (old path) still 20.3% (limit 5.0%), though "
-        "checkout error rate (new path) back to 0.0% (limit 5.0%).",
+        f"Order 1 ran at {acted_at} but checkout error rate (whole shop) still 20.3% (limit 5.0%), though the new "
+        "path carries no checkouts now.",
         "Nothing else is signed for this.", "The incident has the evidence.")]
     kinds = [e.kind for e in night.ledger.events]
     assert kinds == (["alert", "acted", "woke"] if standing else ["alert", "asked", "acted", "woke"])
@@ -168,12 +168,12 @@ def test_the_re_check_still_says_no_page_when_the_incident_fired_on_the_order_si
     bad_minutes(metrics, oncall, OLD, "03:07", 20, 0.004)
     watch.tick(metrics, at(oncall, "03:12"))
     assert ports.applied == ["new_checkout off in production"]
-    for i in range(12):
-        metrics.put(NEW, at(oncall, "03:12") + timedelta(minutes=i), 0.0)
+    switched_off(metrics, oncall, "03:12", 12, whole_rate=0.004)
     for minute in range(1, 11):
         watch.tick(metrics, at(oncall, "03:12") + timedelta(minutes=minute))
     assert ports.pages == []
-    assert ports.notes[-1] == "Re-check 03:22: checkout error rate (new path) back to 0.0% (limit 5.0%). No page."
+    assert ports.notes[-1] == ("Re-check 03:22: the new path carries no checkouts now; checkout error rate (whole shop) "
+                               "back to 0.4% on 60 checkouts (limit 5.0%). No page.")
     assert ports.closed == [1]
 
 
@@ -185,7 +185,7 @@ def test_the_demo_night_under_standing_orders_acts_on_the_numbers_and_the_re_che
     assert "recorded watch reply requested" not in log and "agent note" not in log
     assert "01:50  APPLY new_checkout off in production" in log
     assert f"first use tonight; {STANDING}." in log
-    assert "02:00  PAGE (phone lights up) for #1: Order 1 ran at 01:50 but checkout error rate (old path) still" in log
+    assert "02:00  PAGE (phone lights up) for #1: Order 1 ran at 01:50 but checkout error rate (whole shop) still" in log
     assert [e.kind for e in night.ledger.events] == ["alert", "acted", "woke", "expired"]
     # With the new checkout already off, the 03:07 rounding bug never reaches a customer: no second incident.
     assert "incident #2" not in log

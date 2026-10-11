@@ -38,6 +38,7 @@ class DemoShop:
     faults: list[tuple[str, datetime, datetime]]
     new_share: float
     traffic: dict[str, str] = field(default_factory=dict)  # service: the revision all traffic is pinned to
+    per_minute: int = 60  # checkouts a minute, as scenario.yml's requests_per_minute says
 
     def active(self, name: str, at: datetime) -> bool:
         return any(n == name and start <= at < end for n, start, end in self.faults)
@@ -50,6 +51,7 @@ class DemoShop:
         new = (0.004 + (0.075 if self.active("rounding_bug", at) else 0.0) + (0.200 if inventory_down else 0.0)) if new_on else 0.0
         share = self.new_share if new_on else 0.0
         overall = old * (1 - share) + new * share
+        new_count = round(self.per_minute * share)
         return {
             "checkout_error_rate.old": round(old, 4),
             "checkout_error_rate.new": round(new, 4),
@@ -57,6 +59,11 @@ class DemoShop:
             "payment_error_rate": 0.002,
             "http_5xx_ratio": round(overall * 0.6, 4),
             "p95_latency_ms": 420.0 + (900.0 if inventory_down else 0.0),
+            "checkouts.old": self.per_minute - new_count,
+            "checkouts.new": new_count,
+            "checkouts.all": self.per_minute,
+            "requests": round(self.per_minute * 1.5),  # product pages and checkouts
+            "payments": self.per_minute,
         }
 
 
@@ -205,6 +212,7 @@ def run(folder: Path | str, ops: Path | str | None = None, *, signed: bool = Tru
         flags={k: ("on" if v is True else "off" if v is False else str(v)) for k, v in scenario["flags"].items()},
         faults=[(f["name"], _local(f["from"], tz), _local(f["to"], tz)) for f in scenario["faults"]],
         new_share=float(scenario.get("new_path_share", 0.5)),
+        per_minute=int(scenario.get("requests_per_minute", 60)),
     )
     raw_notes = json.loads((folder / "notes.json").read_text())["incidents"]
     notes = {}

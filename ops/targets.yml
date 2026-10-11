@@ -9,16 +9,23 @@ services:
     environment: production
   - name: shop-staging
     environment: staging
+# min_per_minute: an order acts only when every minute of its window had at least this many checkouts or
+# requests behind the number. One failed checkout out of two is 50%, and that is too few to act on at night.
+# The re-check after an action also needs this much traffic on the whole shop before it says "no page".
 signals:
   checkout_error_rate:
     paths: [old, new, all]
     unit: ratio
+    min_per_minute: 10
   http_5xx_ratio:
     unit: ratio
+    min_per_minute: 20
   p95_latency_ms:
     unit: ms
+    min_per_minute: 20
   payment_error_rate:
     unit: ratio
+    min_per_minute: 10
 # Alerts on these signals always wake the on-call person. Code adds payment_error_rate even if
 # this list is edited, so the floor can only be raised here, never lowered.
 always_wake:

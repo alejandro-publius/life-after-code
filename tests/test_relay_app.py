@@ -300,6 +300,7 @@ def test_a_port_failure_mid_tick_keeps_what_was_done(tmp_path, relay_key):
     metrics = Metrics()
     for i in range(6):
         metrics.put("checkout_error_rate.new", local("03:07") + timedelta(minutes=i), 0.079)
+        metrics.put("checkouts.new", local("03:07") + timedelta(minutes=i), 30)
     orders = parse_orders(load_yaml(DEMO / "orders.yml"), TARGETS, ONCALL)
     rig = Rig(tmp_path, QuietSources(orders=orders, signature=demo_signature(), metrics=metrics), FailingFlow())
     rig.now = local("03:12")

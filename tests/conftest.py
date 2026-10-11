@@ -67,10 +67,32 @@ def make_night(oncall, targets, orders_data):
     return build
 
 
-def series(oncall, key: str, start: str, values: list[float]) -> Metrics:
-    """Per-minute samples for one key, starting at a local time."""
+def put(metrics: Metrics, key: str, moment: datetime, value: float, count: int = 30) -> None:
+    """One minute of a signal and the traffic behind it (checkouts.new for checkout_error_rate.new, say).
+    Orders act only on minutes with enough traffic, so test minutes carry a realistic count by default."""
+    from nightorders.model import count_key
+
+    metrics.put(key, moment, value)
+    signal, _, path = key.partition(".")
+    counted = count_key(signal, path or None)
+    if counted:
+        metrics.put(counted, moment, count)
+
+
+def switched_off(metrics: Metrics, oncall, start: str, minutes: int, path: str = "new", whole_rate: float = 0.003,
+                 whole_count: int = 60) -> None:
+    """After an order turned a checkout path off: that path carries nothing, and the whole shop reads whole_rate."""
+    first = at(oncall, start)
+    for i in range(minutes):
+        moment = first + timedelta(minutes=i)
+        put(metrics, f"checkout_error_rate.{path}", moment, 0.0, count=0)
+        put(metrics, "checkout_error_rate.all", moment, whole_rate, count=whole_count)
+
+
+def series(oncall, key: str, start: str, values: list[float], count: int = 30) -> Metrics:
+    """Per-minute samples for one key, starting at a local time, each with `count` checkouts or requests behind it."""
     metrics = Metrics()
     first = at(oncall, start)
     for i, value in enumerate(values):
-        metrics.put(key, first + timedelta(minutes=i), value)
+        put(metrics, key, first + timedelta(minutes=i), value, count)
     return metrics

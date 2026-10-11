@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import pytest
 
-from conftest import OPS, REPO, at, series
+from conftest import OPS, REPO, at, put, series, switched_off
 from nightorders import Act, Action, Alert, Ask, Change, Metrics, OrdersError, Request, Wake, check_request, render_request, triage
 from nightorders.countersign import parse_state, plan_morning
 from nightorders.dawn import LooseEnd
@@ -164,18 +164,19 @@ def test_one_dip_or_one_missing_minute_in_the_other_alert_does_not_hide_it_from_
     bad_minutes(metrics, oncall, NEW, "01:45", 6, 0.204)
     bad_minutes(metrics, oncall, OLD, "01:45", 20, 0.203)
     if dip == "one_low_minute":
-        metrics.put(OLD, at(oncall, "01:57"), 0.04)
+        put(metrics, OLD, at(oncall, "01:57"), 0.04)
     else:
         metrics._series[OLD].pop(at(oncall, "01:57"))
     watch.tick(metrics, at(oncall, "01:50"))
     assert ports.applied == ["new_checkout off in production"]
-    for i in range(12):
-        metrics.put(NEW, at(oncall, "01:50") + timedelta(minutes=i), 0.0)
+    # the whole shop reads healthy, so the incident's other alert is what the re-check has to catch
+    switched_off(metrics, oncall, "01:50", 12, whole_rate=0.004)
     for minute in range(1, 11):
         watch.tick(metrics, at(oncall, "01:50") + timedelta(minutes=minute))
     assert len(ports.pages) == 1
     assert ports.pages[0][0] == ("Order 1 ran at 01:50 but checkout error rate (old path) still 20.3% (limit 5.0%), "
-                                 "though checkout error rate (new path) back to 0.0% (limit 5.0%).")
+                                 "though the new path carries no checkouts now; checkout error rate (whole shop) "
+                                 "back to 0.4% on 60 checkouts (limit 5.0%).")
     assert not any("No page" in n for n in ports.notes)
 
 
@@ -187,13 +188,12 @@ def test_a_signed_unused_order_on_the_signal_that_still_fails_is_offered_for_one
     bad_minutes(metrics, oncall, P95, "02:55", 40, 1800.0)
     watch.tick(metrics, at(oncall, "03:07"))
     assert ports.applied == ["new_checkout off in production"]  # order 1 is first in line; an incident acts once
-    for i in range(12):
-        metrics.put(NEW, at(oncall, "03:07") + timedelta(minutes=i), 0.0)
+    switched_off(metrics, oncall, "03:07", 12, whole_rate=0.004)
     for minute in range(1, 11):
         watch.tick(metrics, at(oncall, "03:07") + timedelta(minutes=minute))
     assert ports.pages == [(
-        "Order 1 ran at 03:07 but p95 latency ms still 1,800 ms (limit 1,500 ms), though checkout error rate "
-        "(new path) back to 0.0% (limit 5.0%).",
+        "Order 1 ran at 03:07 but p95 latency ms still 1,800 ms (limit 1,500 ms), though the new path carries no "
+        "checkouts now; checkout error rate (whole shop) back to 0.4% on 60 checkouts (limit 5.0%).",
         "Order 2 is signed for this but did not run; an incident acts once.",
         "The incident has the evidence.",
         "Thumbs-up the note on #1 to: shop traffic to revision shop-00041.")]

@@ -22,7 +22,7 @@ Read today's merged merge requests, their diffs, production deployments and feat
   - `flag_set`: set one feature flag in one environment to `"on"` (on for every user there) or `"off"`.
   - `traffic_to_revision`: send all traffic of one Cloud Run service to one named earlier revision.
 - Every target must be listed in `ops/targets.yml`. Name exact flags, environments, services and revisions.
-- Each order needs a condition: one signal (`checkout_error_rate` with a path of `old`, `new` or `all`; `http_5xx_ratio`; `p95_latency_ms`), exactly one of `above` or `below`, and `for_minutes`.
+- Each order needs a condition: one signal (`checkout_error_rate` with a path of `old`, `new` or `all`; `http_5xx_ratio`; `p95_latency_ms`), exactly one of `above` or `below`, and `for_minutes`. Leave `min_count` out: code uses the least traffic `ops/targets.yml` allows (`min_per_minute`) and never acts on fewer checkouts or requests a minute than that.
 - Each order needs `because`: one sentence naming the change behind it (MR number, what it changed, when).
 - Leave out anything that cannot be undone safely: database migrations, data changes, emails sent to customers, secrets. Say what you left out and why. Left-out changes wake the engineer, which is the safe default.
 - Payment errors always wake the engineer. Never draft an order on `payment_error_rate`.

@@ -16,8 +16,11 @@ A small FastAPI service on Cloud Run, and the only part of Night Orders that cha
      file, never from the note; ten minutes later it re-checks;
    - everything else pages the on-call person (ntfy push plus a note on the incident), with one suggested
      action they can approve with a thumbs-up on that note;
-   - the re-check also looks at the incident's other alerts: if the order's own signal is back but another
-     alert of the same incident still fires, the action did not help enough, and she is paged.
+   - an order acts only when every minute of its window had enough traffic behind the number (`min_per_minute`
+     in `ops/targets.yml`; the shop reports `checkouts.*`, `requests` and `payments` beside each rate);
+   - the re-check cannot pass on an emptied path: a path that was switched off must be matched by the whole
+     shop back under the limit on enough checkouts, and every other alert of the incident must be back too,
+     or she is paged.
    With `WATCH_MODE=standing` (Standing Orders, the fallback for an account whose Flows API will not start a
    flow) no flow is started: code carries out the first signed order whose numbers hold at the tick that
    opens the incident, and the note on the incident says that no model checked the reason. Everything else

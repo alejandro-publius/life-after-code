@@ -1,4 +1,5 @@
-"""Per-minute signals for the relay: checkout error rate per path, 5xx ratio, p95 latency, payment errors.
+"""Per-minute signals for the relay: checkout error rate per path, 5xx ratio, p95 latency, payment errors, and
+the checkout, request and payment counts behind them.
 
 Kept in memory only. Cloud Run may scale the shop to zero between demo nights; the counters then start
 again from empty, and minutes before the start are not reported at all (no data, rather than invented zeros).
@@ -48,7 +49,8 @@ class Minute:
     payment_errors: int = 0
 
     def signals(self) -> dict[str, float]:
-        """The keys the relay reads, with rates as errors / max(requests, 1)."""
+        """The keys the relay reads, with rates as errors / max(requests, 1), and the counts behind each rate,
+        so the relay can refuse to act on a number that stands on two checkouts."""
         return {
             "checkout_error_rate.old": rate(self.failed["old"], self.checkouts["old"]),
             "checkout_error_rate.new": rate(self.failed["new"], self.checkouts["new"]),
@@ -56,6 +58,11 @@ class Minute:
             "http_5xx_ratio": rate(self.server_errors, self.requests),
             "p95_latency_ms": round(p95(self.latencies_ms), 1),
             "payment_error_rate": rate(self.payment_errors, self.payments),
+            "checkouts.old": self.checkouts["old"],
+            "checkouts.new": self.checkouts["new"],
+            "checkouts.all": sum(self.checkouts.values()),
+            "requests": self.requests,
+            "payments": self.payments,
         }
 
 
