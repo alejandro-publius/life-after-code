@@ -39,6 +39,8 @@ Settings come only from environment variables. The relay never prints, logs or r
   WATCH_ISSUE_IID       optional: the standing "Tonight's watch" issue. At the watch end the relay posts the watch
                         log there, starts the dawn flow on it, and notes the countersign result on it.
   DAWN_FLOW_CONSUMER_ID optional: numeric AI Catalog item consumer ID of the dawn flow
+  SHOP_STAGING_URL      optional: the staging shop's base URL. The rehearsal of a drafted order applies it on
+                        staging, checks this shop still serves a checkout, and restores the flag.
 
 Set by the platform: CI_COMMIT_SHORT_SHA (image build), PORT and K_SERVICE (Cloud Run). Google credentials
 come from the Cloud Run metadata server, so no Google key is stored anywhere.
@@ -65,7 +67,7 @@ from fastapi import FastAPI, Header
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from nightorders import daysheet, morning, state
+from nightorders import daysheet, morning, rehearsal, state
 from nightorders.dawn import render_watch_log
 from nightorders.decide import Night
 from nightorders.gitlab_ports import GitLab, GitLabPorts, GoogleToken, Http, RelayError, push
@@ -118,7 +120,7 @@ class Config:
     @classmethod
     def from_env(cls, env: Any = None) -> "Config":
         env = os.environ if env is None else env
-        names = REQUIRED + ("STATE_BUCKET", "STATE_OBJECT") + OPTIONAL_NUMBERS
+        names = REQUIRED + ("STATE_BUCKET", "STATE_OBJECT", "SHOP_STAGING_URL") + OPTIONAL_NUMBERS
         return cls(values={name: str(env.get(name, "")).strip() for name in names},
                    on_cloud_run=bool(env.get("K_SERVICE")))
 
@@ -146,6 +148,7 @@ class Relay:
     pager: Callable[..., None]          # pager(title, lines, priority="urgent"): the relay's own pages
     watch_issue: int | None = None      # the standing watch issue for the morning, if one is set
     gitlab: Any = None                  # gitlab_ports.GitLab, for the day sheet at dusk
+    rehearse: Callable[[dict, datetime, Inputs], list[str]] | None = None  # the rehearsal of drafted orders
 
 
 @dataclass
@@ -205,10 +208,20 @@ def make_relay(config: Config, store: Any) -> Relay:
                            google_token=token, memory=saved, dawn_consumer_id=config["DAWN_FLOW_CONSUMER_ID"],
                            watch_issue=watch_issue)
 
-    # The day sheet reads a lot (every merge's diffs), so it gets a GitLab client without the tick's budget.
+    # The day sheet and the rehearsal read and write a lot, so they get clients without the tick's budget.
     gitlab_plain = GitLab(plain, config["GITLAB_URL"], config["GITLAB_PROJECT_ID"], config["GITLAB_TOKEN"])
+    rehearsal_ports = GitLabPorts(gitlab_plain, plain, flow_consumer_id=config["FLOW_CONSUMER_ID"],
+                                  flow_service_account=config["FLOW_SERVICE_ACCOUNT"], ntfy_url=config["NTFY_URL"],
+                                  gcp_project=config["GCP_PROJECT_ID"], gcp_region=config["GCP_REGION"],
+                                  google_token=token)
+
+    def rehearse(relay_doc: dict, now: datetime, inputs: Inputs) -> list[str]:
+        return rehearsal.step(relay_doc, now, inputs.oncall, inputs.targets, gitlab_plain, rehearsal_ports, plain,
+                              config["SHOP_STAGING_URL"])
+
     return Relay(sources=GitLabSources(gitlab, budget, config["SHOP_METRICS_URL"]), store=store,
-                 make_ports=make_ports, pager=make_pager(config), watch_issue=watch_issue, gitlab=gitlab_plain)
+                 make_ports=make_ports, pager=make_pager(config), watch_issue=watch_issue, gitlab=gitlab_plain,
+                 rehearse=rehearse)
 
 
 def readiness(config: Config, make_store: Callable[[Config], Any]) -> list[str]:
@@ -385,6 +398,13 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
         except Exception as error:
             relay_doc["daysheet_problem"] = {"at": now.isoformat(), "reason": reason(error)}
             log.warning("day sheet not posted: %s", reason(error))
+    if not problem and relay.rehearse is not None:
+        # The rehearsal of a drafted orders merge request, the same way: never a failed tick, tried again.
+        try:
+            done += relay.rehearse(relay_doc, now, inputs)
+        except Exception as error:
+            relay_doc["rehearsal_problem"] = {"at": now.isoformat(), "reason": reason(error)}
+            log.warning("rehearsal not done: %s", reason(error))
     # Keep what the tick did before any failure, so nothing it did is done twice.
     state.capture(watch, doc)
     doc["ports"] = ports.saved()

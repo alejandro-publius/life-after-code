@@ -547,6 +547,16 @@ class GitLabPorts:
         current = self.http.call(f"Cloud Run read {service}", "GET", url, headers=headers).json()
         return url, headers, current
 
+    def revision_exists(self, service: str, revision: str) -> bool:
+        """Whether a Cloud Run revision is there to receive traffic (the rehearsal checks traffic orders this way)."""
+        if not (self.gcp_project and self.gcp_region and self.google_token):
+            raise RelayError("Cloud Run revisions: GCP_PROJECT_ID and GCP_REGION are not set")
+        url = (f"{CLOUD_RUN_API}/projects/{self.gcp_project}/locations/{self.gcp_region}/services/{service}"
+               f"/revisions/{revision}")
+        response = self.http.call(f"Cloud Run read revision {revision}", "GET", url,
+                                  headers={"Authorization": f"Bearer {self.google_token()}"}, expect=(200, 404))
+        return response.status_code == 200
+
     def _patch_traffic(self, service: str, url: str, headers: dict, current: dict, traffic: list[dict]) -> None:
         # Send the whole service back with only the traffic changed, so nothing else can be reset even if the
         # update mask were ignored. The etag makes the update fail if someone changed the service meanwhile.

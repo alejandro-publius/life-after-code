@@ -17,7 +17,7 @@ Everything the shop serves is labelled demo data. The incidents, flag changes, f
 ## The evening (Alex, phone, 5 minutes)
 
 1. Open the "Tonight's watch" issue and assign it to the dusk flow. Wait for the orders merge request (a few minutes).
-2. Read the orders. Delete any you would not sign. Merge (or approve, if merging is not allowed). That is the signature.
+2. Read the orders and the rehearsal note code posted on the merge request (each flag order was applied on staging, the staging shop checked, the flag restored). Delete any order you would not sign. Merge (or approve, if merging is not allowed). That is the signature.
 3. Check the relay's status page: it should say "Active until 07:00" with the orders listed.
 4. Go to bed with the phone's sound on for ntfy.
 

@@ -42,6 +42,7 @@ On the signed and approved path, code records **1 wake-up, 1 incident handled wh
 The model chooses where to look. Code decides what is true. A human decides when the agent acts on anything that matters.
 
 - **Before bed:** the dusk drafter proposes at most three orders from the day's changes. Each names a condition and one reversible action: set a feature flag, or move a Cloud Run service's traffic to a named earlier revision. A database migration gets no order.
+- **Rehearsal:** before anyone signs, the relay tries each drafted flag order on staging, checks the staging shop still serves a checkout, restores the flag and posts the result on the merge request; a traffic order is checked for a revision that exists.
 - **Signature:** in the intended GitLab workflow, the on-call person's merge signs the orders. Unsigned orders grant no authority.
 - **During the night:** both keys must agree. Code checks the signature, expiry, measured condition, exact permitted action and first use tonight. The watch reply must name the order and explain why it fits. The action comes from the signed file, never from free text in the reply or a log.
 - **Outside the orders:** the engineer gets a short page and, when available, one suggestion requiring their approval. In the replay, both checkout paths failing causes the recorded watch reply to decline the new checkout order.

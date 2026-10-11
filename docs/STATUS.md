@@ -19,6 +19,7 @@ Last updated: **Sun 11 Oct 2026, about 09:00 UTC**.
 - `scripts/test_night.py` and [TEST_NIGHT.md](TEST_NIGHT.md): a real-time bad night against the live shop, started at a local time so the on-call person really sleeps.
 - The day sheet (`relay/nightorders/daysheet.py`): at 21:00 the relay posts today's merges, deployments and flag states on the watch issue; the dusk flow reads it first.
 - Relay: `GET /readyz`, settings problems count as failed ticks and page, one tick at a time across instances (a lease in Cloud Storage), the day sheet outside the watch's failure path.
+- The rehearsal (`relay/nightorders/rehearsal.py`): every new orders merge request is tried on staging (apply, check the staging shop, restore) and the result is posted on it before anyone signs; traffic orders are checked for an existing revision.
 - Night actions record what they changed; the countersign restores each target to its snapshot (a flag's strategies for that environment, user lists included; a service's traffic list). A no-op action leaves no loose end.
 - The hardening change was reviewed with three lenses; 19 findings, 12 verified by a second reviewer, the rest judged by hand. All real ones are fixed ([commit c78f70f](../relay/nightorders/)).
 
