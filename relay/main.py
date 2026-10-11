@@ -65,7 +65,7 @@ from fastapi import FastAPI, Header
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from nightorders import morning, state
+from nightorders import daysheet, morning, state
 from nightorders.dawn import render_watch_log
 from nightorders.decide import Night
 from nightorders.gitlab_ports import GitLab, GitLabPorts, GoogleToken, Http, RelayError, push
@@ -145,6 +145,7 @@ class Relay:
     make_ports: Callable[[dict], Any]   # saved port memory -> watch.Ports that also has .saved() -> dict
     pager: Callable[..., None]          # pager(title, lines, priority="urgent"): the relay's own pages
     watch_issue: int | None = None      # the standing watch issue for the morning, if one is set
+    gitlab: Any = None                  # gitlab_ports.GitLab, for the day sheet at dusk
 
 
 @dataclass
@@ -205,7 +206,7 @@ def make_relay(config: Config, store: Any) -> Relay:
                            watch_issue=watch_issue)
 
     return Relay(sources=GitLabSources(gitlab, budget, config["SHOP_METRICS_URL"]), store=store,
-                 make_ports=make_ports, pager=make_pager(config), watch_issue=watch_issue)
+                 make_ports=make_ports, pager=make_pager(config), watch_issue=watch_issue, gitlab=gitlab)
 
 
 def readiness(config: Config, make_store: Callable[[Config], Any]) -> list[str]:
@@ -365,6 +366,8 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
     try:
         watch.tick(inputs.metrics, now)
         done = morning.step(relay_doc, night, watch.expired, state_file, ports, now, relay.watch_issue)
+        if relay.gitlab is not None and relay.watch_issue is not None:
+            done += daysheet.step(relay_doc, now, inputs.oncall, inputs.targets, relay.gitlab, relay.watch_issue)
     except Exception as error:
         problem = f"stopped partway through a tick ({reason(error)})"
         if not isinstance(error, (RelayError, httpx.HTTPError)):

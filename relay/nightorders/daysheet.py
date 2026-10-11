@@ -215,3 +215,19 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+
+DAYSHEET_AT = time(21, 0)  # local time; the first tick at or after it posts the sheet, once a day
+
+
+def step(relay_doc: dict, now: datetime, oncall: OnCall, targets: Targets, gitlab: GitLab, watch_issue: int) -> list[str]:
+    """Called by the relay's tick: post today's day sheet on the watch issue once, at dusk."""
+    local = now.astimezone(oncall.timezone)
+    today = local.date().isoformat()
+    if local.time() < DAYSHEET_AT or relay_doc.get("daysheet") == today:
+        return []
+    relay_doc["daysheet"] = today  # set first, so a failing post is not repeated every minute
+    sheet = collect(gitlab, now, oncall, targets)
+    post(gitlab, watch_issue, render(sheet))
+    return [f"day sheet posted on the watch issue: {len(sheet['merged_today'])} merge(s), "
+            f"{len(sheet['deployments'])} deployment(s)"]

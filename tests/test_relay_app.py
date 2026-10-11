@@ -76,7 +76,7 @@ class NoPorts:
 class Rig:
     """An app with fakes injected, a file store, a recorded pager and a settable clock."""
 
-    def __init__(self, tmp_path, sources, ports=None):
+    def __init__(self, tmp_path, sources, ports=None, gitlab=None, watch_issue=None):
         self.store = FileStore(tmp_path / "state.json")
         self.pages: list[tuple] = []
         self.now = local("22:00")
@@ -84,7 +84,8 @@ class Rig:
 
         def make_relay(config, store):
             return main.Relay(sources=sources, store=store, make_ports=lambda saved: self.ports,
-                              pager=lambda title, lines, priority="urgent": self.pages.append((title, lines, priority)))
+                              pager=lambda title, lines, priority="urgent": self.pages.append((title, lines, priority)),
+                              watch_issue=watch_issue, gitlab=gitlab)
 
         app = main.create_app(make_store=lambda config: self.store, make_relay=make_relay, clock=lambda: self.now,
                               page_cache_seconds=0)
@@ -407,3 +408,20 @@ def test_settings_are_named_but_never_shown(monkeypatch):
     assert not any("fake-gitlab-token" in p for p in problems)
     with pytest.raises(RelayError, match="STATE_BUCKET is required on Cloud Run"):
         main.make_store(main.Config.from_env({"K_SERVICE": "night-orders-relay"}))
+
+
+def test_the_day_sheet_is_posted_once_at_dusk(tmp_path, relay_key):
+    from test_daysheet import Server, gitlab_for, routes
+
+    server = Server(routes())
+    rig = Rig(tmp_path, QuietSources(), gitlab=gitlab_for(server), watch_issue=7)
+    rig.now = local("20:59")
+    assert rig.tick().json()["morning"] == []
+    rig.now = local("21:00")
+    assert rig.tick().json()["morning"] == ["day sheet posted on the watch issue: 1 merge(s), 1 deployment(s)"]
+    rig.now = local("21:01")
+    assert rig.tick().json()["morning"] == []
+    posted = [r for r in server.requests if r.method == "POST"]
+    assert len(posted) == 1 and posted[0].url.path.endswith("/issues/7/notes")
+    assert json.loads(posted[0].content)["body"].startswith("## Day sheet for Tue 20 Oct")
+    assert rig.doc()["relay"]["daysheet"] == "2026-10-20"
