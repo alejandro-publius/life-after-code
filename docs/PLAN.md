@@ -28,7 +28,15 @@ Goal: build done Sat 24 Oct; video and Devpost submission done Mon 26 Oct, 9:00 
 - Research, 57 scored concepts, five briefs, the choice ([IDEAS.md](IDEAS.md)).
 - The decision code and one test per refusal reason; the dusk drafter (the agent's first job); a labelled demo night replayed through the real code; the relay service; the demo shop; three Duo flows checked against GitLab's flow schema; the CI pipeline, with the gcloud flag audit in the pinned SDK image.
 
-## Week 1: Tue 6 to Sun 11 Oct, accounts and the day-one test
+## Where things stand on Sun 11 Oct
+
+- Done: Devpost registration (5 Oct). Alex reports the GitLab workspace registration was approved (about 10 Oct); the workspace link and the GitLab username are not in this repo yet.
+- Done on main: a guided browser demo of the night at `/demo` (5 Oct), GitHub Actions checks, the Devpost draft and judge guide.
+- 11 Oct: the test-night runner ([scripts/test_night.py](../scripts/test_night.py), [TEST_NIGHT.md](TEST_NIGHT.md)). In progress the same day: the day-one probe script, relay hardening (readiness, one tick at a time, exact restore at the countersign), and the review of Codex's three-service deploy. [STATUS.md](STATUS.md) says what landed.
+- Not started: anything live. No token, no Google project, no flow enabled yet.
+- A review on branch `claude/concept-review` (6 Oct) proposed switching to No Mouse. Night Orders stays ([DECISIONS.md](DECISIONS.md), 11 Oct); the live gate below decides within 48 hours of the token arriving.
+
+## Week 1, as it happened: Tue 6 to Sun 11 Oct
 
 | When | Who | What | Done when |
 |---|---|---|---|
@@ -47,13 +55,17 @@ Goal: build done Sat 24 Oct; video and Devpost submission done Mon 26 Oct, 9:00 
 
 Also settled by the day-one test: whether Alex can merge to the default branch. If not, the signature is an approval (code reads who approved and when).
 
-## Week 2: Mon 12 to Sun 18 Oct, the live loop
+## Week 2: Mon 12 to Sun 18 Oct, the live gate and the live loop
 
 | When | Who | What |
 |---|---|---|
+| Mon 12 | Alex, phone, 10 min | Send the workspace link. Create the personal access token (scopes `api` and `write_repository`, expiry 20 Nov) and add it to the Claude Code environment as `GITLAB_TOKEN`. Start the Google Cloud trial and create the project if not done ([MORNING.md](MORNING.md)). |
+| Within 48 hours of the token | Claude Code | Push the repo to the GitLab project. Run [scripts/day_one.py](../scripts/day_one.py) (the live gate, decision D1): roles, merge rights, flags, the probe flow through the Flows API. Results in [STATUS.md](STATUS.md). |
+| Mon 12 to Tue 13 | Alex, phone, 15 min | In the GitLab project: create the probe, watch, dusk and dawn flows from `flows/*.yml` and enable them (exact clicks printed by the day-one script's `catalog` step). |
+| Tue 13 to Wed 14 | Alex, Cloud Shell, 30 min | Run `deploy/setup_gcp.sh`, paste the hidden secrets when asked, press Play on the three deploy jobs. |
 | Mon 12 to Wed 14 | Claude Code | Real GitLab feature flags read by the shop (through the API with the token: `new_checkout` with a User IDs strategy for the demo pilot customers `pilot-01` to `pilot-10`, `stock_from_cache` off); the relay changes them with the token. Real incidents and notes, with the shop's recent error log lines from Cloud Logging in the evidence pack. The watch flow started at night (or the D1 fallback). |
-| Wed 14 to Fri 16 | Claude Code | The dusk flow on a real watch issue, drafting from merge requests really merged that day. The dawn flow, the countersign merge request and `apply_state`. |
-| Sat 17 or Sun 18 | Alex, phone, 20 min | First full test night (compressed clock, about 25 minutes): merge or approve the orders, then one thumbs-up when paged. |
+| Wed 14 to Fri 16 | Claude Code | The dusk flow on a real watch issue, drafting from merge requests really merged that day. The dawn flow and the countersign merge request; the relay restores what is not kept. A day sheet note on the watch issue, written by code at dusk, so the dusk flow reads flags and deployments it cannot query itself. |
+| Sat 17 or Sun 18 | Alex, phone, 20 min | First full test night ([TEST_NIGHT.md](TEST_NIGHT.md), about 45 real minutes of faults while asleep): merge or approve the orders in the evening, one thumbs-up when paged, countersign in the morning. |
 
 **Decision D2, Sun 18 Oct.** Did the first test night run end to end? If not, cut in this order: the dusk question; Cloud Monitoring (the relay raises alerts from the shop's counters); the dawn flow (code writes the log, the countersign stays a merge request).
 
