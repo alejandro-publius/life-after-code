@@ -73,7 +73,7 @@ Payment errors, a second alert during a re-check, expired permission, a malforme
 
 ## GitLab workflow and current limits
 
-Status: **11 Oct 2026**. The whole loop runs offline here, with **489 passing tests** (93% line coverage): the decision core, the relay, the demo shop, the three Duo flows, the day-one test script ([scripts/day_one.py](scripts/day_one.py)) and the test-night runner ([docs/TEST_NIGHT.md](docs/TEST_NIGHT.md)). A public live demo URL is **pending**. Nothing has run on GitLab.com or Google Cloud yet, and no live model execution has been demonstrated; [docs/STATUS.md](docs/STATUS.md) says what is true today.
+Status: **11 Oct 2026**. The whole loop runs offline here, with **493 passing tests** (93% line coverage): the decision core, the relay, the demo shop, the three Duo flows, the day-one test script ([scripts/day_one.py](scripts/day_one.py)) and the test-night runner ([docs/TEST_NIGHT.md](docs/TEST_NIGHT.md)). A public live demo URL is **pending**. Nothing has run on GitLab.com or Google Cloud yet, and no live model execution has been demonstrated; [docs/STATUS.md](docs/STATUS.md) says what is true today.
 
 Three custom GitLab Duo Agent Platform flows are defined: [dusk](flows/dusk.yml) drafts orders, [watch](flows/watch.yml) reads incident evidence, and [dawn](flows/dawn.yml) proposes the morning countersign. Their files are validated against the checked-in GitLab flow schema and tool list. That validation checks configuration; it is not proof of a live Duo run.
 
@@ -88,6 +88,8 @@ The submission is planned for Path A. **Supervised is the current category recom
 | Read | What it provides |
 |---|---|
 | [Judge guide](docs/GUIDE.md) | The five equally weighted criteria and the evidence for each |
+| [Refusals](docs/REFUSALS.md) | 23 attempts against the real decision code, each answer in code's own words, and a control that acts |
+| [Adopt it](docs/ADOPT.md) | What another team needs and the eight steps to run Night Orders on its own project |
 | [Devpost draft](docs/DEVPOST.md) | An English submission draft with pending links and proof called out |
 | [Video script](docs/VIDEO.md) | A filmable browser replay under three minutes |
 | [Current status](docs/STATUS.md) | Verified progress and integration gaps |

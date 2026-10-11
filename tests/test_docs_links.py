@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from urllib.parse import unquote
 
 import pytest
 
@@ -21,7 +22,7 @@ def relative_links(page: Path) -> list[str]:
     for target in LINK.findall(text):
         if re.match(r"^[a-z][a-z0-9+.-]*:", target) or target.startswith("#"):
             continue
-        found.append(target.split("#", 1)[0])
+        found.append(unquote(target.split("#", 1)[0]))
     return [link for link in found if link]
 
 
