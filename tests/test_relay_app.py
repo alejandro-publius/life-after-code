@@ -1,4 +1,4 @@
-"""The relay app: /healthz, /tick and the status page, with fake sources and ports and a file store. Offline.
+"""The relay app: /healthz, /readyz, /tick and the status page, with fake sources and ports and a file store. Offline.
 
 The demo night is demo data (planted faults, simulated shop). Every key and name here is test data.
 relay/main.py is loaded from its file under its own module name, because shop/main.py exists too.
@@ -11,6 +11,7 @@ import json
 import sys
 from datetime import datetime, timedelta, timezone
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -99,6 +100,29 @@ class Rig:
 @pytest.fixture
 def relay_key(monkeypatch):
     monkeypatch.setenv("RELAY_KEY", KEY)
+
+
+# Test settings for a complete relay. Every value is made up; none may ever show up in a response or a page.
+FULL_SETTINGS = {
+    "GITLAB_URL": "https://gitlab.example", "GITLAB_PROJECT_ID": "123", "GITLAB_TOKEN": "fake-gitlab-token-value",
+    "FLOW_CONSUMER_ID": "456", "FLOW_SERVICE_ACCOUNT": "flow-bot", "SHOP_METRICS_URL": "https://shop.example/m",
+    "NTFY_URL": "https://ntfy.example/secret-topic-value", "RELAY_KEY": KEY, "GCP_PROJECT_ID": "proj",
+    "GCP_REGION": "us-central1",
+}
+
+
+@pytest.fixture
+def settings(monkeypatch):
+    """Clear every relay setting, then set what the test asks for (and RELAY_KEY, so ticks are allowed)."""
+    for name in main.REQUIRED + ("STATE_BUCKET", "STATE_OBJECT", "K_SERVICE") + main.OPTIONAL_NUMBERS:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("RELAY_KEY", KEY)
+
+    def apply(**values):
+        for name, value in values.items():
+            monkeypatch.setenv(name, value)
+
+    return apply
 
 
 def test_healthz_follows_the_deploy_contract(monkeypatch):
@@ -285,6 +309,94 @@ def test_a_port_failure_mid_tick_keeps_what_was_done(tmp_path, relay_key):
     rig.now = local("03:13")
     rig.tick()
     assert FailingFlow.opened == 1
+
+
+def test_a_settings_problem_counts_as_a_failed_tick_and_pages_on_the_third(tmp_path, settings):
+    settings(NTFY_URL=FULL_SETTINGS["NTFY_URL"], GITLAB_TOKEN=FULL_SETTINGS["GITLAB_TOKEN"], FLOW_CONSUMER_ID="x7")
+    pages: list[tuple] = []
+    app = main.create_app(make_store=lambda config: FileStore(tmp_path / "state.json"),
+                          make_pager=lambda config: lambda title, lines, priority="urgent": pages.append((title, lines)))
+    client = TestClient(app)
+    for minute in range(1, 4):
+        response = client.post("/tick", headers={"X-Relay-Key": KEY})
+        assert response.status_code == 500
+        body = response.json()
+        assert body["ok"] is False and body["failures_in_a_row"] == minute
+        assert body["error"].startswith("relay settings: ") and "GITLAB_URL is not set" in body["error"]
+        assert "FLOW_CONSUMER_ID must be a number" in body["error"]
+        assert "fake-gitlab-token" not in response.text and "secret-topic" not in response.text
+    assert [p[0] for p in pages] == ["Night Orders: relay problem"]
+    text = "\n".join(pages[0][1])
+    assert "failed 3 checks in a row" in text and "GITLAB_URL is not set" in text
+    assert "fake-gitlab-token" not in text and "secret-topic" not in text and "x7" not in text
+    assert (tmp_path / "state.json").exists() is False  # nothing ran, nothing was written
+
+
+def test_a_settings_problem_pages_through_ntfy_itself(tmp_path, settings, monkeypatch):
+    settings(NTFY_URL=FULL_SETTINGS["NTFY_URL"], GITLAB_TOKEN=FULL_SETTINGS["GITLAB_TOKEN"])
+    sent: list[httpx.Request] = []
+
+    def ntfy(request: httpx.Request) -> httpx.Response:
+        sent.append(request)
+        return httpx.Response(200, json={"id": "test"})
+
+    monkeypatch.setattr(main, "_client", httpx.Client(transport=httpx.MockTransport(ntfy)))
+    client = TestClient(main.create_app(make_store=lambda config: FileStore(tmp_path / "state.json")))
+    codes = [client.post("/tick", headers={"X-Relay-Key": KEY}).status_code for _ in range(3)]
+    assert codes == [500, 500, 500] and len(sent) == 1
+    [request] = sent
+    assert str(request.url) == FULL_SETTINGS["NTFY_URL"] and request.headers["Priority"] == "urgent"
+    body = request.content.decode()
+    assert "FLOW_CONSUMER_ID is not set" in body and "fake-gitlab-token" not in body
+
+
+def test_without_ntfy_a_settings_problem_is_logged_and_still_counted(tmp_path, settings, caplog):
+    client = TestClient(main.create_app(make_store=lambda config: FileStore(tmp_path / "state.json")))
+    with caplog.at_level("ERROR", logger="nightorders.relay"):
+        responses = [client.post("/tick", headers={"X-Relay-Key": KEY}) for _ in range(3)]
+    assert [r.json()["failures_in_a_row"] for r in responses] == [1, 2, 3]
+    assert responses[-1].json()["paged"] is False
+    assert any("could not page about the relay problem: NTFY_URL is not set" in r.message for r in caplog.records)
+
+
+def test_readyz_names_what_is_missing_and_says_ready_when_nothing_is(tmp_path, settings):
+    settings(GITLAB_TOKEN=FULL_SETTINGS["GITLAB_TOKEN"], FLOW_CONSUMER_ID="x7")
+    client = TestClient(main.create_app(make_store=lambda config: FileStore(tmp_path / "state.json")))
+    response = client.get("/readyz")
+    assert response.status_code == 503
+    problems = response.json()["problems"]
+    assert response.json()["ready"] is False
+    assert "GITLAB_URL is not set" in problems and "FLOW_CONSUMER_ID must be a number" in problems
+    assert not any(p.startswith("state store") for p in problems)  # a missing state file is fine
+    assert "fake-gitlab-token" not in response.text and "x7" not in response.text
+    assert client.get("/healthz").json() == {"ok": True, "commit": "local"}  # the deploy contract is untouched
+
+    settings(**FULL_SETTINGS)
+    assert client.get("/readyz").status_code == 200
+    assert client.get("/readyz").json() == {"ready": True, "store": "ok"}
+
+    def broken(config):
+        raise RelayError("Cloud Storage read state: HTTP 403")
+
+    response = TestClient(main.create_app(make_store=broken)).get("/readyz")
+    assert response.status_code == 503
+    assert response.json()["problems"][-1] == "state store: Cloud Storage read state: HTTP 403"
+
+
+def test_tick_answers_409_while_another_tick_holds_the_lease(tmp_path, relay_key):
+    rig = Rig(tmp_path, QuietSources())
+    token = rig.store.acquire(rig.now)
+    assert token is not None
+    response = rig.tick()
+    assert response.status_code == 409 and response.json() == {"ok": False, "error": "a tick is already running"}
+    assert rig.doc() is None and rig.pages == []  # nothing ran, nothing counted
+    rig.store.release(token)
+    assert rig.tick().status_code == 200
+    assert not rig.store.lease_path.exists()  # released after the tick
+    # A lease left behind by a crashed tick does not block the relay: it is taken over once stale.
+    assert rig.store.acquire(rig.now) is not None
+    rig.now = rig.now + timedelta(seconds=main.state.LEASE_SECONDS)
+    assert rig.tick().status_code == 200
 
 
 def test_settings_are_named_but_never_shown(monkeypatch):

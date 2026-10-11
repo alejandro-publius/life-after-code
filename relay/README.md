@@ -20,11 +20,16 @@ A small FastAPI service on Cloud Run, and the only part of Night Orders that cha
    person signs the countersign (`ops/state.yml`), undoes every night change they did not keep.
 5. Saves its memory. If GitLab, the shop or the store fails three ticks in a row, it pages.
 
+Only one tick runs at a time, across Cloud Run instances: a tick first takes a short lease in the state store
+(a second object next to the state, taken over after 90 seconds if a tick crashed holding it), and a tick
+that finds one held answers 409 and leaves everything else alone.
+
 ## Routes
 
 | Route | Who calls it | What it does |
 |---|---|---|
 | `GET /healthz` | deploy job | `{"ok": true, "commit": ...}` |
+| `GET /readyz` | deploy job, probes | `{"ready": true, "store": "ok"}`, or 503 with the missing setting names and the store's problem (never a value) |
 | `POST /tick` | Cloud Scheduler, with the `X-Relay-Key` header | one tick, as above |
 | `GET /` | anyone | read-only status page: tonight's orders, the last watch log (labelled demo) |
 

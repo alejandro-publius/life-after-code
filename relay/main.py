@@ -2,17 +2,20 @@
 
 Routes:
   GET  /healthz  The deploy contract: {"ok": true, "commit": CI_COMMIT_SHORT_SHA or "local"}.
+  GET  /readyz   Whether a tick could run: 200 {"ready": true, "store": "ok"} when every setting is there and
+                 the state store answers, else 503 {"ready": false, "problems": [...]} naming settings only.
   POST /tick     Cloud Scheduler calls it once a minute with the X-Relay-Key header. It reads tonight's inputs
                  from GitLab and the shop, restores the Watch from the saved state, runs one tick of
                  nightorders.watch.Watch, saves the state and returns a short JSON summary. The relay does only
-                 what the core decides; it adds no decision of its own.
+                 what the core decides; it adds no decision of its own. One tick runs at a time, across
+                 instances: a tick takes a lease in the state store first, and answers 409 if one is held.
   GET  /         A public, read-only status page: tonight's signed orders or "Nothing signed", whether they
                  are active or expired, and the last watch log written by nightorders.dawn.render_watch_log.
 
-When the relay itself fails (GitLab, the shop, the state store, a production change), the tick returns 500
-and is tried again a minute later. After 3 failed ticks in a row the relay pages the on-call person, then
-again every 60 minutes while it keeps failing, and sends a quiet push when it works again. A relay error
-always wakes her; a single network hiccup does not.
+When the relay itself fails (GitLab, the shop, the state store, a production change, a missing setting), the
+tick returns 500 and is tried again a minute later. After 3 failed ticks in a row the relay pages the on-call
+person, then again every 60 minutes while it keeps failing, and sends a quiet push when it works again. A
+relay error always wakes her; a single network hiccup does not.
 
 Settings come only from environment variables. The relay never prints, logs or returns their values.
 
@@ -174,6 +177,17 @@ def make_store(config: Config) -> Any:
     return state.FileStore(config["STATE_OBJECT"] or os.path.join(tempfile.gettempdir(), "night-orders-state.json"))
 
 
+def make_pager(config: Config) -> Callable[..., None]:
+    """The relay's own pager. It needs only NTFY_URL, so a missing setting elsewhere can still wake someone."""
+
+    def pager(title: str, lines: tuple[str, ...], priority: str = "urgent") -> None:
+        if not config["NTFY_URL"]:
+            raise RelayError("NTFY_URL is not set, so nobody can be paged")
+        push(Http(http_client()), config["NTFY_URL"], title, lines, priority=priority)
+
+    return pager
+
+
 def make_relay(config: Config, store: Any) -> Relay:
     problems = config.problems()
     if problems:
@@ -190,11 +204,18 @@ def make_relay(config: Config, store: Any) -> Relay:
                            google_token=token, memory=saved, dawn_consumer_id=config["DAWN_FLOW_CONSUMER_ID"],
                            watch_issue=watch_issue)
 
-    def pager(title: str, lines: tuple[str, ...], priority: str = "urgent") -> None:
-        push(plain, config["NTFY_URL"], title, lines, priority=priority)
-
     return Relay(sources=GitLabSources(gitlab, budget, config["SHOP_METRICS_URL"]), store=store,
-                 make_ports=make_ports, pager=pager, watch_issue=watch_issue)
+                 make_ports=make_ports, pager=make_pager(config), watch_issue=watch_issue)
+
+
+def readiness(config: Config, make_store: Callable[[Config], Any]) -> list[str]:
+    """What stops a tick from running: missing settings, or a state store that does not answer. Names only."""
+    problems = config.problems()
+    try:
+        make_store(config).load()
+    except Exception as error:
+        problems.append(f"state store: {reason(error)}")
+    return problems
 
 
 def reason(error: BaseException) -> str:
@@ -459,7 +480,8 @@ def _key_ok(given: str | None, expected: str) -> bool:
 
 def create_app(make_store: Callable[[Config], Any] = make_store,
                make_relay: Callable[[Config, Any], Relay] = make_relay,
-               clock: Callable[[], datetime] | None = None, page_cache_seconds: float = 15.0) -> FastAPI:
+               clock: Callable[[], datetime] | None = None, page_cache_seconds: float = 15.0,
+               make_pager: Callable[[Config], Callable[..., None]] = make_pager) -> FastAPI:
     app = FastAPI(title="Night Orders relay", docs_url=None, redoc_url=None, openapi_url=None)
     health = Health()
     one_at_a_time = threading.Lock()
@@ -485,6 +507,13 @@ def create_app(make_store: Callable[[Config], Any] = make_store,
     def healthz() -> dict:
         return {"ok": True, "commit": os.environ.get("CI_COMMIT_SHORT_SHA") or "local"}
 
+    @app.get("/readyz")
+    def readyz() -> JSONResponse:
+        problems = readiness(Config.from_env(), make_store)
+        if problems:
+            return JSONResponse({"ready": False, "problems": problems}, status_code=503)
+        return JSONResponse({"ready": True, "store": "ok"})
+
     @app.post("/tick")
     def tick(x_relay_key: str | None = Header(default=None)) -> JSONResponse:
         config = Config.from_env()
@@ -498,14 +527,30 @@ def create_app(make_store: Callable[[Config], Any] = make_store,
             try:
                 relay = make_relay(config, make_store(config))
             except Exception as error:
-                log.error("tick refused: %s", reason(error))
-                return JSONResponse({"ok": False, "error": reason(error)}, status_code=500)
+                # A missing setting or store counts like any failed tick, so after three it wakes her too.
+                # Only the pager is needed for that; the error names settings, never their values.
+                bare = Relay(sources=None, store=None, make_ports=None, pager=make_pager(config))
+                code, summary = _failed(bare, health, now(), reason(error), None)
+                return JSONResponse(summary, status_code=code)
             moment = now()
+            try:
+                lease = relay.store.acquire(moment)
+            except Exception as error:
+                code, summary = _failed(relay, health, moment, f"could not take the tick lease ({reason(error)})",
+                                        None)
+                return JSONResponse(summary, status_code=code)
+            if lease is None:  # another instance is mid-tick: nothing counted, Scheduler comes back in a minute
+                return JSONResponse({"ok": False, "error": "a tick is already running"}, status_code=409)
             try:
                 code, summary = run_tick(relay, health, moment)
             except Exception as error:  # a bug, not an outage: it still counts, so it still wakes her
                 log.error("unexpected error in a tick", exc_info=error)
                 code, summary = _failed(relay, health, moment, f"unexpected error ({reason(error)})", None)
+            finally:
+                try:
+                    relay.store.release(lease)
+                except Exception as error:  # a stale lease is taken over after LEASE_SECONDS
+                    log.warning("could not release the tick lease: %s", reason(error))
             return JSONResponse(summary, status_code=code)
         finally:
             one_at_a_time.release()

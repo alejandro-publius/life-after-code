@@ -20,14 +20,21 @@ Stores:
   GcsStore   one object in a Cloud Storage bucket, through the JSON API with the metadata-server token.
              A save only succeeds if nobody saved since this tick loaded (ifGenerationMatch), so two ticks
              never silently overwrite each other.
-             API: https://storage.googleapis.com/$discovery/rest?version=v1 (objects.get, objects.insert)
+             API: https://storage.googleapis.com/$discovery/rest?version=v1 (objects.get, objects.insert,
+             objects.delete)
+
+Both stores also hold the tick lease: acquire(now) gives a token to one tick at a time, across Cloud Run
+instances, and release(token) frees it. A lease older than LEASE_SECONDS counts as left behind by a crashed
+tick and may be taken over, so it never blocks the relay for good.
 """
 
 from __future__ import annotations
 
 import json
+import os
+import secrets
 from dataclasses import asdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import quote
@@ -40,6 +47,7 @@ from .watch import Incident, Watch
 
 VERSION = 1
 STORAGE_API = "https://storage.googleapis.com"
+LEASE_SECONDS = 90
 
 
 class StateError(RuntimeError):
@@ -190,11 +198,32 @@ def encode(doc: dict) -> bytes:
     return json.dumps(doc, indent=1, sort_keys=True, ensure_ascii=False).encode("utf-8")
 
 
+def new_lease(now: datetime) -> tuple[str, bytes]:
+    """A fresh lease: its token and the JSON body that records when it was taken."""
+    token = secrets.token_hex(8)
+    return token, encode({"since": now.isoformat(), "token": token})
+
+
+def lease_stale(body: bytes | None, now: datetime, fallback: datetime | None = None) -> bool:
+    """Whether a lease is old enough to take over. An unreadable lease counts by its fallback time, else as stale."""
+    since = fallback
+    try:
+        since = datetime.fromisoformat(json.loads(body or b"")["since"])
+    except (ValueError, TypeError, KeyError):
+        pass
+    if since is None:
+        return True
+    if since.tzinfo is None:
+        since = since.replace(tzinfo=timezone.utc)
+    return now - since >= timedelta(seconds=LEASE_SECONDS)
+
+
 class FileStore:
-    """The state as a local JSON file. The version token is unused."""
+    """The state as a local JSON file. The version token is unused. The lease is a file next to it."""
 
     def __init__(self, path: Path | str):
         self.path = Path(path)
+        self.lease_path = self.path.with_name(self.path.name + ".lease")
 
     def load(self) -> tuple[dict | None, None]:
         try:
@@ -209,18 +238,54 @@ class FileStore:
         partial.write_bytes(encode(doc))
         partial.replace(self.path)
 
+    def acquire(self, now: datetime) -> str | None:
+        """Take the tick lease: a token, or None while another tick holds a fresh one."""
+        token, body = new_lease(now)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            fd = os.open(self.lease_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        except FileExistsError:
+            try:
+                existing = self.lease_path.read_bytes()
+                touched = datetime.fromtimestamp(self.lease_path.stat().st_mtime, timezone.utc)
+            except FileNotFoundError:  # released just now; the next tick is a minute away
+                return None
+            if not lease_stale(existing, now, touched):
+                return None
+            self.lease_path.write_bytes(body)  # left behind by a crashed tick: take it over
+            return token
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(body)
+        return token
+
+    def release(self, token: str) -> None:
+        """Free the lease, unless another tick has taken it over meanwhile."""
+        try:
+            held = json.loads(self.lease_path.read_bytes()).get("token")
+        except (FileNotFoundError, ValueError, AttributeError):
+            return
+        if held == token:
+            try:
+                self.lease_path.unlink()
+            except FileNotFoundError:
+                pass
+
 
 class GcsStore:
-    """The state as one Cloud Storage object. The version token is the object's generation ("0": none yet)."""
+    """The state as one Cloud Storage object. The version token is the object's generation ("0": none yet).
+
+    The lease is a second object, <name>.lease, created only when it does not exist (ifGenerationMatch=0).
+    """
 
     def __init__(self, bucket: str, name: str, http: Any, token: Callable[[], str]):
         self.bucket = bucket
         self.name = name
         self.http = http      # gitlab_ports.Http: 10 second timeout, safe error messages
         self.token = token    # gitlab_ports.GoogleToken: the metadata-server access token
+        self._leases: dict[str, str] = {}  # lease token -> the generation this store created
 
-    def _object_url(self) -> str:
-        return f"{STORAGE_API}/storage/v1/b/{quote(self.bucket, safe='')}/o/{quote(self.name, safe='')}"
+    def _object_url(self, name: str | None = None) -> str:
+        return f"{STORAGE_API}/storage/v1/b/{quote(self.bucket, safe='')}/o/{quote(name or self.name, safe='')}"
 
     def load(self) -> tuple[dict | None, str]:
         headers = {"Authorization": f"Bearer {self.token()}"}
@@ -241,3 +306,43 @@ class GcsStore:
                                   headers=headers, params=params, content=encode(doc), expect=(200, 412))
         if response.status_code == 412:
             raise StateConflict("another tick saved the state first; this tick's record was not saved")
+
+    def _put_lease(self, body: bytes, generation: str) -> str | None:
+        """Write the lease object if it is at that generation ("0": absent). The new generation, or None on 412."""
+        headers = {"Authorization": f"Bearer {self.token()}", "Content-Type": "application/json"}
+        params = {"uploadType": "media", "name": self.name + ".lease", "ifGenerationMatch": generation}
+        response = self.http.call("Cloud Storage take the tick lease", "POST",
+                                  f"{STORAGE_API}/upload/storage/v1/b/{quote(self.bucket, safe='')}/o",
+                                  headers=headers, params=params, content=body, expect=(200, 412))
+        return None if response.status_code == 412 else str(response.json()["generation"])
+
+    def acquire(self, now: datetime) -> str | None:
+        """Take the tick lease: a token, or None while another instance holds a fresh one."""
+        token, body = new_lease(now)
+        generation = self._put_lease(body, "0")
+        if generation is None:
+            headers = {"Authorization": f"Bearer {self.token()}"}
+            url = self._object_url(self.name + ".lease")
+            meta = self.http.call("Cloud Storage read the tick lease", "GET", url, headers=headers,
+                                  expect=(200, 404))
+            if meta.status_code == 404:  # released just now; the next tick is a minute away
+                return None
+            held = str(meta.json()["generation"])
+            existing = self.http.call("Cloud Storage read the tick lease", "GET", url, headers=headers,
+                                      params={"alt": "media", "generation": held})
+            if not lease_stale(existing.content, now):
+                return None
+            generation = self._put_lease(body, held)  # left behind by a crashed tick: take it over
+            if generation is None:
+                return None
+        self._leases[token] = generation
+        return token
+
+    def release(self, token: str) -> None:
+        """Delete the lease this store created. Gone already (404) or taken over (412) is fine."""
+        generation = self._leases.pop(token, None)
+        if generation is None:
+            return
+        self.http.call("Cloud Storage release the tick lease", "DELETE", self._object_url(self.name + ".lease"),
+                       headers={"Authorization": f"Bearer {self.token()}"},
+                       params={"ifGenerationMatch": generation}, expect=(204, 404, 412))
