@@ -48,10 +48,12 @@ demo_night:
   script:
     - cd relay
     - uv run --project .. python -m nightorders.demo_night ../demo/night-2026-10-20 | tee ../demo-night.txt
+    - uv run --project .. python -m nightorders.demo_night ../demo/night-2026-10-20 --standing | tee ../demo-night-standing-orders.txt
   artifacts:
     expose_as: "Demo night replay (demo data)"
     paths:
       - demo-night.txt
+      - demo-night-standing-orders.txt
 
 deploy_unit_tests:
   image: python:3.12-slim
