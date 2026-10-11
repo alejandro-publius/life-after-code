@@ -1,15 +1,15 @@
 # Status
 
-Last updated: **11 Oct 2026, about 19:00 UTC** (No Mouse feasibility batch).
+Last updated: **11 Oct 2026, about 20:30 UTC** (No Mouse fix bench in preparation).
 
 ## Current state
 
 | Item | State |
 |---|---|
-| Concept | **Undecided.** The concept review (PR #1) recommended No Mouse and has no Codex verdict yet. The pre-registered No Mouse feasibility bench (PR #2) then **failed its first criterion**: the model beat the strong no-model search on 1 held-out variant, and the bar was 2. Options and the recommendation (reframe No Mouse so Duo writes the fix and code proves it, gated by one more test) are in [IDEAS.md, section 0.5](IDEAS.md#05-feasibility-result-11-oct-2026). |
+| Concept | **Undecided.** The concept review (PR #1) recommended No Mouse and has no Codex verdict yet. The pre-registered No Mouse bench (PR #2) **failed its first criterion**: deciding the route needs no model. Since then code refuses controls whose spoken name contradicts their visible label, and in a labelled post-hoc rerun the no-model search chose the right route on all 15 held-out variants. The open question for option A in [IDEAS.md, section 0.5](IDEAS.md#05-feasibility-result-11-oct-2026) is whether the model repairs barriers better than rules: the fix bench and F0, a rule fixer, are built; the [pre-registration](research/nomouse_fix_bench.md) is under a bias review before it is frozen and a blind barrier set is written. |
 | Prize emphasis | Path A, Best Supervised Agent; Most Creative as the special prize, if the concept holds. Not Most Stages Covered or the environmental prize. |
 | Latest reviewed source | GitHub main at `484c41154a2742666483a53c715121685eb7dac0`. Unreviewed: `claude/concept-review` (PR #1) and `claude/nomouse-feasibility` (PR #2, stacked on it). |
-| Works locally | No Mouse: the labelled demo shop, the keyboard walker reading Chromium's accessibility tree, journey replay with guards, B1 and B2 baselines, the stand-in model adapter, fixes on temporary copies and the bench ([nomouse/README.md](../nomouse/README.md)). Night Orders: unchanged from 5 Oct (see below). Tests on 11 Oct: 428 passed with the walker extra; 415 passed and 13 browser tests skipped without it; 13 browser tests passed alone. |
+| Works locally | No Mouse: the labelled demo shop, the keyboard walker reading Chromium's accessibility tree (now also the visible label of each control), journey replay with guards, B1 and B2, the stand-in model adapter, F0, fixes on temporary copies, and both benches ([nomouse/README.md](../nomouse/README.md)). Night Orders: unchanged from 5 Oct (see below). Tests on 11 Oct: 546 passed with the walker extra; 509 passed and 37 browser tests skipped without it. |
 | Simulated | The shop, persona and every variant are demo data. The screen reader is simulated from Chromium's accessibility tree. Bench model answers come from a stand-in (Claude Sonnet 4.6 via `claude -p`), not from GitLab Duo. The Night Orders replay's inputs are recorded fixtures. |
 | Live integrations verified | **None.** Nothing has run on GitLab.com or Google Cloud, and no Duo flow has run. |
 | CI evidence | [GitHub Checks run 38162722824](https://github.com/alejandro-publius/life-after-code/actions/runs/38162722824) passed all three jobs on `835389158fa6e5d0ed752eb8a4fac9ed2d21ddd4` (the frozen harness), including the 13 No Mouse browser tests in Chromium on Linux. This is GitHub CI, not GitLab pipeline history. |
