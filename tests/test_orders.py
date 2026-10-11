@@ -30,7 +30,8 @@ def test_bare_yaml_off_is_accepted_for_flag_value(orders_data, targets, oncall):
 def test_more_than_three_orders_refused(orders_data, targets, oncall):
     extra = [dict(orders_data["orders"][0], id=i) for i in (3, 4)]
     orders_data["orders"].extend(extra)
-    assert "is too long" in problems(orders_data, targets, oncall)
+    text = problems(orders_data, targets, oncall)
+    assert "orders: at most 3 allowed, found 4" in text and "new_checkout" not in text  # no dump of the list
 
 
 def test_action_off_the_menu_refused(orders_data, targets, oncall):

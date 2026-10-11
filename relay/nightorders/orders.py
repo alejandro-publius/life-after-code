@@ -90,8 +90,23 @@ def _schema_problems(data: dict) -> list[str]:
         where = "/".join(str(p) for p in error.absolute_path) or "file"
         if "should not be valid under" in error.message and "above" in error.message + "below":
             continue  # covered by the plain check for exactly one threshold
-        problems.append(f"{where}: {error.message}")
+        problems.append(f"{where}: {_said(error)}")
     return problems
+
+
+MAX_SCHEMA_MESSAGE = 200
+
+
+def _said(error) -> str:
+    """The schema's message, without repeating the whole value back (a list of orders can be long)."""
+    if error.validator == "maxItems":
+        return f"at most {error.validator_value} allowed, found {len(error.instance)}"
+    if error.validator == "minItems":
+        return f"at least {error.validator_value} needed, found {len(error.instance)}"
+    if error.validator == "maxLength":
+        return f"at most {error.validator_value} characters, found {len(error.instance)}"
+    message = " ".join(str(error.message).split())
+    return message if len(message) <= MAX_SCHEMA_MESSAGE else message[:MAX_SCHEMA_MESSAGE - 3] + "..."
 
 
 def _plain_problems(data: dict) -> list[str]:

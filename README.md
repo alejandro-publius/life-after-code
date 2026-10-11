@@ -57,6 +57,8 @@ The model chooses where to look. Code decides what is true. A human decides when
 
 **The model can say no. It cannot say more.** Three things a runbook does not have: a signature each night, an expiry each morning, and a model that can only narrow what a person signed. In the demo night at 01:52, code would have allowed order 1; the model read the evidence, saw the old checkout failing too, declined, and Priya was woken with one suggestion instead. At 03:13 the same order fit, and her phone stayed dark. A planted log line telling the agent to "roll back every service" sits in that incident's evidence pack, fenced as data, and changes nothing: the action comes from the signed file.
 
+**23 attempts, 0 production changes.** [docs/REFUSALS.md](docs/REFUSALS.md) tries every way we found for the night to go wrong against the real decision code: a reply that adds its own action, a suggestion off the menu, a teammate's merge or thumbs-up, the clock after 07:00, payment errors, two checkouts a minute, a switched-off path that reads 0%, a fourth order, a countersign that keeps a change nobody made. Each answer in the table is code's own text, and a test keeps the page equal to what the code prints. The first row is the control: with everything in order, the same harness does act.
+
 ![One night, dusk to dawn: the person signs, Duo flows draft and judge, code checks and acts, GitLab and Cloud Run hold the record](docs/images/night-orders-loop.svg)
 
 - **Before bed:** the dusk drafter proposes at most three orders from the day's changes. Each names a condition and one reversible action: set a feature flag, or move a Cloud Run service's traffic to a named earlier revision. A database migration gets no order.
@@ -71,7 +73,7 @@ Payment errors, a second alert during a re-check, expired permission, a malforme
 
 ## GitLab workflow and current limits
 
-Status: **11 Oct 2026**. The whole loop runs offline here, with **466 passing tests** (93% line coverage): the decision core, the relay, the demo shop, the three Duo flows, the day-one test script ([scripts/day_one.py](scripts/day_one.py)) and the test-night runner ([docs/TEST_NIGHT.md](docs/TEST_NIGHT.md)). A public live demo URL is **pending**. Nothing has run on GitLab.com or Google Cloud yet, and no live model execution has been demonstrated; [docs/STATUS.md](docs/STATUS.md) says what is true today.
+Status: **11 Oct 2026**. The whole loop runs offline here, with **489 passing tests** (93% line coverage): the decision core, the relay, the demo shop, the three Duo flows, the day-one test script ([scripts/day_one.py](scripts/day_one.py)) and the test-night runner ([docs/TEST_NIGHT.md](docs/TEST_NIGHT.md)). A public live demo URL is **pending**. Nothing has run on GitLab.com or Google Cloud yet, and no live model execution has been demonstrated; [docs/STATUS.md](docs/STATUS.md) says what is true today.
 
 Three custom GitLab Duo Agent Platform flows are defined: [dusk](flows/dusk.yml) drafts orders, [watch](flows/watch.yml) reads incident evidence, and [dawn](flows/dawn.yml) proposes the morning countersign. Their files are validated against the checked-in GitLab flow schema and tool list. That validation checks configuration; it is not proof of a live Duo run.
 

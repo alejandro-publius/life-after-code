@@ -97,6 +97,7 @@ demo_night:
     - uv run --locked --project .. python -m nightorders.demo_night ../demo/night-2026-10-20 --standing
       | tee ../demo-night-standing-orders.txt
     - uv run --locked --project .. python -m nightorders.compare ../demo/night-2026-10-20 | tee ../demo-night-three-ways.txt
+    - uv run --locked --project .. python -m nightorders.refusals | tee ../refusals.txt
   artifacts:
     expose_as: "Demo night replay (demo data)"
     expire_in: 30 days
@@ -104,6 +105,7 @@ demo_night:
       - demo-night.txt
       - demo-night-standing-orders.txt
       - demo-night-three-ways.txt
+      - refusals.txt
 
 browser_smoke:
   extends: .python
