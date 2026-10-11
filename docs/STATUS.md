@@ -7,7 +7,7 @@ Last updated: **Sun 11 Oct 2026, about 17:00 UTC**.
 | Item | State |
 |---|---|
 | Concept | Night Orders. A review on branch `claude/concept-review` (6 Oct) proposed No Mouse; not adopted ([DECISIONS.md](DECISIONS.md), 11 Oct). The live gate below decides, and No Mouse stays the backup. |
-| Works offline | The decision core, dusk drafter, relay, demo shop, browser demo at `/demo`, day sheet, morning countersign with exact restore, three Duo flows plus the probe flow, the day-one script, the test-night runner and the Standing Orders fallback. `uv run pytest -q`: **345 passed**. `flows/validate.py`: 4 flows ok. |
+| Works offline | The decision core, dusk drafter, relay, demo shop, browser demo at `/demo`, day sheet, morning countersign with exact restore, three Duo flows plus the probe flow, the day-one script, the test-night runner and the Standing Orders fallback. `uv run pytest -q`: **381 passed**. `flows/validate.py`: 4 flows ok. |
 | Deploy code | Codex's three-service deploy (shop, shop-staging, relay; scoped identities, five secrets, Scheduler, state bucket, uptime check) reviewed with three lenses and a refuter per finding, then merged on 11 Oct. 48 deploy tests pass locally except the two alpha/beta help checks, which pass in the pinned SDK image (4 tests OK, Google Cloud SDK 587.0.0). Twelve minor follow-ups went to Codex in the session report. |
 | CI | GitHub Actions ([checks.yml](../.github/workflows/checks.yml)) is green on main for every push today. The GitLab pipeline ([.gitlab-ci.yml](../.gitlab-ci.yml)) has not run yet: there is no GitLab project with our code in it. |
 | Live | **Nothing has run on GitLab.com or Google Cloud.** Alex reports the workspace registration was approved on about 10 Oct; the workspace link and a token are not in this environment yet ([MORNING.md](MORNING.md)). |
@@ -28,7 +28,7 @@ Last updated: **Sun 11 Oct 2026, about 17:00 UTC**.
 
 | Check | Result |
 |---|---|
-| `uv run pytest -q` | 345 passed, 1 upstream Starlette deprecation warning |
+| `uv run pytest -q` | 381 passed, 1 upstream Starlette deprecation warning |
 | `uv run python flows/validate.py` | dawn, dusk, probe, watch: ok |
 | `python3 -m unittest discover -s deploy/tests` | 48 tests, 46 pass; the two alpha/beta help checks need the pinned image |
 | The same audit in the pinned SDK image (Docker) | 4 tests OK, 60 command paths and 61 flags |

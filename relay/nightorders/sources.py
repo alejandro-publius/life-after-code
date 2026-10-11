@@ -45,7 +45,7 @@ from .watch import AlertRule, parse_alert_rules
 
 ORDERS_PATH = "ops/night-orders.yml"
 STATE_PATH = "ops/state.yml"
-OPEN_MERGE_REQUESTS_READ = 5
+OPEN_MERGE_REQUESTS_READ = 10  # the newest open merge requests the rehearsal and the signature look at
 
 
 @dataclass(frozen=True)

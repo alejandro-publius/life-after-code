@@ -158,16 +158,17 @@ def test_a_failing_day_sheet_never_fails_the_tick_and_is_tried_a_few_times(tmp_p
     app = main.create_app(make_store=lambda config: store, make_relay=make_relay, clock=lambda: clock["now"],
                           page_cache_seconds=0)
     client = TestClient(app)
-    for minute in range(7):
+    for minute in range(12):
         clock["now"] = datetime(2026, 10, 21, 4, minute, tzinfo=timezone.utc)
         response = client.post("/tick", headers={"X-Relay-Key": "k"})
         assert response.status_code == 200 and response.json()["morning"] == []
     doc = store.load()[0]
     assert pages == [] and "error" not in doc["relay"]
-    assert doc["relay"]["daysheet_tries"] == {"2026-10-20": 5}
+    # tried at 21:00, 21:05 and 21:10 (every five minutes until midnight), never counted as a failed tick
+    assert doc["relay"]["daysheet_tries"] == {"2026-10-20": 3}
     assert doc["relay"]["daysheet_problem"]["reason"].startswith("GitLab list merged merge requests: HTTP 404")
     assert "daysheet" not in doc["relay"]
-    assert sum(1 for r in server.requests if r.url.path.endswith("/merge_requests")) == 5
+    assert sum(1 for r in server.requests if r.url.path.endswith("/merge_requests")) == 3
     assert not any(r.method == "POST" for r in server.requests)
 
 

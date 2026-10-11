@@ -25,8 +25,10 @@ SERVICE = "/v2/projects/demo-project/locations/us-central1/services/shop"
 class World:
     """A fake GitLab, Cloud Run, metadata server and staging shop in one transport."""
 
-    def __init__(self, orders_text: str = ORDERS, revision_exists: bool = True):
+    def __init__(self, orders_text: str = ORDERS, revision_exists: bool = True, shop_fetches: bool = True):
         self.requests: list[httpx.Request] = []
+        self.shop_fetches = shop_fetches  # whether the staging shop's fetched_at moves between two /flags reads
+        self.flag_reads = 0
         self.flag = {"name": "new_checkout", "active": True, "version": "new_version_flag", "strategies": [
             {"id": 11, "name": "userWithId", "parameters": {"userIds": "pilot-01,pilot-02"},
              "scopes": [{"id": 21, "environment_scope": "production"}, {"id": 22, "environment_scope": "staging"}]}]}
@@ -42,6 +44,10 @@ class World:
         if request.url.host == "shop-staging.example":
             if path == "/healthz":
                 return httpx.Response(200, json={"ok": True, "commit": "abc"})
+            if path == "/flags":
+                self.flag_reads += 1
+                stamp = self.flag_reads if self.shop_fetches else 1
+                return httpx.Response(200, json={"fetched_at": f"2026-10-21T04:3{stamp % 10}:00Z", "flags": {}})
             if path == "/checkout":
                 return httpx.Response(200, json={"ok": True, "path": "old"})
         if request.url.host == "run.googleapis.com":
@@ -92,7 +98,7 @@ def run(world: World, relay_doc: dict | None = None, staging_url: str = "https:/
                         google_token=GoogleToken(http))
     oncall, targets = load_context(OPS)
     relay_doc = {} if relay_doc is None else relay_doc
-    return step(relay_doc, NOW, oncall, targets, gitlab, ports, http, staging_url), relay_doc
+    return step(relay_doc, NOW, oncall, targets, gitlab, ports, http, staging_url, sleep=lambda s: None), relay_doc
 
 
 def staging_scopes(world: World) -> list[tuple[str, str]]:
@@ -108,7 +114,8 @@ def test_each_order_is_tried_on_staging_restored_and_reported_on_the_merge_reque
     [note] = world.notes
     lines = note["body"].splitlines()
     assert lines[0] == "Rehearsal on staging at 21:35, written by code for commit abc123de."
-    assert "- order 1: new_checkout off in staging applied, staging shop healthy, checkout ok on the old path, restored" in lines
+    assert ("- order 1: new_checkout off in staging applied, the staging shop fetched the change, checkout ok on the "
+            "old path, restored") in lines
     assert "- order 2: revision shop-00041 exists on shop" in lines
     assert lines[-1] == "2 order(s) checked. Merge to sign; the orders end at 07:00."
     assert staging_scopes(world) == before  # the staging flag is back as it was: the pilot list for staging

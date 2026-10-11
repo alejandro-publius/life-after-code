@@ -58,10 +58,18 @@ def _excerpt(diffs: list[dict]) -> str:
     return "\n".join(lines)[:MAX_EXCERPT_CHARS]
 
 
+MAX_MERGE_PAGES = 4
+
+
 def merged_today(gitlab: GitLab, branch: str, since: datetime, oncall: OnCall) -> list[dict]:
-    found = gitlab.json("list merged merge requests", "GET", "/merge_requests",
-                        params={"state": "merged", "target_branch": branch, "updated_after": since.isoformat(),
-                                "order_by": "updated_at", "sort": "desc", "per_page": MAX_MERGES})
+    found: list[dict] = []
+    for page in range(1, MAX_MERGE_PAGES + 1):  # a busy day can have more merges than one page holds
+        batch = gitlab.json("list merged merge requests", "GET", "/merge_requests",
+                            params={"state": "merged", "target_branch": branch, "updated_after": since.isoformat(),
+                                    "order_by": "updated_at", "sort": "desc", "per_page": MAX_MERGES, "page": page})
+        found += batch
+        if len(batch) < MAX_MERGES:
+            break
     merges = []
     for item in found:
         merged_at = parse_time(item.get("merged_at"))
@@ -105,8 +113,10 @@ def flags_now(gitlab: GitLab, now: datetime, oncall: OnCall, targets: Targets) -
     found = gitlab.json("list feature flags", "GET", "/feature_flags", params={"per_page": 100})
     since = day_start(now, oncall)
     flags = []
+    seen: set[str] = set()
     for flag in found:
         name = str(flag.get("name") or "")
+        seen.add(name)
         for environment in sorted(targets.flags.get(name, ())):
             if flag_on_for_all(flag, environment):
                 state = "on"
@@ -122,6 +132,9 @@ def flags_now(gitlab: GitLab, now: datetime, oncall: OnCall, targets: Targets) -
             else:
                 changed = updated.astimezone(oncall.timezone).date().isoformat()
             flags.append({"name": name, "environment": environment, "state": state, "changed_at": changed})
+    for name in sorted(set(targets.flags) - seen):  # listed in ops/targets.yml, but GitLab has no such flag
+        for environment in sorted(targets.flags[name]):
+            flags.append({"name": name, "environment": environment, "state": "not in GitLab", "changed_at": ""})
     return flags
 
 
@@ -172,7 +185,8 @@ def render(sheet: dict) -> str:
     if sheet["deployments"]:
         for dep in sheet["deployments"]:
             service = f" ({dep['service']})" if dep.get("service") else ""
-            lines.append(f"- {dep['environment']}{service} at {dep['at']}: commit {dep['sha']} from {dep['ref']}")
+            lines.append(f"- {_plain(dep['environment'])}{service} at {dep['at']}: commit {dep['sha']} "
+                         f"from {_plain(dep['ref'])}")
     else:
         lines.append("- no deployment today")
     lines += ["", "### Feature flags now"]
@@ -226,23 +240,26 @@ if __name__ == "__main__":
     raise SystemExit(main())
 
 
-DAYSHEET_AT = time(21, 0)  # local time; the first tick at or after it posts the sheet, once a day
-MAX_TRIES_PER_DAY = 5      # a GitLab outage at dusk is tried again on the next ticks, then left for a person
+DAYSHEET_AT = time(21, 0)             # local time; the first tick at or after it posts the sheet, once a day
+RETRY_AFTER = timedelta(minutes=5)    # after a failed try, the next try waits this long, until local midnight
 
 
 def step(relay_doc: dict, now: datetime, oncall: OnCall, targets: Targets, gitlab: GitLab, watch_issue: int) -> list[str]:
     """Called by the relay's tick, outside the watch's own failure accounting: post today's day sheet once.
 
-    The sheet counts as posted only after GitLab accepted the note. A failed try is counted and tried again
-    next tick, at most MAX_TRIES_PER_DAY times a day. The error goes back to the caller, which logs it.
+    The sheet counts as posted only after GitLab accepted the note. A failed try is tried again every
+    RETRY_AFTER until local midnight (a GitLab blip at dusk costs minutes, not the sheet), and the error goes
+    back to the caller, which logs it and shows it on the status page.
     """
     local = now.astimezone(oncall.timezone)
     today = local.date().isoformat()
     if local.time() < DAYSHEET_AT or relay_doc.get("daysheet") == today:
         return []
-    tries = relay_doc.setdefault("daysheet_tries", {})
-    if tries.get(today, 0) >= MAX_TRIES_PER_DAY:
+    last = relay_doc.get("daysheet_last_try") or {}
+    if last.get("date") == today and now - datetime.fromisoformat(last["at"]) < RETRY_AFTER:
         return []
+    relay_doc["daysheet_last_try"] = {"date": today, "at": now.isoformat()}
+    tries = relay_doc.setdefault("daysheet_tries", {})
     tries[today] = tries.get(today, 0) + 1
     for day in [d for d in tries if d != today]:
         del tries[day]

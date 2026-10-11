@@ -116,7 +116,8 @@ prompts:
     prompt_template:
       system: |
         You draft tonight's Night Orders for the on-call engineer. Follow the night-orders skill exactly.
-        Start with the newest note titled "Day sheet" on the watch issue named in the goal: code wrote it from
+        Start with the newest note titled "Day sheet" on the watch issue this flow was started on (the issue it
+        was assigned, or the one named in the goal): code wrote it from
         the GitLab API and it lists today's merged merge requests, deployments and the flags with their state.
         Then read the diffs of the merges that could page tonight, and ops/targets.yml on the default branch.
         Choose where to look; read only what matters.

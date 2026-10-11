@@ -337,8 +337,6 @@ class Watch:
     def _maybe_close(self, incident: Incident, metrics: Metrics, now: datetime) -> None:
         if incident.ask is not None and incident.acted is None and incident.paged_at is None:
             return  # still waiting for the agent
-        if incident.suggest is not None:
-            return  # still waiting for a thumbs-up
         if incident.acted is not None and incident.paged_at is None:
             if not any(e.kind == "recovered" and e.incident == incident.number for e in self.night.ledger.events):
                 return  # re-check not done yet
@@ -351,6 +349,16 @@ class Watch:
              and not rule.condition.breached_by(metrics.last_complete(rule.key, now)))  # type: ignore[arg-type]
             for rule in self.rules if rule.key in incident.keys
         )
-        if quiet and latest_ok:
-            incident.closed = True
-            self.ports.close_incident(incident.number, f"Signals back to normal at {self.night.oncall.hhmm(now)}.", now)
+        if not (quiet and latest_ok):
+            return
+        if incident.suggest is not None:
+            # A suggestion is for a live problem. Once the signals are back it is dropped with the incident,
+            # so a later fault on the same signals opens a new incident and can use a signed order, instead
+            # of waiting an hour behind a page nobody answered.
+            text = (f"The signals recovered at {self.night.oncall.hhmm(now)} before anyone approved the "
+                    "suggestion, so it was dropped. Nothing was changed.")
+            self.night.ledger.record(now, "refused", text, incident=incident.number)
+            self.ports.note(incident.number, text, now)
+            incident.suggest = None
+        incident.closed = True
+        self.ports.close_incident(incident.number, f"Signals back to normal at {self.night.oncall.hhmm(now)}.", now)

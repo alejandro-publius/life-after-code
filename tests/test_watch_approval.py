@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from conftest import at
+from conftest import OPS, at
 from nightorders import Action, Change, Metrics
-from nightorders.watch import Incident, Watch
+from nightorders.orders import load_yaml
+from nightorders.watch import Incident, Watch, parse_alert_rules
 
 FALLBACK = Action(kind="flag_set", flag="stock_from_cache", environment="production", to="on")
 
@@ -33,11 +34,14 @@ class ReactionPorts:
 
 
 def paged(make_night, oncall, reactions, already_on: bool = False):
+    """An incident paged at 01:52 on the old-path alert. The ticks pass no metrics, so its signal never reads as
+    recovered and the incident stays open with its suggestion (a recovered one would drop it)."""
     night = make_night()
     ports = ReactionPorts(reactions, already_on)
-    watch = Watch(night, ports, rules=[])
+    watch = Watch(night, ports, rules=parse_alert_rules(load_yaml(OPS / "alerts.yml")))
     watch.incidents.append(Incident(number=1, alerts=[], opened_at=at(oncall, "01:50"),
-                                    paged_at=at(oncall, "01:52"), suggest=FALLBACK))
+                                    paged_at=at(oncall, "01:52"), suggest=FALLBACK,
+                                    keys={"checkout_error_rate.old"}))
     return watch, ports, night
 
 

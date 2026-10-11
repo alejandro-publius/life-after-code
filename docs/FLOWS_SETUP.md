@@ -22,7 +22,7 @@ Alex's laptop step, about 15 minutes, once the repository is pushed to the hacka
 1. **AI** > **Flows** > the **Managed** tab > the flow.
 2. In the upper-right corner select **Enable**.
 3. Under **Project**, choose this project.
-4. Under **Add triggers**, choose the trigger in the table below. Leave the **Goal** field empty: the relay passes a goal when it starts a flow through the API, and the dusk flow reads the day sheet note on the issue it is assigned to.
+4. Under **Add triggers**, choose the trigger in the table below. Leave the **Goal** field empty: the relay passes a goal when it starts a flow through the API, and the dusk flow reads the day sheet note on the issue it is assigned to. (Whether an assigned issue reaches the flow with an empty goal is checked on day one with the probe flow; if it does not, put "Draft tonight's orders from the day sheet on this issue" in the dusk trigger's Goal field.)
 5. Select **Enable**.
 
 | Flow | Trigger | Why |

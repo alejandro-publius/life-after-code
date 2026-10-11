@@ -88,6 +88,7 @@ log = logging.getLogger("nightorders.relay")
 
 DEMO_LABEL = "DEMO: planted faults, simulated shop"
 TICK_BUDGET_SECONDS = 15.0
+CHORES_BUDGET_SECONDS = 50.0  # the day sheet and the rehearsal, after the watch: well inside the 90 s lease
 FAILURES_BEFORE_PAGE = 3
 PAGE_AGAIN_AFTER = timedelta(minutes=60)
 REQUIRED = ("GITLAB_URL", "GITLAB_PROJECT_ID", "GITLAB_TOKEN", "FLOW_CONSUMER_ID", "FLOW_SERVICE_ACCOUNT",
@@ -226,15 +227,17 @@ def make_relay(config: Config, store: Any) -> Relay:
                            google_token=token, memory=saved, dawn_consumer_id=config["DAWN_FLOW_CONSUMER_ID"],
                            watch_issue=watch_issue)
 
-    # The day sheet and the rehearsal read and write a lot, so they get clients without the tick's budget.
-    gitlab_plain = GitLab(plain, config["GITLAB_URL"], config["GITLAB_PROJECT_ID"], config["GITLAB_TOKEN"])
-    rehearsal_ports = GitLabPorts(gitlab_plain, plain, flow_consumer_id=config["FLOW_CONSUMER_ID"],
+    # The day sheet and the rehearsal read and write a lot, so they get a budget of their own, large enough
+    # for the rehearsal's wait on the staging shop and still inside the tick lease.
+    chores = Http(http_client(), budget_seconds=CHORES_BUDGET_SECONDS)
+    gitlab_plain = GitLab(chores, config["GITLAB_URL"], config["GITLAB_PROJECT_ID"], config["GITLAB_TOKEN"])
+    rehearsal_ports = GitLabPorts(gitlab_plain, chores, flow_consumer_id=config["FLOW_CONSUMER_ID"],
                                   flow_service_account=config["FLOW_SERVICE_ACCOUNT"], ntfy_url=config["NTFY_URL"],
                                   gcp_project=config["GCP_PROJECT_ID"], gcp_region=config["GCP_REGION"],
                                   google_token=token)
 
     def rehearse(relay_doc: dict, now: datetime, inputs: Inputs) -> list[str]:
-        return rehearsal.step(relay_doc, now, inputs.oncall, inputs.targets, gitlab_plain, rehearsal_ports, plain,
+        return rehearsal.step(relay_doc, now, inputs.oncall, inputs.targets, gitlab_plain, rehearsal_ports, chores,
                               config["SHOP_STAGING_URL"])
 
     return Relay(sources=GitLabSources(gitlab, budget, config["SHOP_METRICS_URL"]), store=store,
@@ -414,12 +417,14 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
             if posted:
                 relay_doc.pop("daysheet_problem", None)
         except Exception as error:
-            relay_doc["daysheet_problem"] = {"at": now.isoformat(), "reason": reason(error)}
+            relay_doc["daysheet_problem"] = {"at": now.isoformat(), "reason": reason(error),
+                                             "date": now.astimezone(inputs.oncall.timezone).date().isoformat()}
             log.warning("day sheet not posted: %s", reason(error))
     if not problem and relay.rehearse is not None:
         # The rehearsal of a drafted orders merge request, the same way: never a failed tick, tried again.
         try:
             done += relay.rehearse(relay_doc, now, inputs)
+            relay_doc.pop("rehearsal_problem", None)
         except Exception as error:
             relay_doc["rehearsal_problem"] = {"at": now.isoformat(), "reason": reason(error)}
             log.warning("rehearsal not done: %s", reason(error))
@@ -507,11 +512,26 @@ def render_status(doc: dict | None, now: datetime, unavailable: bool = False) ->
         chores = []
         if relay_doc.get("daysheet"):
             chores.append(f"Day sheet posted on the watch issue for {_e(relay_doc['daysheet'])}.")
-        if relay_doc.get("daysheet_problem"):
-            chores.append("The day sheet could not be posted; the relay tries again on the next ticks.")
+        sheet_problem = relay_doc.get("daysheet_problem")
+        if sheet_problem:
+            sheet_day = sheet_problem.get("date")
+            why = _e(sheet_problem.get("reason") or "")
+            if sheet_day and sheet_day != now.astimezone(tz).date().isoformat():
+                chores.append(f"The day sheet for {_e(sheet_day)} was not posted ({why}).")
+            else:
+                chores.append(f"The day sheet could not be posted yet ({why}); the relay tries again every few "
+                              "minutes until midnight.")
         rehearsed = relay_doc.get("rehearsed") or {}
         if rehearsed:
             chores.append("Rehearsed on staging: " + ", ".join(f"!{_e(iid)}" for iid in sorted(rehearsed, key=int)) + ".")
+        if relay_doc.get("rehearsal_pending"):
+            chores.append("A rehearsal stopped before it could put staging back; the relay restores it on the "
+                          "next ticks.")
+        left = relay_doc.get("rehearsal_left")
+        if left:
+            chores.append(f"Staging was left with {_e(left.get('what'))} after a rehearsal of !{_e(left.get('iid'))} "
+                          f"and code could not put it back ({_e(left.get('reason'))}). It was "
+                          f"{_e(left.get('before'))} before; a person has to restore it.")
         if relay_doc.get("rehearsal_problem"):
             chores.append("A rehearsal could not be finished; the relay tries again on the next ticks.")
         if chores:

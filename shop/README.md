@@ -57,6 +57,7 @@ On 2026-10-06 `pip install --no-cache-dir --require-hashes -r shop/requirements.
 | `GET /products` | The demo catalog, US dollar list prices. | no |
 | `POST /checkout` | Body: `{"user": "...", "region": "us" \| "uk" \| "eu" \| "ca", "items": [{"sku": "...", "price": 8.0, "qty": 1}]}`. Answers 200 with a demo order, or 500 (the price could not be rounded), 504 (stock lookup timed out), 502 (payment failed), 422 (bad request). | no |
 | `GET /metrics.json` | The last 60 complete minutes of signals, for the relay. | no |
+| `GET /flags` | The flags as the shop holds them and when it last fetched them; asking starts a refresh if the cache is older than 15 s. The relay's rehearsal polls it on staging until the fetch time moves, then sends its checkout. | no |
 | `POST /demo/faults` | Body like `{"rounding_bug": true}`. Changes only the faults named; an unknown name changes nothing and answers 400. | yes |
 | `POST /demo/traffic?minutes=N` | Starts (or restarts) N minutes of demo traffic, N from 1 to 30. `minutes=0` stops it. | yes |
 | `GET /healthz` | `{"ok": true, "commit": "<CI_COMMIT_SHORT_SHA or local>"}` | no |

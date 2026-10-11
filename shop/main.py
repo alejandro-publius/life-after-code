@@ -267,6 +267,19 @@ def create_app(
                 "until": until.isoformat(timespec="seconds").replace("+00:00", "Z"),
                 "checkouts_per_minute": PER_MINUTE}
 
+    @app.get("/flags")
+    async def flags_json() -> dict:
+        """The flags as this shop holds them right now, and when it last fetched them. Asking also starts a
+        refresh if the cache is older than 15 seconds, so a caller that changed a flag can poll until
+        fetched_at moves and then know a checkout runs under the new state (the relay's rehearsal does)."""
+        flags.maybe_refresh()
+        fetched = flags.fetched_at
+        return {
+            "label": LABEL, "environment": settings.environment,
+            "fetched_at": fetched.isoformat(timespec="seconds").replace("+00:00", "Z") if fetched else None,
+            "flags": {name: {"on": flags.is_on(name), "source": flags.source(name)} for name in flags.names()},
+        }
+
     @app.get("/healthz")
     async def healthz() -> dict:
         return {"ok": True, "commit": _commit()}

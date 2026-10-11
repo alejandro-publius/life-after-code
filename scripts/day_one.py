@@ -330,13 +330,17 @@ def probe_content(current: str, stamp: str) -> str:
 
 def wait_for_note(fetch: Callable[[], list[dict]], text: str, *, clock: Callable[[], float],
                   sleep: Callable[[float], None], ignore: set[int] | frozenset[int] = frozenset(),
+                  ignore_authors: set[str] | frozenset[str] = frozenset(),
                   every: float = POLL_EVERY, limit: float = POLL_LIMIT) -> tuple[dict | None, float, str]:
-    """Poll the notes until one that is not a system note, not in ignore, holds the text (any case).
+    """Poll the notes until one that is not a system note, not in ignore, not by an ignored author (the person
+    running this script, say), holds the text (any case). Notes are scanned oldest first, so the first answer
+    wins when GitLab lists newest first.
 
     Returns (note or None, seconds elapsed, last fetch error or ""). A failed fetch does not end the wait.
     """
     start = clock()
     wanted = text.lower()
+    skip_authors = {a.lower() for a in ignore_authors}
     problem = ""
     while True:
         try:
@@ -345,8 +349,11 @@ def wait_for_note(fetch: Callable[[], list[dict]], text: str, *, clock: Callable
         except RelayError as error:
             notes = []
             problem = str(error)
-        for note in notes:
+        for note in reversed(notes):
             if not isinstance(note, dict) or note.get("system") or note.get("id") in ignore:
+                continue
+            author = str((note.get("author") or {}).get("username") or "").lower()
+            if author in skip_authors:
                 continue
             if wanted in str(note.get("body") or "").lower():
                 return note, clock() - start, problem
@@ -567,11 +574,14 @@ class DayOne:
             account = str((node.get("serviceAccount") or {}).get("username") or "")
             state = "" if node.get("enabled", True) else " (disabled)"
             lines.append(f"flow {name}: consumer id {consumer}{state}" + (f", service account {account}" if account else ""))
-            if name == PROBE_NAME and consumer is not None:
+            if name == PROBE_NAME and consumer is not None and node.get("enabled", True):
                 probe_consumer = consumer
                 self.values["FLOW_CONSUMER_ID"] = consumer
                 if account:
                     self.values["FLOW_SERVICE_ACCOUNT_HINT"] = account
+            elif name == PROBE_NAME and consumer is not None:
+                lines.append(f"{PROBE_NAME} is in the project but disabled: enable it under AI, Flows "
+                             "(docs/FLOWS_SETUP.md) before the flow step; its consumer id is not used")
         if not nodes:
             lines.append("no flows are enabled in this project yet")
         if probe_consumer is None and self.options.create_probe:
@@ -671,7 +681,12 @@ class DayOne:
         if started.get("web_url"):
             lines.append(str(started["web_url"]))
         self.values["WORKFLOW_ID"] = workflow
-        note, elapsed, problem = wait_for_note(fetch, PROBE_TEXT, clock=self.clock, sleep=self.sleep, ignore=before)
+        try:
+            me = str(self.me().get("username") or "").lower()
+        except RelayError:
+            me = ""  # the person's own notes are then told apart by the hint below, not skipped
+        note, elapsed, problem = wait_for_note(fetch, PROBE_TEXT, clock=self.clock, sleep=self.sleep, ignore=before,
+                                               ignore_authors={me} if me else frozenset())
         if problem:
             lines.append(f"last problem while polling: {problem}")
         status = self._workflow_status(workflow)
@@ -685,6 +700,9 @@ class DayOne:
         self.values["FLOW_SERVICE_ACCOUNT"] = author
         self.values["FLOW_SECONDS"] = round(elapsed)
         lines.append(f"FLOW_SERVICE_ACCOUNT={author}")
+        if not any(hint in author.lower() for hint in ("duo", "flow", "ai-", "bot", "agent")):
+            lines.append(f"{author} does not look like a flow's service account: check the flow session in GitLab "
+                         "(AI, Sessions) before using this value")
         expected = self.options.flow_account
         if expected and expected.lower() != author.lower():
             lines.append(f"--flow-account {expected} does not match the note's author {author}")

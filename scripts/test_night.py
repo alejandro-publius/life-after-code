@@ -7,7 +7,8 @@ The relay watches the shop on its own (Cloud Scheduler ticks it every minute), s
 the part of a bad night: about 60 demo checkouts a minute, an inventory slowdown that fails both checkout
 paths for a while (the page), then the price rounding bug in the new checkout (the signed order). The
 timeline uses the real alert windows from ops/alerts.yml (5 and 10 minutes), so a test night takes about
-45 real minutes. With --at it waits until that local time first, so the faults start while the on-call
+45 real minutes. The slowdown lasts 16 minutes by default, so that under Standing Orders (no model at night)
+the re-check ten minutes after the order still sees the old path failing and pages, as the runbook says. With --at it waits until that local time first, so the faults start while the on-call
 person is really asleep. Everything it touches is labelled demo data by the shop itself.
 
 The demo key comes only from the DEMO_KEY environment variable and is never printed.
@@ -20,7 +21,7 @@ import os
 import sys
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 from zoneinfo import ZoneInfo
@@ -63,10 +64,22 @@ def local_timezone() -> ZoneInfo:
     return ZoneInfo(str(data.get("timezone", "UTC")))
 
 
+def hhmm(text: str) -> str:
+    """An HH:MM argument, checked."""
+    try:
+        hours, minutes = (int(x) for x in text.split(":"))
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"{text!r} is not HH:MM") from None
+    if not (0 <= hours <= 23 and 0 <= minutes <= 59):
+        raise argparse.ArgumentTypeError(f"{text!r} is not a time of day")
+    return f"{hours:02d}:{minutes:02d}"
+
+
 def next_occurrence(hhmm: str, now: datetime) -> datetime:
+    """The next time of day named by hhmm, on the clock of now. The minute now is in counts as now."""
     hours, minutes = (int(x) for x in hhmm.split(":"))
     candidate = now.replace(hour=hours, minute=minutes, second=0, microsecond=0)
-    return candidate if candidate > now else candidate + timedelta(days=1)
+    return candidate if candidate >= now.replace(second=0, microsecond=0) else candidate + timedelta(days=1)
 
 
 class Shop:
@@ -109,40 +122,63 @@ def describe(response: httpx.Response) -> str:
 
 def run(shop: Shop, steps: list[Step], start: datetime, now: Callable[[], datetime], sleep: Callable[[float], None],
         out=sys.stdout) -> int:
-    """Play the steps at their minutes after start. Returns 1 if the shop refused anything."""
+    """Play the steps at their minutes after start. Returns 1 if the shop refused anything.
+
+    The waits are counted in UTC, so a night that crosses a daylight saving change still lasts its real
+    minutes. Whatever ends the run (the end step, the shop refusing the key, an interrupt), the planted
+    faults are turned off and the demo traffic stopped before it returns.
+    """
     refused = 0
-    for step in steps:
-        due = start + timedelta(minutes=step.minute)
-        wait = (due - now()).total_seconds()
-        if wait > 0:
-            sleep(wait)
-        at = now().astimezone(start.tzinfo).strftime("%H:%M")
-        try:
-            response = shop.faults(step.faults) if step.faults is not None else shop.traffic(TRAFFIC_MINUTES)
-        except RuntimeError as error:
-            print(f"{at}  {step.what}: FAILED ({error})", file=out)
-            refused += 1
-            continue
-        verdict = "ok" if response.status_code == 200 else describe(response)
-        print(f"{at}  {step.what}: {verdict}", file=out)
-        if response.status_code != 200:
-            refused += 1
-        if step.faults is not None and step.minute >= steps[-1].minute:
-            # the last step also stops the traffic loop
-            shop.traffic(0)
+    start_utc = start.astimezone(timezone.utc)
+    touched = False
+    at = now().astimezone(start.tzinfo).strftime("%H:%M")
+    try:
+        for step in steps:
+            due = start_utc + timedelta(minutes=step.minute)
+            wait = (due - now().astimezone(timezone.utc)).total_seconds()
+            if wait > 0:
+                sleep(wait)
+            at = now().astimezone(start.tzinfo).strftime("%H:%M")
+            try:
+                response = shop.faults(step.faults) if step.faults is not None else shop.traffic(TRAFFIC_MINUTES)
+            except RuntimeError as error:
+                print(f"{at}  {step.what}: FAILED ({error})", file=out)
+                refused += 1
+                continue
+            if step.faults is not None:
+                touched = True
+            verdict = "ok" if response.status_code == 200 else describe(response)
+            print(f"{at}  {step.what}: {verdict}", file=out)
+            if response.status_code in (401, 403):
+                print(f"{at}  stopping: the shop refuses the demo key, so the night cannot be played", file=out)
+                return 1
+            if response.status_code != 200:
+                refused += 1
+    finally:
+        if touched:
+            for what, call in (("planted faults off", lambda: shop.faults({"inventory_slow": False, "rounding_bug": False})),
+                               ("demo traffic stopped", lambda: shop.traffic(0))):
+                try:
+                    answer = call()
+                    print(f"{at}  {what}: {'ok' if answer.status_code == 200 else describe(answer)}", file=out)
+                except RuntimeError as error:
+                    print(f"{at}  {what}: FAILED ({error})", file=out)
     return 1 if refused else 0
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--shop", required=True, help="the shop's base URL")
-    parser.add_argument("--at", help="wait until this local time (HH:MM, on-call time zone) before starting")
+    parser.add_argument("--at", type=hhmm, help="wait until this local time (HH:MM, on-call time zone) before starting")
     parser.add_argument("--inventory-from", type=float, default=3.0, help="minutes after start (default 3)")
-    parser.add_argument("--inventory-minutes", type=float, default=13.0, help="how long the slowdown lasts (default 13)")
+    parser.add_argument("--inventory-minutes", type=float, default=16.0,
+                        help="how long the slowdown lasts (default 16: past the re-check under standing orders)")
     parser.add_argument("--rounding-from", type=float, default=20.0, help="minutes after start (default 20)")
     parser.add_argument("--end", type=float, default=45.0, help="minutes after start when everything is turned off (default 45)")
     parser.add_argument("--dry-run", action="store_true", help="print the timeline and exit")
     args = parser.parse_args(argv)
+    if args.end <= max(args.inventory_from + args.inventory_minutes, args.rounding_from):
+        parser.error("--end must come after both faults have started and the slowdown has ended")
 
     tz = local_timezone()
     steps = timeline(args.inventory_from, args.inventory_minutes, args.rounding_from, args.end)

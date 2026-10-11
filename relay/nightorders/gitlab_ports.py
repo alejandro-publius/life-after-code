@@ -500,6 +500,18 @@ class GitLabPorts:
             return self._send_traffic(action.service, action.revision)
         raise RelayError(f"apply: {action.kind} is not on the menu")
 
+    def snapshot(self, action: Action) -> dict:
+        """What the action's target is right now, in the shape restore reads. The rehearsal takes it before
+        the apply, so a change that fails halfway (GitLab answered 5xx after changing the flag) can still be
+        put back from it."""
+        if action.kind == "flag_set" and action.flag and action.environment:
+            flag = self.gitlab.json(f"read flag {action.flag}", "GET", self._flag_path(action.flag))
+            return flag_snapshot(flag, action.flag, action.environment)
+        if action.kind == "traffic_to_revision" and action.service:
+            _url, _headers, current = self._service(action.service)
+            return traffic_snapshot(action.service, current)
+        raise RelayError(f"snapshot: {action.kind} is not on the menu")
+
     def restore(self, action: Action, before: dict, at: datetime) -> Change:
         kind = (before or {}).get("kind")
         flag_shape = kind == "flag" and "active" in before and isinstance(before.get("strategies"), list)

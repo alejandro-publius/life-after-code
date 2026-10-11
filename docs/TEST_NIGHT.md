@@ -16,7 +16,7 @@ Everything the shop serves is labelled demo data. The incidents, flag changes, f
 
 ## The evening (Alex, phone, 5 minutes)
 
-1. Open the "Tonight's watch" issue and assign it to the dusk flow. Wait for the orders merge request (a few minutes).
+1. After 21:00, once the day sheet note is on the "Tonight's watch" issue (the relay's status page says "Day sheet posted" under Dusk), assign the issue to the dusk flow. Wait for the orders merge request (a few minutes).
 2. Read the orders and the rehearsal note code posted on the merge request (each flag order was applied on staging, the staging shop checked, the flag restored). Delete any order you would not sign. Merge (or approve, if merging is not allowed). That is the signature.
 3. Check the relay's status page: it should say "Active until 07:00" with the orders listed.
 4. Go to bed with the phone's sound on for ntfy.
@@ -35,13 +35,13 @@ What it does, in real minutes after 01:40 (`--dry-run` prints this):
 | Minute | What the shop does | What the relay should do |
 |---|---|---|
 | 0 | demo traffic starts, about 60 checkouts a minute | nothing |
-| 3 to 16 | `inventory_slow` on: both checkout paths fail | about minute 8: incident opened, watch flow asked; the flow declines order 1 (the old path fails too); one page with the `stock_from_cache` suggestion |
+| 3 to 19 | `inventory_slow` on: both checkout paths fail | about minute 8: incident opened, watch flow asked; the flow declines order 1 (the old path fails too); one page with the `stock_from_cache` suggestion |
 | when paged | | Alex taps thumbs-up on the page note: code turns `stock_from_cache` on, the shop recovers |
 | 20 onward | `rounding_bug` on: the new checkout path fails | about minute 25: incident opened, watch flow asked, order 1 carried out (`new_checkout` off); minute 35: re-check passes, no page |
 | 45 | faults off, traffic stops | nothing |
 | 07:00 | | orders expire; the watch log is posted on the watch issue; the dawn flow opens the countersign merge request |
 
-If the page does not arrive within 15 minutes of minute 3, the relay's own problem page (three failed ticks) or its status page says why.
+If the page does not arrive within 15 minutes of minute 3, the relay's own problem page (three failed ticks) or its status page says why. If the page is not answered, the incident closes on its own once the shop recovers (the suggestion is dropped with it), so the rounding bug at minute 20 still opens its own incident and reaches the signed order.
 
 ## The morning (Alex, phone, 3 minutes)
 
@@ -61,7 +61,7 @@ If the page does not arrive within 15 minutes of minute 3, the relay's own probl
 |---|---|
 | No incident opens | The Scheduler job is resumed; `GET /readyz` on the relay; the shop's `/metrics.json` shows the error rate |
 | Incident opens but no flow note within 8 minutes | The flow session in GitLab (AI, Sessions); `FLOW_CONSUMER_ID` and `FLOW_SERVICE_ACCOUNT`; the Flows API answer in the relay's logs |
-| The Flows API refuses to start the watch flow at all (decision D1 in [PLAN.md](PLAN.md)) | Redeploy the relay with `WATCH_MODE=standing` (Standing Orders): no model at night, code carries out the first signed order whose numbers hold and says so on the incident. The night's timeline changes: at about minute 8 code turns `new_checkout` off on the numbers alone, and at about minute 18 the re-check sees the old path still failing and pages (no suggestion). Say so in the video. |
+| The Flows API refuses to start the watch flow at all (decision D1 in [PLAN.md](PLAN.md)) | Redeploy the relay with `WATCH_MODE=standing` (Standing Orders): no model at night, code carries out the first signed order whose numbers hold and says so on the incident. The night's timeline changes: at about minute 8 code turns `new_checkout` off on the numbers alone, and at about minute 18 the re-check sees the old path still failing (the slowdown lasts until minute 19 for this reason) and pages, offering no suggestion. Say so in the video. |
 | The page does not reach the phone | The ntfy topic subscription; the relay's logs ("push to the on-call phone") |
 | The thumbs-up does nothing | It must be on the page note, from the on-call account, within 60 minutes of the page |
 | Nothing at 07:00 | `WATCH_ISSUE_IID` and `DAWN_FLOW_CONSUMER_ID` set; the relay's tick summary has a `morning` list |
