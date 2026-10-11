@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import os
+
+import pytest
+
 from nomouse.fixbench import MAX_REMOVED_WORDS, evaluate_fix_criteria, fix_ok, removed_words
 from nomouse.proposal import Fix
 
@@ -66,3 +70,45 @@ def test_an_unsafe_walk_of_a_fixed_page_fails_f3():
 
 def test_nothing_to_score_is_a_fail():
     assert evaluate_fix_criteria([])["overall"] == "FAIL"
+
+
+@pytest.mark.browser
+def test_fix_bench_end_to_end_with_recorded_answers(tmp_path):
+    """Real Chromium, no real model: a recorded good fix, a malformed answer and a missing one."""
+    import json
+    import shutil
+    from pathlib import Path
+
+    if os.environ.get("NOMOUSE_REQUIRE_BROWSER") != "1":
+        pytest.importorskip("playwright.sync_api")
+    from nomouse.fixbench import run_fixbench
+    from nomouse.model import RecordedModel
+
+    repo = Path(__file__).resolve().parents[2]
+    variants = tmp_path / "variants"
+    shutil.copytree(repo / "nomouse" / "variants", variants)  # dev-icons (barrier), dev-rename (harmless)
+    shutil.copytree(repo / "tests" / "nomouse" / "fixtures" / "variants" / "t-mismatch", variants / "t-mismatch")
+    (variants / "t-mismatch" / "variant.yml").write_text(
+        "id: t-mismatch\nkind: barrier\nwcag: \"2.5.3\"\nsummary: The Pay button is announced Save for later.\n")
+    source = (variants / "dev-icons" / "templates" / "checkout.html").read_text()
+    good = {"route": "barrier", "why": "Three icon buttons have no names.",
+            "barrier": {"control": "button", "problem": "the pay button has no name", "wcag": "4.1.2"},
+            "fix": {"file": "nomouse/variants/dev-icons/templates/checkout.html",
+                    "find": '<button type="submit">', "replace": '<button type="submit" aria-label="Pay now, $18.00">'}}
+    assert source.count(good["fix"]["find"]) == 1
+    answers = tmp_path / "answers.json"
+    answers.write_text(json.dumps({"label": "test answers", "answers": {
+        "dev-icons#1": good, "dev-icons#2": {"route": "barrier"}, "dev-icons#3": None}}))
+
+    results = run_fixbench(variants, tmp_path / "out", runs=3, model=RecordedModel(answers), repo_root=repo)
+    by_id = {record["id"]: record for record in results["records"]}
+    assert not by_id["dev-rename"]["valid"]  # not a barrier variant
+    icons = by_id["dev-icons"]
+    assert icons["valid"] and icons["code_route"] == "barrier"
+    assert [run["ok"] for run in icons["model"]] == [True, False, False]
+    assert icons["model"][1]["status"] == "unusable"
+    assert icons["f0"]["status"] == "answered"
+    assert by_id["t-mismatch"]["valid"]
+    assert (tmp_path / "out" / "results.md").read_text().startswith("# No Mouse fix bench results")
+    assert set(results["criteria"]) >= {"F1", "F2", "F3", "overall"}
+    assert not any(path.name.endswith("-fix") or "-fix-" in path.name for path in (repo / "nomouse" / "variants").iterdir())
