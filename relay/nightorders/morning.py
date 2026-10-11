@@ -90,12 +90,22 @@ def step(relay_doc: dict, night: Night, watch_expired: bool, state_file: StateFi
     if record["countersign"] is None and state_file is not None:
         result = countersign(record, state_file, night, ports, now)
         if result is not None:
-            record["countersign"] = result
-            text = record["countersign_text"] = render_countersign(result, night)
+            text = render_countersign(result, night)
+            if result["problems"]:
+                # Refused once, said once. The countersign stays open: a corrected file, or the on-call person's
+                # own signature after someone else's, is a new signature and is read on the next tick.
+                record["refused"], record["refused_text"] = result, text
+            else:
+                record["countersign"], record["countersign_text"] = result, text
             if watch_issue is not None:
                 ports.watch_note(text, now)
             done.append(text.splitlines()[0])
     return done
+
+
+def _same_signature(refused: dict | None, signature: Signature) -> bool:
+    return bool(refused) and (refused["commit"], refused["user"], refused["method"]) == (
+        signature.commit, signature.user, signature.method)
 
 
 def countersign(record: dict, state_file: StateFile, night: Night, ports: Any, now: datetime) -> dict | None:
@@ -104,6 +114,8 @@ def countersign(record: dict, state_file: StateFile, night: Night, ports: Any, n
     ended = datetime.fromisoformat(record["ended_at"])
     if signature is None or signature.at < ended:
         return None  # not countersigned yet: nothing changes
+    if _same_signature(record.get("refused"), signature):
+        return None  # already refused and said so; only a new signature is read again
     result: dict = {"commit": signature.commit, "user": signature.user, "at": signature.at.isoformat(),
                     "method": signature.method, "restored": [], "undone": [], "kept": [], "by_hand": [],
                     "problems": []}

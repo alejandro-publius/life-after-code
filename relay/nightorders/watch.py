@@ -13,11 +13,13 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from .decide import (APPROVAL_WINDOW_MINUTES, Act, Ask, Night, StandDown, Waiting, Wake, approve_suggestion,
-                     check_request, recheck, standing_order, triage)
+                     check_request, default_page, recheck, standing_order, triage)
 from .model import Action, Alert, Change, Order, fmt_value
 from .orders import watch_window
-from .signals import Metrics, condition_holds
+from .signals import Metrics, condition_holds, recovered
 from .model import Condition
+
+STANDING_RETRY_MINUTES = 2  # under standing orders, an apply that raised is tried once more this soon
 
 
 @dataclass(frozen=True)
@@ -80,7 +82,7 @@ class Incident:
 
 class Watch:
     """One night's watch. With standing=True (Standing Orders) no flow is ever started: code carries out the
-    first eligible signed order as soon as its numbers hold, and says so on the incident."""
+    first eligible signed order at the tick that opens the incident, and says so on the incident."""
 
     def __init__(self, night: Night, ports: Ports, rules: list[AlertRule], standing: bool = False):
         self.night = night
@@ -139,18 +141,33 @@ class Watch:
             self._wake(incident, decision, now)
             return
         if self.standing:
+            # The ask is kept across the apply, so a tick that fails inside it leaves a visible state that the
+            # next tick picks up (_standing_retry), never an incident nobody looks at again.
+            incident.ask, incident.asked_at = decision, now
             self._act(incident, standing_order(decision, self.night), now)
+            incident.ask = None
             return
         incident.ask, incident.asked_at = decision, now
-        goal = (
-            f"Incident #{number}. Signed orders whose numbers match right now: "
-            + ", ".join(f"order {i} ({decision.checks[i]})" for i in decision.eligible)
-            + ". Decide whether one of them fits the evidence. If unsure, choose none."
-        )
-        self.ports.start_watch_flow(number, goal, now)
+        self.ports.start_watch_flow(number, self._goal(number, decision), now)
         which = ", ".join(map(str, decision.eligible))
         noun = "order" if len(decision.eligible) == 1 else "orders"
         ledger.record(now, "asked", f"Asked the agent about {noun} {which}.", incident=number)
+
+    def _goal(self, number: int, decision: Ask) -> str:
+        """What the watch flow is asked. Each eligible order comes with its action and the reason it was signed,
+        so the model can judge the reason against the evidence, not only the numbers."""
+        orders, signature = self.night.orders, self.night.signature
+        assert orders is not None and signature is not None  # triage checked both before returning an Ask
+        parts = []
+        for order_id in decision.eligible:
+            order = orders.get(order_id)
+            assert order is not None
+            parts.append(f"order {order_id}: {order.do.describe()}, because {order.because} "
+                         f"(numbers now: {decision.checks[order_id]})")
+        return (f"Incident #{number}. Signed orders whose numbers match right now: " + "; ".join(parts)
+                + f". The signed file is ops/night-orders.yml at commit {signature.commit}; the allowed targets "
+                "are in ops/targets.yml on the default branch. Decide whether one of these orders fits the "
+                "evidence, not only the numbers. If unsure, choose none.")
 
     def _evidence(self, alerts: list[Alert], metrics: Metrics, now: datetime) -> str:
         lines = ["Evidence pack (written by code).", ""]
@@ -164,6 +181,9 @@ class Watch:
         if incident.ask is None or incident.acted is not None or incident.paged_at is not None:
             return
         assert incident.asked_at is not None
+        if self.standing:
+            self._standing_retry(incident, metrics, now)
+            return
         note = self.ports.request_note(incident.number, now)
         result = check_request(note, incident.ask, incident.asked_at, incident.alerts, self.night, metrics, now)
         ledger = self.night.ledger
@@ -182,9 +202,39 @@ class Watch:
         assert isinstance(result, Act)
         self._act(incident, result, now)
 
+    def _standing_retry(self, incident: Incident, metrics: Metrics, now: datetime) -> None:
+        """Standing orders: the apply raised on an earlier tick and the incident was saved with its ask.
+
+        Within two minutes, while the same order is still first in line, it is tried once more (the ports
+        apply nothing twice). After that, or if the numbers moved, she is woken with the recorded failure.
+        """
+        assert incident.ask is not None and incident.asked_at is not None
+        ledger = self.night.ledger
+        wanted = incident.ask.eligible[0]
+        if any(e.kind == "asked" and e.incident == incident.number for e in ledger.events):
+            reasons = ["The relay switched to standing orders while the agent was being asked; nothing was done."]
+        else:
+            decision = triage(incident.alerts, self.night, metrics, now)
+            if (isinstance(decision, Ask) and decision.eligible and decision.eligible[0] == wanted
+                    and now - incident.asked_at < timedelta(minutes=STANDING_RETRY_MINUTES)):
+                self._act(incident, standing_order(decision, self.night), now)
+                incident.ask = None
+                return
+            failed = [e.text for e in ledger.events if e.kind == "failed" and e.incident == incident.number]
+            reasons = [failed[-1] if failed else f"Order {wanted} could not be carried out."]
+        incident.ask = None
+        self._wake(incident, Wake(tuple(reasons), default_page(incident.alerts, reasons, self.night)), now)
+
     def _act(self, incident: Incident, result: Act, now: datetime) -> None:
         """Carry out an order both keys (or, under standing orders, code's key alone) agreed on."""
-        change = _as_change(self.ports.apply(result.order.do, now))
+        try:
+            change = _as_change(self.ports.apply(result.order.do, now))
+        except Exception as error:
+            # Recorded before the error stops the tick, so the watch log and the status page show it at once.
+            why = str(error) if isinstance(error, RuntimeError) else type(error).__name__
+            self.night.ledger.record(now, "failed", f"Order {result.order.id} could not be carried out ({why}).",
+                                     incident=incident.number, order=result.order.id)
+            raise
         incident.acted, incident.acted_at = result.order, now
         text = (
             f"Order {result.order.id} carried out {self.night.oncall.hhmm(now)}: {result.order.do.describe()}. "
@@ -205,36 +255,45 @@ class Watch:
         if now < incident.acted_at + timedelta(minutes=self.night.oncall.recheck_minutes):
             return
         ok, detail = recheck(incident.acted, self.night, metrics, now)
+        failing = [] if ok else [incident.acted.when.key]
         if ok:
             # The order's own signal is back, but the incident may have fired on more than that signal. If
-            # another of its alerts still fires, the action did not help enough, and she is woken.
+            # another of its alerts is not back too, the action did not help enough, and she is woken.
             other = self._still_firing(incident, metrics, now)
             if other is not None:
-                ok, detail = False, f"{other}, though {detail}"
+                ok, detail = False, f"{other[1]}, though {detail}"
+                failing = [other[0]]
         if ok:
             text = f"Re-check {self.night.oncall.hhmm(now)}: {detail}. No page."
             ledger.record(now, "recovered", text, incident=incident.number, order=incident.acted.id)
             self.ports.note(incident.number, text, now)
         else:
             reasons = (f"Order {incident.acted.id} ran but {detail}.",)
+            second, suggest = self._signed_for(failing, incident.acted.id)
             page = (f"Order {incident.acted.id} ran at {self.night.oncall.hhmm(incident.acted_at)} but {detail}.",
-                    "Nothing else is signed for this.", "The incident has the evidence.")
-            self._wake(incident, Wake(reasons, page), now)
+                    second, "The incident has the evidence.")
+            self._wake(incident, Wake(reasons, page, suggest), now)
 
-    def _still_firing(self, incident: Incident, metrics: Metrics, now: datetime) -> str | None:
-        """An alert of this incident, other than the one the order's condition covers, that still fires."""
+    def _still_firing(self, incident: Incident, metrics: Metrics, now: datetime) -> tuple[str, str] | None:
+        """An alert of this incident, other than the one the order's condition covers, whose last complete
+        minute is not back on the safe side (a missing minute counts as not back), as (key, words)."""
         covered = incident.acted.when.key if incident.acted is not None else None
         for rule in self.rules:
             if rule.key not in incident.keys or rule.key == covered:
                 continue
-            holds, _ = condition_holds(rule.condition, metrics, now)
-            if holds:
-                condition = rule.condition
-                value = metrics.last_complete(rule.key, now)
-                label = condition.signal.replace("_", " ") + (f" ({condition.path} path)" if condition.path else "")
-                shown = fmt_value(condition.signal, value if value is not None else 0.0)
-                return f"{label} still {shown} (limit {fmt_value(condition.signal, condition.threshold)})"
+            ok, detail = recovered(rule.condition, metrics, now)
+            if not ok:
+                return rule.key, detail
         return None
+
+    def _signed_for(self, failing: list[str], acted_id: int) -> tuple[str, Action | None]:
+        """The page's second line: a signed, unused order on the signal that still fails is offered for one
+        thumbs-up (its action comes from the signed file); otherwise nothing else is signed for this."""
+        orders = self.night.orders.orders if self.night.orders is not None else ()
+        for order in orders:
+            if order.when.key in failing and order.id != acted_id and not self.night.ledger.used(order.id):
+                return (f"Order {order.id} is signed for this but did not run; an incident acts once.", order.do)
+        return "Nothing else is signed for this.", None
 
     def _approval(self, incident: Incident, now: datetime) -> None:
         if incident.suggest is None or incident.paged_at is None:

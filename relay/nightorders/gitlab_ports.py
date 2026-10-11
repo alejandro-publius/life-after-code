@@ -53,6 +53,7 @@ TIMEOUT_SECONDS = 10.0
 METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
 CLOUD_RUN_API = "https://run.googleapis.com/v2"
 REQUEST_MARK = "```night-orders-request"
+REQUEST_MARKS = (REQUEST_MARK, "```json")  # a flow note labelled json is read too; notes.py still checks the keys
 # Agent privileges for the night watch flow: 2 read_only_gitlab, 3 read_write_gitlab. No files, commands,
 # git or MCP tools (Flows API, "List all agent privileges").
 WATCH_FLOW_PRIVILEGES = (2, 3)
@@ -460,7 +461,7 @@ class GitLabPorts:
             body = note.get("body") or ""
             if note.get("system") or author.lower() != self.flow_service_account.lower():
                 continue
-            if created is None or created < asked or REQUEST_MARK not in body:
+            if created is None or created < asked or not any(mark in body for mark in REQUEST_MARKS):
                 continue
             answers.append((created, body))
         if not answers:

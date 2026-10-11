@@ -1,5 +1,20 @@
 # Tonight's orders. The dusk flow drafts this file in a merge request; the on-call person edits it
 # and signs it by merging (or approving). With no signed orders, every alert wakes the on-call person.
+#
+# One order looks like this (the demo night's first order). Each order has exactly id, because, when and do:
+#
+#   - id: 1
+#     because: MR !31 turned on new_checkout in production at 16:20; its price rounding is new code.
+#     when:
+#       signal: checkout_error_rate
+#       path: new
+#       above: 0.05
+#       for_minutes: 5
+#     do:
+#       action: flag_set
+#       flag: new_checkout
+#       environment: production
+#       to: "off"
 night: "2026-10-06"
 expires: "07:00"
 orders: []

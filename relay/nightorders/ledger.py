@@ -13,6 +13,7 @@ KINDS = (
     "alert",      # an alert rule fired; an incident opened
     "asked",      # the watch flow was started for an incident
     "acted",      # code carried out a signed order
+    "failed",     # code tried to carry out an order and the change did not go through
     "declined",   # the agent declined an order whose numbers matched
     "woke",       # the on-call person was paged
     "recovered",  # a re-check after an action found the signal back to normal

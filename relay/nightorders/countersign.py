@@ -21,6 +21,8 @@ from .model import Action, Targets, describe_before
 from .orders import OrdersError, action_problems
 
 STATE_KEYS = frozenset({"flag", "environment", "keep", "until"})
+SERVICE_KEYS = frozenset({"service", "keep", "until"})
+TOP_KEYS = frozenset({"flags", "services"})
 
 
 @dataclass(frozen=True)
@@ -36,14 +38,35 @@ class MorningPlan:
     by_hand: tuple[str, ...]  # what a person has to do, because code has nothing to restore from
 
 
+def _target_words(action: Action) -> str:
+    return f"{action.flag} in {action.environment}" if action.kind == "flag_set" else f"{action.service} traffic"
+
+
 def parse_state(data: dict | None, targets: Targets) -> list[Kept]:
-    """Read ops/state.yml, or raise OrdersError listing every problem."""
-    entries = (data or {}).get("flags") or []
-    if not isinstance(entries, list):
-        raise OrdersError(["ops/state.yml: flags must be a list"])
+    """Read ops/state.yml, or raise OrdersError listing every problem.
+
+    Two lists, flags and services. A flags entry keeps a flag at the value the night set it to ("on" or
+    "off"); a services entry keeps a service's traffic on the revision the night sent it to (keep: the
+    revision). Anything else at the top level is refused, so a misspelt section can never read as "keep
+    nothing" and restore what the person meant to keep.
+    """
+    data = data or {}
+    if not isinstance(data, dict):
+        raise OrdersError(["ops/state.yml: must be a mapping with flags and services lists"])
     problems: list[str] = []
+    extra_top = sorted(set(data) - TOP_KEYS)
+    if extra_top:
+        problems.append(f"ops/state.yml: unknown keys {', '.join(extra_top)} (only flags and services are read)")
+    flags = data.get("flags") or []
+    services = data.get("services") or []
+    if not isinstance(flags, list):
+        problems.append("ops/state.yml: flags must be a list")
+        flags = []
+    if not isinstance(services, list):
+        problems.append("ops/state.yml: services must be a list")
+        services = []
     kept: list[Kept] = []
-    for number, entry in enumerate(entries, start=1):
+    for number, entry in enumerate(flags, start=1):
         label = f"ops/state.yml entry {number}"
         if not isinstance(entry, dict):
             problems.append(f"{label}: must be a mapping with flag, environment, keep and until")
@@ -63,10 +86,25 @@ def parse_state(data: dict | None, targets: Targets) -> list[Kept]:
         action = Action(kind="flag_set", flag=str(entry["flag"]), environment=str(entry["environment"]), to=keep)
         problems.extend(f"{label}: {p}" for p in action_problems(action, targets))
         kept.append(Kept(action=action, until=str(entry.get("until") or "").strip()))
+    for number, entry in enumerate(services, start=1):
+        label = f"ops/state.yml services entry {number}"
+        if not isinstance(entry, dict):
+            problems.append(f"{label}: must be a mapping with service, keep (the revision) and until")
+            continue
+        extra = sorted(set(entry) - SERVICE_KEYS)
+        if extra:
+            problems.append(f"{label}: unknown keys {', '.join(extra)}")
+        keep = entry.get("keep")
+        if not isinstance(keep, str) or not keep.strip() or not entry.get("service"):
+            problems.append(f"{label}: needs a service and keep (the revision that stays)")
+            continue
+        action = Action(kind="traffic_to_revision", service=str(entry["service"]), revision=keep.strip())
+        problems.extend(f"{label}: {p}" for p in action_problems(action, targets))
+        kept.append(Kept(action=action, until=str(entry.get("until") or "").strip()))
     for index, first in enumerate(kept):
         for second in kept[index + 1:]:
             if first.action.same_target(second.action):
-                problems.append(f"ops/state.yml lists {first.action.flag} in {first.action.environment} twice")
+                problems.append(f"ops/state.yml lists {_target_words(first.action)} twice")
     if problems:
         raise OrdersError(problems)
     return kept
@@ -94,8 +132,11 @@ def plan_morning(loose: list[LooseEnd], kept: list[Kept]) -> MorningPlan:
         match = next((end.action for end in loose if end.action.same_target(item.action)), None)
         if match is None:
             problems.append(f"ops/state.yml keeps {item.action.describe()}, but nothing changed it last night")
-        elif match.to != item.action.to:
+        elif match.kind == "flag_set" and match.to != item.action.to:
             problems.append(f"ops/state.yml keeps {item.action.describe()}, but last night set it {match.to}")
+        elif match.kind == "traffic_to_revision" and match.revision != item.action.revision:
+            problems.append(f"ops/state.yml keeps {item.action.describe()}, but last night sent it to "
+                            f"revision {match.revision}")
     if problems:
         raise OrdersError(problems)
 

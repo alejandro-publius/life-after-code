@@ -163,7 +163,11 @@ def check_request(note_text: str | None, ask: Ask, asked_at: datetime, alerts: l
         else:
             reasons.append("The agent found no order that fits.")
         suggest = suggestion_action(request.suggest)
-        if suggest is not None and (suggest.kind not in MENU or action_problems(suggest, night.targets)):
+        if request.suggest and suggest is None:
+            reasons.append("The agent suggested something code could not read, so there is nothing to approve.")
+        elif suggest is not None and (suggest.kind not in MENU or action_problems(suggest, night.targets)):
+            reasons.append(f"The agent suggested {suggest.describe()}, which is not a listed target, "
+                           "so there is nothing to approve.")
             suggest = None
         page = request.page or default_page(alerts, reasons, night)
         return Wake(tuple(reasons), tuple(page), suggest)

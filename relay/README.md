@@ -19,16 +19,19 @@ A small FastAPI service on Cloud Run, and the only part of Night Orders that cha
    - the re-check also looks at the incident's other alerts: if the order's own signal is back but another
      alert of the same incident still fires, the action did not help enough, and she is paged.
    With `WATCH_MODE=standing` (Standing Orders, the fallback for an account whose Flows API will not start a
-   flow) no flow is started: code carries out the first signed order whose numbers hold, as soon as they
-   hold, and the note on the incident says that no model checked the reason. Everything else still wakes her.
+   flow) no flow is started: code carries out the first signed order whose numbers hold at the tick that
+   opens the incident, and the note on the incident says that no model checked the reason. Everything else
+   still wakes her. An apply that fails is recorded, tried once more within two minutes, then paged.
 4. At dusk: posts the day sheet on the watch issue (today's merges, deployments, flags) for the dusk flow, and
    rehearses every new orders merge request: each flag order is applied on staging, the staging shop is
    checked, the flag is restored, and the result is posted on the merge request before anyone signs.
 5. In the morning: posts the watch log on the watch issue, starts the dawn flow, and once the on-call
-   person signs the countersign (`ops/state.yml`), restores every night change they did not keep to how it
-   was before the night, from the snapshot each change recorded (a flag's earlier strategies for that
-   environment, a service's earlier traffic allocation). A change that found its target already in place
-   is recorded as such and needs no restore.
+   person signs the countersign (`ops/state.yml`: a `flags` list and a `services` list of what to keep),
+   restores every night change they did not keep to how it was before the night, from the snapshot each
+   change recorded (a flag's earlier strategies for that environment, a service's earlier traffic
+   allocation). A change that found its target already in place is recorded as such and needs no restore.
+   A countersign code refuses (signed by someone else, or keeping a value the night did not set) is said
+   once on the watch issue and the morning stays open for a corrected file.
 6. Saves its memory. If GitLab, the shop or the store fails three ticks in a row, it pages.
 
 Only one tick runs at a time, across Cloud Run instances: a tick first takes a short lease in the state store

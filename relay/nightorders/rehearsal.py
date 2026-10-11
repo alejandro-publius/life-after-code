@@ -22,8 +22,8 @@ import httpx
 import yaml
 
 from .gitlab_ports import GitLab, Http, RelayError
-from .model import Action, Change, OnCall, Targets
-from .orders import OrdersError, parse_orders
+from .model import Action, Change, OnCall, Signature, Targets
+from .orders import OrdersError, parse_orders, signature_problems, watch_window
 from .sources import ORDERS_PATH, OPEN_MERGE_REQUESTS_READ
 
 MAX_TRIES_PER_HEAD = 3
@@ -97,6 +97,16 @@ def rehearse(gitlab: GitLab, ports: Any, http: Http, oncall: OnCall, targets: Ta
     except (OrdersError, yaml.YAMLError, KeyError, TypeError, ValueError, AttributeError) as error:
         problems = error.problems if isinstance(error, OrdersError) else [f"the file could not be read ({type(error).__name__})"]
         lines.append("Code refuses this draft, so it cannot be signed:")
+        lines += [f"- {p}" for p in problems]
+        return "\n".join(lines) + "\n"
+    would_sign = Signature(method="merge", user=oncall.user, at=now, commit=sha)
+    problems = signature_problems(orders, would_sign, oncall, now)
+    if problems:
+        start, end = watch_window(orders, oncall)
+        lines.append(f"Code refuses this draft, so it cannot be signed now: its night is {orders.night.isoformat()}, "
+                     f"and a signature at {when} on {oncall.local(now):%d %b} would fall outside its window "
+                     f"({oncall.hhmm(start)} on {oncall.local(start):%d %b} to {oncall.hhmm(end)} on "
+                     f"{oncall.local(end):%d %b}). Set night to tonight's local date.")
         lines += [f"- {p}" for p in problems]
         return "\n".join(lines) + "\n"
     if not orders.orders:

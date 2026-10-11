@@ -112,7 +112,8 @@ def test_countersign_by_someone_else_changes_nothing(night):
     state = StateFile({"flags": []}, signed(night, "2026-10-21T07:42", user="teammate"))
     step(relay_doc, night, True, state, ports, local(night, "2026-10-21T07:43"), 7)
     assert ports.applied == []
-    assert "not by the on-call person" in relay_doc["dawn"]["countersign"]["problems"][0]
+    assert relay_doc["dawn"]["countersign"] is None  # refused, and the morning stays open for her own signature
+    assert "not by the on-call person" in relay_doc["dawn"]["refused"]["problems"][0]
 
 
 def test_a_state_file_that_makes_a_new_change_is_refused(night):
@@ -121,7 +122,8 @@ def test_a_state_file_that_makes_a_new_change_is_refused(night):
     state = StateFile(bad, signed(night, "2026-10-21T07:42"))
     step(relay_doc, night, True, state, ports, local(night, "2026-10-21T07:43"), 7)
     assert ports.applied == []
-    assert "nothing changed it last night" in relay_doc["dawn"]["countersign"]["problems"][0]
+    assert relay_doc["dawn"]["countersign"] is None
+    assert "nothing changed it last night" in relay_doc["dawn"]["refused"]["problems"][0]
     assert ports.notes[-1].splitlines()[-1] == "- Refused: Nothing was changed."
 
 

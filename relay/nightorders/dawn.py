@@ -11,7 +11,8 @@ from dataclasses import dataclass
 from .decide import Night
 from .model import Action
 
-SHOWN = ("alert", "asked", "acted", "declined", "woke", "approved", "refused", "recovered", "stood_down", "expired")
+SHOWN = ("alert", "asked", "acted", "failed", "declined", "woke", "approved", "refused", "recovered", "stood_down",
+         "expired")
 
 
 @dataclass(frozen=True)

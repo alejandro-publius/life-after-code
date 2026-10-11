@@ -42,12 +42,22 @@ class Malformed:
     reason: str
 
 
+def _json_object(block: str) -> object:
+    """The first JSON object in the block. A sentence before it, or a second fence line a model wrapped it in,
+    is ignored: the keys of the object are still checked to the letter."""
+    start = block.find("{")
+    if start < 0:
+        raise json.JSONDecodeError("no JSON object in the block", block, 0)
+    data, _end = json.JSONDecoder().raw_decode(block, start)
+    return data
+
+
 def parse_request(text: str) -> Request | Malformed:
     blocks = FENCE.findall(text or "") or JSON_FENCE.findall(text or "")
     if len(blocks) != 1:
         return Malformed(f"expected one night-orders-request block, found {len(blocks)}")
     try:
-        data = json.loads(blocks[0])
+        data = _json_object(blocks[0])
     except json.JSONDecodeError as error:
         return Malformed(f"the block is not valid JSON ({error.msg})")
     if not isinstance(data, dict):

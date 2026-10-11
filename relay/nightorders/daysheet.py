@@ -149,7 +149,8 @@ def render(sheet: dict) -> str:
     """The note on the watch issue, as plain Markdown. Titles, labels and file names are copied as data inside
     backticks; the diff excerpt sits in a code fence, with any fence inside it defused."""
     day = datetime.fromisoformat(sheet["date"]).strftime("%a %d %b")
-    lines = [f"## Day sheet for {day}", "", f"{sheet['_label']} Written at {sheet.get('written_at', '')}.", ""]
+    lines = [f"## Day sheet for {sheet['date']} ({day}), times in {sheet['timezone']}", "",
+             f"{sheet['_label']} Written at {sheet.get('written_at', '')}.", ""]
     lines.append("### Merged today")
     if sheet["merged_today"]:
         for merge in sheet["merged_today"]:
@@ -181,7 +182,8 @@ def render(sheet: dict) -> str:
             lines.append(f"- {flag['name']} in {flag['environment']}: {flag['state']}{changed}")
     else:
         lines.append("- no flags")
-    lines += ["", "Targets the orders may name are in ops/targets.yml. Orders end at 07:00."]
+    lines += ["", f"Tonight is {sheet['date']}: the orders file says night: \"{sheet['date']}\". "
+                  "Targets the orders may name are in ops/targets.yml. Orders end at 07:00."]
     return "\n".join(lines) + "\n"
 
 

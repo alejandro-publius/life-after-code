@@ -423,7 +423,7 @@ def test_the_day_sheet_is_posted_once_at_dusk(tmp_path, relay_key):
     assert rig.tick().json()["morning"] == []
     posted = [r for r in server.requests if r.method == "POST"]
     assert len(posted) == 1 and posted[0].url.path.endswith("/issues/7/notes")
-    assert json.loads(posted[0].content)["body"].startswith("## Day sheet for Tue 20 Oct")
+    assert json.loads(posted[0].content)["body"].startswith("## Day sheet for 2026-10-20 (Tue 20 Oct)")
     assert rig.doc()["relay"]["daysheet"] == "2026-10-20"
 
 

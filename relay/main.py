@@ -526,6 +526,8 @@ def render_status(doc: dict | None, now: datetime, unavailable: bool = False) ->
                 count = len(dawn.get("loose_ends") or [])
                 body.append(f"<p>Waiting for the on-call person to keep or undo {count} change"
                             f"{'' if count == 1 else 's'} from the night of {_e(dawn['night'])}.</p>")
+                if dawn.get("refused_text"):
+                    body.append(f"<pre>{_e(dawn['refused_text'])}</pre>")
         checked = datetime.fromisoformat(status["checked_at"])
         body.append(f"<p>Last check {_local(checked, tz)} ({_e(status['timezone'])}).</p>")
         if relay_doc.get("error"):
