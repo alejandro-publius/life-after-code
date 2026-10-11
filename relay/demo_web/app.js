@@ -168,12 +168,13 @@
     const replay = state.replay;
     const morning = replay.morning;
     const hasChanges = morning.kept.length || morning.undone.length || morning.by_hand.length;
-    const kept = morning.kept.map((item) => `<li class="morning-item"><span class="status-tag">Kept</span><div><strong>${escape(actionName(item.action))}</strong><p>${item.until ? `Until ${escape(item.until)}.` : "Kept with no end condition."}</p></div></li>`).join("");
+    const leaseLine = (item) => item.until_deployed ? `<p class="lease-line"><strong>A lease, not forever.</strong> When !${escape(item.until_deployed)} is in production, code puts it back by itself, in daytime, and says so.</p>${morning.lease ? `<p class="lease-line">Later that day, ${escape(morning.lease.time)}: !${escape(morning.lease.merge_request)} reached production. Code put it back as it was before the night (${escape(morning.lease.before)}) and noted it on the watch issue.</p>` : ""}` : "";
+    const kept = morning.kept.map((item) => `<li class="morning-item"><span class="status-tag">Kept</span><div><strong>${escape(actionName(item.action))}</strong><p>${item.until ? `Until ${escape(item.until)}.` : "Kept with no end condition."}</p>${leaseLine(item)}</div></li>`).join("");
     const undone = morning.undone.map((item) => `<li class="morning-item"><span class="status-tag neutral">Restored</span><div><strong>${escape(actionName(item.action))}</strong><p>Not kept in the morning decision, so code put it back to how it was before the night.</p></div></li>`).join("");
     const byHand = morning.by_hand.map((item) => `<li class="morning-item"><span class="status-tag neutral">For Priya</span><div><p>${escape(item)}</p></div></li>`).join("");
     const intro = !hasChanges ? "Priya sees every wake-up. Watch made no changes on her behalf, so there is nothing to keep or restore in the morning."
       : morning.undone.length ? "Priya sees every wake-up and every change. The recorded morning decision keeps what still helps, and code restores the temporary fallback to how it was before the night."
-      : "Priya sees every wake-up and every change. The recorded morning decision keeps the new checkout off until its fix ships. Nothing else changed overnight, so nothing needs restoring.";
+      : "Priya sees every wake-up and every change. The recorded morning decision keeps the new checkout off until its fix ships, and code ends that keep when the fix is deployed. Nothing else changed overnight, so nothing needs restoring.";
     return `${chapter(morning.time || "07:42", "Coffee, and a clear account of the night.", intro)}
       <div class="action-row" id="primary-action">${button("restart-demo", "Replay this night", "restart")}${button("review-night", "Review the night", "checkout", "quiet")}</div>
       ${replay.morning_push ? `<div class="quiet-push"><p class="quiet-push-head">Priya's phone at ${escape(replay.morning_push.time)} · one quiet push, no alarm</p>${replay.morning_push.lines.map((line) => `<p>${escape(line)}</p>`).join("")}</div>` : ""}
@@ -274,7 +275,8 @@
   }
 
   function morningProof(morning) {
-    return morning.lines.length ? morning.lines.join("\n") : "No morning changes were needed in this replay.";
+    const later = morning.lease ? ["", "Later that day (demo data: the fix is deployed):", ...morning.lease.lines] : [];
+    return morning.lines.length ? morning.lines.concat(later).join("\n") : "No morning changes were needed in this replay.";
   }
 
   function render({focus = false} = {}) {

@@ -1,3 +1,8 @@
-# Desired state after the morning countersign. The dawn flow proposes it; the on-call person merges it;
-# the relay then undoes every night change not listed here. Empty means nothing from last night is kept.
+# Desired state after the morning countersign. The dawn flow proposes it; the on-call person merges or approves
+# it; the relay then undoes every night change not listed here. Empty means nothing from last night is kept.
+# An entry may name until_deployed: the merge request whose deployment ends the keep. Code then restores the
+# change by itself, in daytime, once that merge request is in production. Example:
+#   night: "2026-10-20"
+#   flags:
+#     - {flag: new_checkout, environment: production, keep: "off", until: "the rounding fix ships", until_deployed: 39}
 flags: []

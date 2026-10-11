@@ -78,6 +78,10 @@ def test_collect_keeps_only_today_and_matches_the_drafter_shape():
     listed = next(r for r in server.requests if r.url.path == f"{API}/merge_requests")
     assert listed.url.params["state"] == "merged" and listed.url.params["target_branch"] == "main"
     assert listed.url.params["updated_after"].startswith("2026-10-20T00:00:00")
+    # GitLab pairs a time filter with the sort on that time: finished today, sorted by finished_at.
+    deployed = next(r for r in server.requests if r.url.path == f"{API}/deployments")
+    assert deployed.url.params["finished_after"].startswith("2026-10-20T00:00:00")
+    assert deployed.url.params["order_by"] == "finished_at" and "updated_after" not in deployed.url.params
     # the same keys agent/dusk.py reads from demo/night-2026-10-20/today.json
     assert {"date", "timezone", "merged_today", "deployments", "flags"} <= set(sheet)
     json.dumps(sheet)

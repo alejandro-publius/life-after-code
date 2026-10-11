@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from . import kept
 from .decide import APPROVAL_WINDOW_MINUTES
 from .signals import Metrics
 
@@ -165,6 +166,8 @@ def public(doc: dict | None, now: datetime) -> dict:
         "watch_log": (relay.get("watch_log") or {}).get("text"),
         "dusk": {"daysheet": relay.get("daysheet"), "rehearsed": sorted((relay.get("rehearsed") or {}), key=int)},
         "morning": {"countersign": (relay.get("dawn") or {}).get("countersign_text")},
+        "kept": [kept.summary(item) for item in relay.get("kept") or []],
+        "kept_ended": [{"at": e.get("at"), "text": e.get("text")} for e in relay.get("kept_ended") or []],
         "relay_failing": bool(relay.get("error")),
     }
 
@@ -308,6 +311,17 @@ def render(doc: dict | None, now: datetime, unavailable: bool = False) -> str:
                             f"{'' if count == 1 else 's'} from the night of {_e(dawn['night'])}.</p>")
                 if dawn.get("refused_text"):
                     main.append(f'<pre class="proof-log">{_e(dawn["refused_text"])}</pre>')
+        kept_now, ended = relay.get("kept") or [], relay.get("kept_ended") or []
+        if kept_now or ended:
+            main.append('<h3 class="section-title">Kept from earlier nights</h3>')
+            main.append('<p class="small-copy">Every kept change ends: when the merge request named at the countersign '
+                        "is in production, code puts it back, in daytime, and says so on the watch issue.</p>")
+            lines = [f"<li>{_e(kept.summary(item))}</li>" for item in kept_now]
+            lines += [f"<li>{_e(datetime.fromisoformat(e['at']).astimezone(tz).strftime('%d %b %H:%M'))}: {_e(e['text'])}</li>" for e in ended[-3:]]
+            main.append('<ul class="left-out-list">' + "".join(lines) + "</ul>")
+            if relay.get("kept_problem"):
+                main.append("<p>The kept list could not be checked last time; the relay tries again in a few "
+                            "minutes.</p>")
         checked = datetime.fromisoformat(status["checked_at"])
         main.append(f'<p class="small-copy">Last check {_local(checked, tz)} ({_e(status["timezone"])}).</p>')
         if relay.get("error"):

@@ -47,7 +47,7 @@ from urllib.parse import quote
 
 import httpx
 
-from .model import Action, Change, describe_before
+from .model import Action, Change, describe_before, shipped_words
 
 TIMEOUT_SECONDS = 10.0
 METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
@@ -492,13 +492,55 @@ class GitLabPorts:
             self._project_json = self.gitlab.json("read project", "GET", "")
         return self._project_json
 
-    def morning_push(self, lines: tuple[str, ...], at: datetime) -> None:
-        """One quiet push in the morning (ntfy's default priority: no alarm), opening the watch issue."""
+    def quiet_push(self, title: str, lines: tuple[str, ...], at: datetime) -> None:
+        """A push at ntfy's default priority (no alarm), opening the watch issue."""
         link = None
         web = str(self._project().get("web_url") or "")
         if self.watch_issue is not None and web.startswith("https://"):
             link = f"{web.rstrip('/')}/-/issues/{self.watch_issue}"
-        push(self.http, self._ntfy_url, "Night Orders: good morning", lines, click=link, priority="default")
+        push(self.http, self._ntfy_url, title, lines, click=link, priority="default")
+
+    def morning_push(self, lines: tuple[str, ...], at: datetime) -> None:
+        """One quiet push in the morning, opening the watch issue."""
+        self.quiet_push("Night Orders: good morning", lines, at)
+
+    # Kept changes (kept.py): is the target still as kept, and has the merge request that ends it shipped?
+
+    def holds(self, action: Action) -> bool:
+        """Whether the target is still as the action left it: the flag at that value, all traffic on that revision."""
+        if action.kind == "flag_set" and action.flag and action.environment and action.to:
+            flag = self.gitlab.json(f"read flag {action.flag}", "GET", self._flag_path(action.flag))
+            return flag_changes(flag, action.environment, action.to) is None
+        if action.kind == "traffic_to_revision" and action.service and action.revision:
+            _url, _headers, current = self._service(action.service)
+            return traffic_all_on(current.get("traffic") or [], action.revision)
+        raise RelayError(f"holds: {action.kind} is not on the menu")
+
+    def shipped(self, merge_request: int, environment: str) -> tuple[str, str]:
+        """("shipped" | "waiting" | "closed", plain words): whether the merge request's commit is in the last
+        successful deployment to the environment. Merged and deployed are facts GitLab states; nothing is guessed."""
+        request = self.gitlab.json(f"read !{merge_request}", "GET", f"/merge_requests/{int(merge_request)}")
+        state = str(request.get("state") or "")
+        if state == "closed":
+            return "closed", f"!{merge_request} was closed without merging"
+        if state != "merged":
+            return "waiting", f"!{merge_request} is not merged yet"
+        commit = str(request.get("merge_commit_sha") or request.get("squash_commit_sha") or request.get("sha") or "")
+        found = self.gitlab.json(f"list deployments to {environment}", "GET", "/deployments",
+                                 params={"environment": environment, "status": "success", "order_by": "finished_at",
+                                         "sort": "desc", "per_page": 1})
+        if not commit or not found:
+            return "waiting", f"!{merge_request} is merged, and nothing has been deployed to {environment} since"
+        deployed = str(found[0].get("sha") or "")
+        if deployed != commit:
+            answer = self.gitlab.call("find the merge base", "GET", "/repository/merge_base",
+                                      params={"refs[]": [commit, deployed]}, expect=(200, 400, 404))
+            base = answer.json() if answer.status_code == 200 else None
+            if not isinstance(base, dict) or base.get("id") != commit:  # the merge commit is not under the deploy
+                return "waiting", (f"!{merge_request} is merged; the last deployment to {environment} "
+                                   f"({deployed[:8]}) does not include it yet")
+        return "shipped", shipped_words(merge_request, environment, found[0].get("iid") or found[0].get("id"),
+                                        deployed)
 
     def dawn_flow_ready(self) -> bool:
         return self.watch_issue is not None and bool(self.dawn_consumer_id)

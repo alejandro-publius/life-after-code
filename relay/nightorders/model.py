@@ -122,6 +122,11 @@ class Change:
     detail: str
 
 
+def shipped_words(merge_request: int, environment: str, deployment: object, commit: str) -> str:
+    """How a shipped merge request is said, live and in the demo."""
+    return f"!{merge_request} is in {environment} (deployment {deployment}, commit {commit[:8]})"
+
+
 def describe_before(before: dict | None) -> str:
     """A snapshot in plain words, for example "on for 10 listed users" or "100% to the latest revision"."""
     if not before:

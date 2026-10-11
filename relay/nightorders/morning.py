@@ -19,6 +19,7 @@ from typing import Any, Protocol
 
 from datetime import timedelta
 
+from . import kept
 from .countersign import describe_restored, parse_state, plan_morning, undo
 from .dawn import LooseEnd, action_from, dawn_goal, loose_ends, render_watch_log
 from .decide import Night
@@ -116,10 +117,12 @@ def countersign_request(record: dict) -> tuple[str, str, str]:
               "To keep one, add it to ops/state.yml in this merge request before merging, for example:", "",
               "```yaml",
               "flags:",
-              '  - {flag: new_checkout, environment: production, keep: "off", until: "the fix ships"}',
+              '  - {flag: new_checkout, environment: production, keep: "off", until: "the fix ships", until_deployed: 38}',
               "services:",
               "  - {service: shop, keep: shop-00041, until: \"the image cache is reverted\"}",
               "```", "",
+              "until_deployed is optional: the merge request whose deployment ends the keep. Once it is in "
+              "production, code restores the change by itself, in daytime, and notes it on the watch issue.", "",
               "Merge (or approve) to countersign. Nothing changes until it is signed."]
     return state_text, f"Countersign {night} (written by code)", "\n".join(lines)
 
@@ -171,7 +174,10 @@ def step(relay_doc: dict, night: Night, watch_expired: bool, state_file: StateFi
     if record["countersign"] is None and state_file is not None:
         result = countersign(record, state_file, night, ports, now)
         if result is not None:
+            keep = result.pop("keep", [])
             text = render_countersign(result, night)
+            if not result["problems"]:
+                kept.add(relay_doc, keep)  # kept changes go on the kept list, with their leases
             if result["problems"]:
                 # Refused once, said once. The countersign stays open: a corrected file, or the on-call person's
                 # own signature after someone else's, is a new signature and is read on the next tick.
@@ -217,8 +223,11 @@ def countersign(record: dict, state_file: StateFile, night: Night, ports: Any, n
     except OrdersError as error:
         result["problems"] = list(error.problems) + ["Nothing was changed."]
         return result
-    result["kept"] = [f"{item.action.describe()}, until {item.until}" if item.until else item.action.describe()
-                      for item in plan.kept]
+    result["kept"] = [_kept_words(item, night) for item in plan.kept]
+    loose = loose_from(record)
+    result["keep"] = [kept.entry(item, end.before, end.why, record["night"], signature.at,
+                                  kept.environment_of(item.action, night.targets.services))
+                      for item in plan.kept for end in loose if end.action.same_target(item.action)]
     result["by_hand"] = list(plan.by_hand)
     # If a change fails, the error stops this pass and the whole countersign is tried again next tick.
     # That is safe: restoring a target that is already as its snapshot says changes nothing.
@@ -237,6 +246,14 @@ def countersign(record: dict, state_file: StateFile, night: Night, ports: Any, n
             ports.apply(reverse, now)
             result["undone"].append(reverse.describe())
     return result
+
+
+def _kept_words(item: Any, night: Night) -> str:
+    words = item.action.describe() + (f", until {item.until}" if item.until else "")
+    if item.until_deployed:
+        where = kept.environment_of(item.action, night.targets.services)
+        words += f" (code restores it when !{item.until_deployed} is in {where})"
+    return words
 
 
 def render_countersign(result: dict, night: Night) -> str:

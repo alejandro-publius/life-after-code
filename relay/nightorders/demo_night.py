@@ -15,11 +15,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from time import monotonic
 
+from . import kept
 from .countersign import parse_state, plan_morning, undo
 from .dawn import loose_ends, render_watch_log
 from .decide import Night
 from .ledger import Ledger
-from .model import Action, Change, Signature
+from .model import Action, Change, Signature, shipped_words
 from .notes import Request, render_request
 from .orders import OrdersError, load_yaml, parse_oncall, parse_orders, parse_targets
 from .signals import Metrics
@@ -83,6 +84,7 @@ class RecordingPorts:
     log_lines: list[tuple[datetime, str]] = field(default_factory=list)  # scenario.yml log_lines (demo data)
     revisions: dict[str, list[str]] = field(default_factory=dict)  # gitlab.yml revisions (demo data)
     evidence: dict[int, str] = field(default_factory=dict)  # the evidence pack code wrote for each incident
+    fix: dict = field(default_factory=dict)  # gitlab.yml fix_* (demo data): the merge request a kept change waits for
 
     def _t(self, at: datetime) -> str:
         return at.astimezone(self.oncall_tz).strftime("%H:%M")
@@ -96,6 +98,21 @@ class RecordingPorts:
 
     def morning_push(self, lines: tuple[str, ...], at: datetime) -> None:
         self.log.append(f"{self._t(at)}  PUSH (quiet) to the on-call phone: " + " | ".join(lines))
+
+    def quiet_push(self, title: str, lines: tuple[str, ...], at: datetime) -> None:
+        self.log.append(f"{self._t(at)}  PUSH (quiet) to the on-call phone, {title}: " + " | ".join(lines))
+
+    def watch_note(self, text: str, at: datetime) -> None:
+        self.log.append(f"{self._t(at)}  note on the watch issue: {text}")
+
+    def holds(self, action: Action) -> bool:
+        return _value(self._snapshot(action)) == (action.to if action.kind == "flag_set" else action.revision)
+
+    def shipped(self, merge_request: int, environment: str) -> tuple[str, str]:
+        """gitlab.yml's fix_* (demo data): the one merge request this demo deploys."""
+        if merge_request != self.fix.get("fix_mr"):
+            return "waiting", f"!{merge_request} is not merged yet"
+        return "shipped", shipped_words(merge_request, environment, self.fix["fix_deployment"], self.fix["fix_commit"])
 
     def recent_log_lines(self, at: datetime) -> list[tuple[datetime, str]]:
         return [(when, text) for when, text in self.log_lines if when <= at]
@@ -283,7 +300,9 @@ def countersign(folder: Path | str, ports: RecordingPorts, night: Night) -> list
     at = _local(data["merged_at"], night.oncall.timezone)
     plan = plan_morning(loose_ends(night), parse_state(data.get("state"), night.targets))
     lines = [f"{ports._t(at)}  countersign merged by {night.oncall.first_name} ({data['merged_by']})"]
-    lines += [f"{ports._t(at)}  KEEP {item.action.describe()}, until {item.until}" for item in plan.kept]
+    for item in plan.kept:
+        lease = f" (code restores it when !{item.until_deployed} is in production)" if item.until_deployed else ""
+        lines.append(f"{ports._t(at)}  KEEP {item.action.describe()}, until {item.until}{lease}")
     for action, before, why in plan.undo:
         if before is None:  # a record from before snapshots existed
             reverse = undo(action)
@@ -295,6 +314,35 @@ def countersign(folder: Path | str, ports: RecordingPorts, night: Night) -> list
             lines.append(f"{ports._t(at)}  RESTORE {restore_words(action, before)}: {why}")
     lines += [f"{ports._t(at)}  FOR A PERSON: {text}" for text in plan.by_hand]
     return lines
+
+
+def lease_end(folder: Path | str, ports: RecordingPorts, night: Night) -> list[str]:
+    """Later that day: the relay's kept-list check after the fix is deployed, through the real kept.step.
+
+    The kept entries are built the way the live countersign builds them, from countersign.yml and the night's
+    loose ends; gitlab.yml says which merge request was deployed and when the check ran (demo data).
+    """
+    folder = Path(folder)
+    if not (folder / "countersign.yml").exists() or not (folder / "gitlab.yml").exists():
+        return []
+    data, objects = load_yaml(folder / "countersign.yml"), load_yaml(folder / "gitlab.yml")
+    if not objects.get("fix_mr") or not objects.get("lease_checked_at"):
+        return []
+    tz = night.oncall.timezone
+    merged = _local(data["merged_at"], tz)
+    ends = loose_ends(night)
+    plan = plan_morning(ends, parse_state(data.get("state"), night.targets))
+    entries = [kept.entry(item, end.before, end.why, night.orders.night.isoformat(), merged,
+                          kept.environment_of(item.action, night.targets.services))
+               for item in plan.kept for end in ends if end.action.same_target(item.action)]
+    if not any(entry.get("until_deployed") for entry in entries):
+        return []
+    ports.fix = dict(objects)
+    relay_doc: dict = {}
+    kept.add(relay_doc, entries)
+    start = len(ports.log)
+    kept.step(relay_doc, _local(objects["lease_checked_at"], tz), night.oncall, ports)
+    return ports.log[start:]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -322,6 +370,13 @@ def main(argv: list[str] | None = None) -> int:
         print()
         for line in morning:
             print(line)
+        later = lease_end(folder, ports, night)
+        if later:
+            print()
+            print("## Later that day (demo data: the fix is deployed)")
+            print()
+            for line in later:
+                print(line)
     return 0
 
 

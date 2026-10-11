@@ -67,7 +67,7 @@ Also settled by the day-one test: whether Alex can merge to the default branch. 
 | Wed 14 to Fri 16 | Claude Code | The dusk flow on a real watch issue, drafting from merge requests really merged that day. The dawn flow and the countersign merge request; the relay restores what is not kept. A day sheet note on the watch issue, written by code at dusk, so the dusk flow reads flags and deployments it cannot query itself. |
 | Sat 17 or Sun 18 | Alex, phone, 20 min | First full test night ([TEST_NIGHT.md](TEST_NIGHT.md), about 45 real minutes of faults while asleep): merge or approve the orders in the evening, one thumbs-up when paged, countersign in the morning. |
 
-**Decision D2, Sun 18 Oct.** Did the first test night run end to end? If not, cut in this order: the dusk question; Cloud Monitoring (the relay raises alerts from the shop's counters); the dawn flow (code writes the log, the countersign stays a merge request).
+**Decision D2, Sun 18 Oct.** Did the first test night run end to end? If not, cut in this order (the dusk question is already gone: since 11 Oct it goes in the orders merge request): Cloud Monitoring (the relay raises alerts from the shop's counters); the dawn flow (code writes the log, the countersign stays a merge request).
 
 ## Week 3: Mon 19 to Sat 24 Oct, second night, polish, freeze
 

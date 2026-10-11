@@ -1,6 +1,7 @@
 # DEMO DATA. The morning countersign merge request, as the dawn flow would write it, merged by the
 # on-call person over coffee. It changes one file, ops/state.yml, to the "state" below: keep the new
 # checkout off until its fix ships. Every other night change (stock_from_cache on) is restored by code to how it was before the night.
+# until_deployed names the fix's merge request: once it is in production, code restores the flag by itself (a lease).
 merged_at: "2026-10-21T07:42"
 merged_by: alex-velazquez
 state:
@@ -9,3 +10,4 @@ state:
       environment: production
       keep: "off"
       until: "the fix for the price rounding from MR !31 is in production"
+      until_deployed: 39

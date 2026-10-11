@@ -10,6 +10,7 @@ import argparse
 from pathlib import Path
 
 from .countersign import parse_state
+from .kept import environment_of
 from .orders import OrdersError, load_context, load_yaml, validate_file
 
 REPO = Path(__file__).resolve().parents[2]
@@ -33,6 +34,11 @@ def main(argv: list[str] | None = None) -> int:
         except OrdersError as error:
             return _report(args.state, "cannot be countersigned", error.problems)
         print(f"{args.state}: ok, keeps {len(kept)} change{'s' if len(kept) != 1 else ''}; every other night change is restored to how it was before the night")
+        for item in kept:
+            where = environment_of(item.action, targets.services)
+            end = (f"ends when !{item.until_deployed} is in {where}" if item.until_deployed
+                   else "no lease: stays until a person changes it")
+            print(f"  - keeps {item.action.describe()}: {end}")
         return 0
 
     problems = validate_file(args.orders, args.ops)

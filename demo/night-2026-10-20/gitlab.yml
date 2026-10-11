@@ -9,3 +9,10 @@ orders_head: "36d0e5a1c0ffee0000000000000000000000demo"
 # Cloud Run revisions of the demo shop, for the rehearsal's check that a traffic order names a real one.
 revisions:
   shop: [shop-00040, shop-00041, shop-00042]
+# The rounding fix the countersign waits for (until_deployed: 39 in countersign.yml). Merged and deployed the
+# next afternoon; the relay's first daytime check after the deployment ends the keep.
+fix_mr: 39
+fix_deployment: 88
+fix_commit: "39f1c0de5a7b0000000000000000000000000demo"
+fix_deployed_at: "2026-10-21T15:31"
+lease_checked_at: "2026-10-21T15:40"

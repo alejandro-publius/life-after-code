@@ -19,9 +19,9 @@ from .compare import compare
 from .countersign import parse_state, plan_morning
 from .dawn import loose_ends, render_watch_log
 from .countersign import undo
-from .demo_night import DemoShop, RecordingPorts, countersign, restored_action, run
+from .demo_night import DemoShop, RecordingPorts, countersign, lease_end, restored_action, run
 from .gitlab_ports import Http
-from .model import Action, OnCall, Targets
+from .model import Action, OnCall, Targets, describe_before
 from .orders import load_yaml, watch_window
 from .morning import push_lines
 from .rehearsal import rehearse
@@ -140,6 +140,13 @@ def gitlab_objects(night, ports: RecordingPorts, objects: dict, signed: bool, mo
                           "title": f"Countersign {night.orders.night.isoformat()}", "state": "merged",
                           "time": morning["time"], "detail": f"ops/state.yml merged by {oncall.first_name}; code restored "
                           f"{len(morning['undone'])} change(s) and kept {len(morning['kept'])}"})
+    lease = morning.get("lease")
+    if lease and objects.get("fix_mr"):
+        deployed = datetime.fromisoformat(objects["fix_deployed_at"])
+        dawn_rows.append({"ref": f"!{objects['fix_mr']}", "kind": "merge request", "title": "The rounding fix",
+                          "state": "merged, deployed", "time": f"{deployed:%H:%M}",
+                          "detail": f"In production at {deployed:%H:%M}; at {lease['time']} the relay's daytime check "
+                                    f"ended the keep and noted it on {watch}"})
     return {"label": "Demo objects. Links go live after the first real night.",
             "dusk": dusk, "night": night_rows, "dawn": dawn_rows}
 
@@ -231,6 +238,7 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
 
     # Capture the night's evidence before the actual countersign restores anything.
     ends = loose_ends(night)
+    after_morning = dict(after_night)
     morning_source = load_yaml(FIXTURE / "countersign.yml")
     morning_at = datetime.fromisoformat(morning_source["merged_at"]).replace(tzinfo=night.oncall.timezone).isoformat()
     morning = {
@@ -248,7 +256,8 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
         action_start = len(ports.actions)
         morning["lines"] = countersign(FIXTURE, ports, night)
         morning["status"] = "merged"
-        morning["kept"] = [{"action": item.action.as_dict(), "until": item.until} for item in plan.kept]
+        morning["kept"] = [{"action": item.action.as_dict(), "until": item.until,
+                            "until_deployed": item.until_deployed} for item in plan.kept]
         morning["undone"] = []
         for action, before, why in plan.undo:
             applied = restored_action(action, before) if before is not None else undo(action)
@@ -272,6 +281,15 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
                 else "Priya merges the demo countersign", text,
                 data={"source": "actual countersign result, demo merge"}, flags_before=before, flags_after=state,
             ))
+        # Later that day the fix ships, and the real kept-list check ends the keep (demo data says when).
+        after_morning = dict(ports.shop.flags)
+        later = lease_end(FIXTURE, ports, night)
+        if later:
+            note = next(line.split("note on the watch issue: ", 1)[1] for line in later if "note on the watch issue: " in line)
+            fix = load_yaml(FIXTURE / "gitlab.yml")
+            kept_end = next(end for end in ends if any(end.action.same_target(item.action) for item in plan.kept))
+            morning["lease"] = {"time": later[0].split("  ", 1)[0], "note": note, "lines": later,
+                                "merge_request": fix["fix_mr"], "before": describe_before(kept_end.before)}
     else:
         steps.append(step(
             "morning-none", "dawn", "no_countersign", morning_at, "No overnight change needs a countersign",
@@ -304,6 +322,6 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
         "steps": steps, "timeline": timeline, "messages": messages, "metrics": ports.samples,
         "logs": list(ports.log), "watch_log": watch_log,
         "evidence": {str(number): text for number, text in sorted(ports.evidence.items())},
-        "flags": {"initial": initial_flags, "after_night": after_night, "after_morning": dict(ports.shop.flags)},
+        "flags": {"initial": initial_flags, "after_night": after_night, "after_morning": after_morning},
         "morning": morning,
     }

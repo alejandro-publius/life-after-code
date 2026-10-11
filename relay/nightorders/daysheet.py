@@ -23,6 +23,7 @@ from typing import Any
 
 import httpx
 
+from . import kept
 from .gitlab_ports import GitLab, Http, flag_on_for_all, flag_reaches, parse_time
 from .model import OnCall, Targets
 from .orders import load_context
@@ -90,8 +91,9 @@ def merged_today(gitlab: GitLab, branch: str, since: datetime, oncall: OnCall) -
 
 
 def deployments_today(gitlab: GitLab, since: datetime, oncall: OnCall, targets: Targets) -> list[dict]:
+    # GitLab pairs a time filter with the sort on the same time, so "finished today" sorts by finished_at.
     found = gitlab.json("list deployments", "GET", "/deployments",
-                        params={"updated_after": since.isoformat(), "status": "success", "order_by": "finished_at",
+                        params={"finished_after": since.isoformat(), "status": "success", "order_by": "finished_at",
                                 "sort": "desc", "per_page": 50})
     by_environment = {environment: service for service, environment in targets.services.items()}
     deployments = []
@@ -196,6 +198,9 @@ def render(sheet: dict) -> str:
             lines.append(f"- {flag['name']} in {flag['environment']}: {flag['state']}{changed}")
     else:
         lines.append("- no flags")
+    if "kept" in sheet:  # the relay adds its kept list; the command line has none to add
+        lines += ["", "### Kept from earlier nights"]
+        lines += [f"- {line}" for line in sheet["kept"]] or ["- nothing kept"]
     lines += ["", f"Tonight is {sheet['date']}: the orders file says night: \"{sheet['date']}\". "
                   "Targets the orders may name are in ops/targets.yml. Orders end at 07:00."]
     return "\n".join(lines) + "\n"
@@ -264,6 +269,7 @@ def step(relay_doc: dict, now: datetime, oncall: OnCall, targets: Targets, gitla
     for day in [d for d in tries if d != today]:
         del tries[day]
     sheet = collect(gitlab, now, oncall, targets)
+    sheet["kept"] = [kept.summary(item) for item in relay_doc.get("kept") or []]
     post(gitlab, watch_issue, render(sheet))
     relay_doc["daysheet"] = today
     return [f"day sheet posted on the watch issue: {len(sheet['merged_today'])} merge(s), "

@@ -20,8 +20,8 @@ from .dawn import LooseEnd
 from .model import Action, Targets, describe_before
 from .orders import OrdersError, action_problems
 
-STATE_KEYS = frozenset({"flag", "environment", "keep", "until"})
-SERVICE_KEYS = frozenset({"service", "keep", "until"})
+STATE_KEYS = frozenset({"flag", "environment", "keep", "until", "until_deployed"})
+SERVICE_KEYS = frozenset({"service", "keep", "until", "until_deployed"})
 TOP_KEYS = frozenset({"night", "flags", "services"})  # night ties the file to one night; the morning checks it
 
 
@@ -29,6 +29,28 @@ TOP_KEYS = frozenset({"night", "flags", "services"})  # night ties the file to o
 class Kept:
     action: Action
     until: str
+    until_deployed: int | None = None  # the merge request whose deployment ends the keep (kept.py)
+
+
+def merge_request_number(value: object) -> int | None:
+    """until_deployed as a merge request number: 38, "38" or "!38". None when it is not one."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if value > 0 else None
+    if isinstance(value, str):
+        text = value.strip().removeprefix("!")
+        return int(text) if text.isdigit() and int(text) > 0 else None
+    return None
+
+
+def _lease(entry: dict, label: str, problems: list[str]) -> int | None:
+    if entry.get("until_deployed") is None:
+        return None
+    number = merge_request_number(entry["until_deployed"])
+    if number is None:
+        problems.append(f"{label}: until_deployed must be a merge request number, like 38")
+    return number
 
 
 @dataclass(frozen=True)
@@ -47,8 +69,9 @@ def parse_state(data: dict | None, targets: Targets) -> list[Kept]:
 
     Two lists, flags and services. A flags entry keeps a flag at the value the night set it to ("on" or
     "off"); a services entry keeps a service's traffic on the revision the night sent it to (keep: the
-    revision). Anything else at the top level is refused, so a misspelt section can never read as "keep
-    nothing" and restore what the person meant to keep.
+    revision). Either may name until_deployed: a merge request whose deployment ends the keep, and code then
+    restores the change by itself (kept.py). Anything else at the top level is refused, so a misspelt section
+    can never read as "keep nothing" and restore what the person meant to keep.
     """
     data = data or {}
     if not isinstance(data, dict):
@@ -85,7 +108,8 @@ def parse_state(data: dict | None, targets: Targets) -> list[Kept]:
             continue
         action = Action(kind="flag_set", flag=str(entry["flag"]), environment=str(entry["environment"]), to=keep)
         problems.extend(f"{label}: {p}" for p in action_problems(action, targets))
-        kept.append(Kept(action=action, until=str(entry.get("until") or "").strip()))
+        kept.append(Kept(action=action, until=str(entry.get("until") or "").strip(),
+                         until_deployed=_lease(entry, label, problems)))
     for number, entry in enumerate(services, start=1):
         label = f"ops/state.yml services entry {number}"
         if not isinstance(entry, dict):
@@ -100,7 +124,8 @@ def parse_state(data: dict | None, targets: Targets) -> list[Kept]:
             continue
         action = Action(kind="traffic_to_revision", service=str(entry["service"]), revision=keep.strip())
         problems.extend(f"{label}: {p}" for p in action_problems(action, targets))
-        kept.append(Kept(action=action, until=str(entry.get("until") or "").strip()))
+        kept.append(Kept(action=action, until=str(entry.get("until") or "").strip(),
+                         until_deployed=_lease(entry, label, problems)))
     for index, first in enumerate(kept):
         for second in kept[index + 1:]:
             if first.action.same_target(second.action):

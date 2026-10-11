@@ -397,6 +397,8 @@ details > summary::-webkit-details-marker { display: none; }
 .morning-item .choice-badge { margin-bottom: 7px; }
 .morning-item { display: flex; align-items: flex-start; gap: 12px; }
 .morning-item .status-tag { flex: 0 0 auto; min-width: 54px; margin-top: 1px; justify-content: center; }
+.morning-item .lease-line { padding-left: 10px; border-left: 2px solid var(--line); }
+.morning-item .lease-line strong { color: var(--ink); }
 .morning-item strong { font-size: 12px; }
 .morning-item p { margin-top: 3px; }
 .section-title { margin: 23px 0 0; color: #40575f; font-size: 13px; font-weight: 700; }

@@ -355,7 +355,14 @@ def test_the_replay_carries_the_rehearsal_the_gitlab_objects_and_the_three_ways(
     assert [row["ref"] for row in objects["dusk"]] == ["#12", "!36"] and objects["dusk"][1]["state"] == "merged"
     flags = [(row["title"], row["state"], row["time"]) for row in objects["night"] if row["kind"] == "feature flag"]
     assert flags == [("stock_from_cache in production", "now on", "01:53"), ("new_checkout in production", "now off", "03:13")]
-    assert [row["ref"] for row in objects["dawn"]] == ["#12", "!37"]
+    assert [row["ref"] for row in objects["dawn"]] == ["#12", "!37", "!39"]
+    assert objects["dawn"][2]["detail"] == ("In production at 15:31; at 15:40 the relay's daytime check ended the keep "
+                                            "and noted it on #12")
+    lease = signed["morning"]["lease"]
+    assert lease["time"] == "15:40" and lease["note"].startswith("Lease ended: !39 is in production (deployment 88")
+    assert (lease["merge_request"], lease["before"]) == (39, "on")
+    assert signed["morning"]["kept"][0]["until_deployed"] == 39
+    assert signed["flags"]["after_morning"]["new_checkout"] == "off"  # kept at the countersign; the lease ends later
     ways = {row["way"]: row for row in signed["three_ways"]}
     assert (ways["signed"]["wake_ups"], ways["signed"]["handled_asleep"], ways["signed"]["did_not_help"]) == (1, 1, 0)
     assert (ways["standing"]["did_not_help"], ways["standing"]["fix_offered"]) == (1, 0)

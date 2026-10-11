@@ -75,7 +75,7 @@ from fastapi import FastAPI, Header
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from nightorders import daysheet, morning, rehearsal, state, status_page
+from nightorders import daysheet, kept, morning, rehearsal, state, status_page
 from nightorders.dawn import render_watch_log
 from nightorders.decide import Night
 from nightorders.gitlab_ports import GitLab, GitLabPorts, GoogleToken, Http, RelayError, push
@@ -182,6 +182,7 @@ class Relay:
     gitlab: Any = None                  # gitlab_ports.GitLab, for the day sheet at dusk
     rehearse: Callable[[dict, datetime, Inputs], list[str]] | None = None  # the rehearsal of drafted orders
     standing: bool = False              # Standing Orders: no model at night, code alone acts on signed orders
+    kept_ports: Any = None              # ports for the kept list (kept.py), on the chores budget
 
 
 @dataclass
@@ -254,9 +255,13 @@ def make_relay(config: Config, store: Any) -> Relay:
         return rehearsal.step(relay_doc, now, inputs.oncall, inputs.targets, gitlab_plain, rehearsal_ports, chores,
                               config["SHOP_STAGING_URL"])
 
+    kept_ports = GitLabPorts(gitlab_plain, chores, flow_consumer_id=config["FLOW_CONSUMER_ID"],
+                              flow_service_account=config["FLOW_SERVICE_ACCOUNT"], ntfy_url=config["NTFY_URL"],
+                              gcp_project=config["GCP_PROJECT_ID"], gcp_region=config["GCP_REGION"],
+                              google_token=token, watch_issue=watch_issue)
     return Relay(sources=GitLabSources(gitlab, budget, config["SHOP_METRICS_URL"]), store=store,
                  make_ports=make_ports, pager=make_pager(config), watch_issue=watch_issue, gitlab=gitlab_plain,
-                 rehearse=rehearse, standing=config.standing)
+                 rehearse=rehearse, standing=config.standing, kept_ports=kept_ports)
 
 
 def readiness(config: Config, make_store: Callable[[Config], Any]) -> list[str]:
@@ -443,6 +448,14 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
         except Exception as error:
             relay_doc["rehearsal_problem"] = {"at": now.isoformat(), "reason": reason(error)}
             log.warning("rehearsal not done: %s", reason(error))
+    if not problem and relay.kept_ports is not None and relay_doc.get("kept"):
+        # The kept list: a lease that is due ends in daytime. The same way: never a failed tick, tried again.
+        try:
+            done += kept.step(relay_doc, now, inputs.oncall, relay.kept_ports)
+            relay_doc.pop("kept_problem", None)
+        except Exception as error:
+            relay_doc["kept_problem"] = {"at": now.isoformat(), "reason": reason(error)}
+            log.warning("kept list not checked: %s", reason(error))
     # Keep what the tick did before any failure, so nothing it did is done twice.
     state.capture(watch, doc)
     doc["ports"] = ports.saved()
