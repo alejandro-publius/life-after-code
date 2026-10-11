@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from .decide import (APPROVAL_WINDOW_MINUTES, Act, Ask, Night, StandDown, Waiting, Wake, approve_suggestion,
-                     check_request, recheck, triage)
+                     check_request, recheck, standing_order, triage)
 from .model import Action, Alert, Change, Order, fmt_value
 from .orders import watch_window
 from .signals import Metrics, condition_holds
@@ -79,10 +79,14 @@ class Incident:
 
 
 class Watch:
-    def __init__(self, night: Night, ports: Ports, rules: list[AlertRule]):
+    """One night's watch. With standing=True (Standing Orders) no flow is ever started: code carries out the
+    first eligible signed order as soon as its numbers hold, and says so on the incident."""
+
+    def __init__(self, night: Night, ports: Ports, rules: list[AlertRule], standing: bool = False):
         self.night = night
         self.ports = ports
         self.rules = rules
+        self.standing = standing
         self.incidents: list[Incident] = []
         self.expired = False
 
@@ -134,6 +138,9 @@ class Watch:
         if isinstance(decision, Wake):
             self._wake(incident, decision, now)
             return
+        if self.standing:
+            self._act(incident, standing_order(decision, self.night), now)
+            return
         incident.ask, incident.asked_at = decision, now
         goal = (
             f"Incident #{number}. Signed orders whose numbers match right now: "
@@ -173,6 +180,10 @@ class Watch:
             incident.ask = None
             return
         assert isinstance(result, Act)
+        self._act(incident, result, now)
+
+    def _act(self, incident: Incident, result: Act, now: datetime) -> None:
+        """Carry out an order both keys (or, under standing orders, code's key alone) agreed on."""
         change = _as_change(self.ports.apply(result.order.do, now))
         incident.acted, incident.acted_at = result.order, now
         text = (
@@ -181,8 +192,8 @@ class Watch:
         )
         if not change.changed:
             text += NOTHING_CHANGED
-        ledger.record(now, "acted", text, incident=incident.number, order=result.order.id,
-                      action=result.order.do.as_dict(), changed=change.changed, before=change.before)
+        self.night.ledger.record(now, "acted", text, incident=incident.number, order=result.order.id,
+                                 action=result.order.do.as_dict(), changed=change.changed, before=change.before)
         self.ports.note(incident.number, text, now)
 
     def _recheck(self, incident: Incident, metrics: Metrics, now: datetime) -> None:
@@ -195,6 +206,12 @@ class Watch:
             return
         ok, detail = recheck(incident.acted, self.night, metrics, now)
         if ok:
+            # The order's own signal is back, but the incident may have fired on more than that signal. If
+            # another of its alerts still fires, the action did not help enough, and she is woken.
+            other = self._still_firing(incident, metrics, now)
+            if other is not None:
+                ok, detail = False, f"{other}, though {detail}"
+        if ok:
             text = f"Re-check {self.night.oncall.hhmm(now)}: {detail}. No page."
             ledger.record(now, "recovered", text, incident=incident.number, order=incident.acted.id)
             self.ports.note(incident.number, text, now)
@@ -203,6 +220,21 @@ class Watch:
             page = (f"Order {incident.acted.id} ran at {self.night.oncall.hhmm(incident.acted_at)} but {detail}.",
                     "Nothing else is signed for this.", "The incident has the evidence.")
             self._wake(incident, Wake(reasons, page), now)
+
+    def _still_firing(self, incident: Incident, metrics: Metrics, now: datetime) -> str | None:
+        """An alert of this incident, other than the one the order's condition covers, that still fires."""
+        covered = incident.acted.when.key if incident.acted is not None else None
+        for rule in self.rules:
+            if rule.key not in incident.keys or rule.key == covered:
+                continue
+            holds, _ = condition_holds(rule.condition, metrics, now)
+            if holds:
+                condition = rule.condition
+                value = metrics.last_complete(rule.key, now)
+                label = condition.signal.replace("_", " ") + (f" ({condition.path} path)" if condition.path else "")
+                shown = fmt_value(condition.signal, value if value is not None else 0.0)
+                return f"{label} still {shown} (limit {fmt_value(condition.signal, condition.threshold)})"
+        return None
 
     def _approval(self, incident: Incident, now: datetime) -> None:
         if incident.suggest is None or incident.paged_at is None:

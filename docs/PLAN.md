@@ -51,7 +51,7 @@ Goal: build done Sat 24 Oct; video and Devpost submission done Mon 26 Oct, 9:00 
 
 - Yes: build as designed.
 - It fails for a fixable reason (identity verification, role): fix it, or ask in the hackathon Discord that day.
-- It still fails: try the pipeline route the next day. If that fails too, build Standing Orders (code alone acts at night; the model drafts at dusk and writes the log at dawn).
+- It still fails: try the pipeline route the next day. If that fails too, switch the relay to Standing Orders (`WATCH_MODE=standing`: code alone acts at night; the model drafts at dusk and writes the log at dawn). It is built and tested since 11 Oct ([DECISIONS.md](DECISIONS.md)), so this is a setting, not a build day.
 
 Also settled by the day-one test: whether Alex can merge to the default branch. If not, the signature is an approval (code reads who approved and when).
 
@@ -95,7 +95,7 @@ Never cut: the dusk draft, the signature, the two-key night check, the dark phon
 
 | Risk | Early sign | Response |
 |---|---|---|
-| The Flows API will not start a flow from the relay | 403 or 404 in the day-one test | D1: the pipeline route, then Standing Orders |
+| The Flows API will not start a flow from the relay | 403 or 404 in the day-one test | D1: the pipeline route, then Standing Orders (built; one relay setting) |
 | Alex cannot merge to the default branch | No merge button on the test merge request | The signature becomes an approval; ask the organizers in Discord |
 | Alex is busy until Fri 23 Oct | Phone steps slip | Keep every step before Oct 23 to the phone. With the token in the environment, Claude Code runs the API steps. |
 | The workspace approval is slow | Still "pending" after two business days | Ask in Discord. Keep building offline: everything except the live night runs without accounts. |

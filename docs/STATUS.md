@@ -1,13 +1,13 @@
 # Status
 
-Last updated: **Sun 11 Oct 2026, about 09:00 UTC**.
+Last updated: **Sun 11 Oct 2026, about 17:00 UTC**.
 
 ## Current state
 
 | Item | State |
 |---|---|
 | Concept | Night Orders. A review on branch `claude/concept-review` (6 Oct) proposed No Mouse; not adopted ([DECISIONS.md](DECISIONS.md), 11 Oct). The live gate below decides, and No Mouse stays the backup. |
-| Works offline | The decision core, dusk drafter, relay, demo shop, browser demo at `/demo`, day sheet, morning countersign with exact restore, three Duo flows plus the probe flow, the day-one script and the test-night runner. `uv run pytest -q`: **326 passed**. `flows/validate.py`: 4 flows ok. |
+| Works offline | The decision core, dusk drafter, relay, demo shop, browser demo at `/demo`, day sheet, morning countersign with exact restore, three Duo flows plus the probe flow, the day-one script, the test-night runner and the Standing Orders fallback. `uv run pytest -q`: **345 passed**. `flows/validate.py`: 4 flows ok. |
 | Deploy code | Codex's three-service deploy (shop, shop-staging, relay; scoped identities, five secrets, Scheduler, state bucket, uptime check) reviewed with three lenses and a refuter per finding, then merged on 11 Oct. 48 deploy tests pass locally except the two alpha/beta help checks, which pass in the pinned SDK image (4 tests OK, Google Cloud SDK 587.0.0). Twelve minor follow-ups went to Codex in the session report. |
 | CI | GitHub Actions ([checks.yml](../.github/workflows/checks.yml)) is green on main for every push today. The GitLab pipeline ([.gitlab-ci.yml](../.gitlab-ci.yml)) has not run yet: there is no GitLab project with our code in it. |
 | Live | **Nothing has run on GitLab.com or Google Cloud.** Alex reports the workspace registration was approved on about 10 Oct; the workspace link and a token are not in this environment yet ([MORNING.md](MORNING.md)). |
@@ -22,12 +22,13 @@ Last updated: **Sun 11 Oct 2026, about 09:00 UTC**.
 - The rehearsal (`relay/nightorders/rehearsal.py`): every new orders merge request is tried on staging (apply, check the staging shop, restore) and the result is posted on it before anyone signs; traffic orders are checked for an existing revision.
 - Night actions record what they changed; the countersign restores each target to its snapshot (a flag's strategies for that environment, user lists included; a service's traffic list). A no-op action leaves no loose end.
 - The hardening change was reviewed with three lenses; 19 findings, 12 verified by a second reviewer, the rest judged by hand. All real ones are fixed ([commit c78f70f](../relay/nightorders/)).
+- Standing Orders, the last fallback of decision D1, built as a relay setting (`WATCH_MODE=standing`): no model at night, code alone carries out the signed orders and says so on the incident and the status page. The demo night replays under it with `--standing`. Found and fixed on the way: the re-check now looks at the incident's other alerts, not only the order's own signal ([DECISIONS.md](DECISIONS.md)).
 
 ## Verified locally on 11 Oct
 
 | Check | Result |
 |---|---|
-| `uv run pytest -q` | 326 passed, 1 upstream Starlette deprecation warning |
+| `uv run pytest -q` | 345 passed, 1 upstream Starlette deprecation warning |
 | `uv run python flows/validate.py` | dawn, dusk, probe, watch: ok |
 | `python3 -m unittest discover -s deploy/tests` | 48 tests, 46 pass; the two alpha/beta help checks need the pinned image |
 | The same audit in the pinned SDK image (Docker) | 4 tests OK, 60 command paths and 61 flags |

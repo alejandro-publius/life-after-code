@@ -171,9 +171,13 @@ def _local(text: str, tz) -> datetime:
 
 
 def run(folder: Path | str, ops: Path | str | None = None, *, signed: bool = True,
-        approved: bool = True, collect_samples: bool = False) -> tuple[RecordingPorts, Night]:
-    """Replay files with optional human choices. All side effects stay in memory."""
-    for name, value in (("signed", signed), ("approved", approved), ("collect_samples", collect_samples)):
+        approved: bool = True, collect_samples: bool = False, standing: bool = False) -> tuple[RecordingPorts, Night]:
+    """Replay files with optional human choices. All side effects stay in memory.
+
+    standing=True replays the night under Standing Orders: no recorded agent reply is used, code alone acts.
+    """
+    for name, value in (("signed", signed), ("approved", approved), ("collect_samples", collect_samples),
+                        ("standing", standing)):
         if type(value) is not bool:
             raise TypeError(f"{name} must be a boolean")
     folder = Path(folder)
@@ -215,7 +219,7 @@ def run(folder: Path | str, ops: Path | str | None = None, *, signed: bool = Tru
     reactions = {int(k): (v["user"], datetime.fromisoformat(v["at"])) for k, v in raw_reactions.items()}
 
     ports = RecordingPorts(oncall_tz=tz, shop=shop, notes=notes, reactions=reactions)
-    watch = Watch(night, ports, rules)
+    watch = Watch(night, ports, rules, standing=standing)
     metrics = Metrics()
     now = _local(scenario["start"], tz)
     end = _local(scenario["end"], tz)
@@ -268,10 +272,15 @@ def countersign(folder: Path | str, ports: RecordingPorts, night: Night) -> list
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = argv if argv is not None else sys.argv[1:]
+    args = list(argv if argv is not None else sys.argv[1:])
+    standing = "--standing" in args
+    args = [a for a in args if a != "--standing"]
     folder = Path(args[0]) if args else REPO / "demo" / "night-2026-10-20"
-    ports, night = run(folder)
-    print("DEMO NIGHT (demo data, planted faults, recorded agent notes). Real decision code.\n")
+    ports, night = run(folder, standing=standing)
+    if standing:
+        print("DEMO NIGHT under STANDING ORDERS (demo data, planted faults, no agent). Real decision code.\n")
+    else:
+        print("DEMO NIGHT (demo data, planted faults, recorded agent notes). Real decision code.\n")
     for line in ports.log:
         print(line)
     print()

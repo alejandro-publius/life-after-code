@@ -6,6 +6,11 @@
 Either key alone can wake the on-call person. Neither alone can act. The model can decline an
 order or add a reason to wake; it can never add an order, widen one, or remove a reason to wake.
 The action and its target always come from the signed file, never from the model's note.
+
+Standing Orders is the fallback for a night without a model (the Flows API refused to start a
+flow for this account, say): code's key alone turns. The first signed order whose numbers hold
+runs as soon as triage finds it, with the same signature, expiry, numbers and first-use checks,
+and the note on the incident says that no model looked at the reason.
 """
 
 from __future__ import annotations
@@ -20,6 +25,7 @@ from .orders import MENU, action_problems, floor_signals, signature_problems, wa
 from .signals import Metrics, condition_holds, recovered
 
 APPROVAL_WINDOW_MINUTES = 60
+STANDING = "standing orders: no model tonight, so nobody checked the reason"
 
 
 @dataclass(frozen=True)
@@ -190,6 +196,28 @@ def check_request(note_text: str | None, ask: Ask, asked_at: datetime, alerts: l
         detail,
         "action and target taken from the signed file",
         "first use tonight",
+    )
+    return Act(order=order, checks=checks)
+
+
+def standing_order(ask: Ask, night: Night) -> Act:
+    """Standing Orders: with no model at night, the first eligible order runs on code's key alone.
+
+    triage checked the signature, the expiry, the numbers and the first use a moment ago; the checks
+    name them, and say plainly that no model checked the reason.
+    """
+    orders, signature = night.orders, night.signature
+    assert orders is not None and signature is not None
+    order = orders.get(ask.eligible[0])
+    assert order is not None
+    _, end = watch_window(orders, night.oncall)
+    checks = (
+        f"signed by {night.oncall.first_name} at {night.oncall.hhmm(signature.at)} ({signature.method})",
+        f"not expired (ends {night.oncall.hhmm(end)})",
+        ask.checks[order.id],
+        "action and target taken from the signed file",
+        "first use tonight",
+        STANDING,
     )
     return Act(order=order, checks=checks)
 

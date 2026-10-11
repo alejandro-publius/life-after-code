@@ -41,6 +41,11 @@ Settings come only from environment variables. The relay never prints, logs or r
   DAWN_FLOW_CONSUMER_ID optional: numeric AI Catalog item consumer ID of the dawn flow
   SHOP_STAGING_URL      optional: the staging shop's base URL. The rehearsal of a drafted order applies it on
                         staging, checks this shop still serves a checkout, and restores the flag.
+  WATCH_MODE            optional: "flow" (default) starts the watch flow and lets the model check the reason;
+                        "standing" is Standing Orders, the fallback for an account whose Flows API refuses to
+                        start a flow: no model at night, code carries out the first signed order whose numbers
+                        hold and says so on the incident. In this mode FLOW_CONSUMER_ID and
+                        FLOW_SERVICE_ACCOUNT may be empty.
 
 Set by the platform: CI_COMMIT_SHORT_SHA (image build), PORT and K_SERVICE (Cloud Run). Google credentials
 come from the Cloud Run metadata server, so no Google key is stored anywhere.
@@ -88,6 +93,8 @@ PAGE_AGAIN_AFTER = timedelta(minutes=60)
 REQUIRED = ("GITLAB_URL", "GITLAB_PROJECT_ID", "GITLAB_TOKEN", "FLOW_CONSUMER_ID", "FLOW_SERVICE_ACCOUNT",
             "SHOP_METRICS_URL", "NTFY_URL", "RELAY_KEY", "GCP_PROJECT_ID", "GCP_REGION")
 OPTIONAL_NUMBERS = ("WATCH_ISSUE_IID", "DAWN_FLOW_CONSUMER_ID")
+WATCH_MODES = ("flow", "standing")
+FLOW_ONLY = ("FLOW_CONSUMER_ID", "FLOW_SERVICE_ACCOUNT")  # not needed under standing orders
 PAGE_HEADERS = {
     "Cache-Control": "no-store",
     "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
@@ -120,7 +127,7 @@ class Config:
     @classmethod
     def from_env(cls, env: Any = None) -> "Config":
         env = os.environ if env is None else env
-        names = REQUIRED + ("STATE_BUCKET", "STATE_OBJECT", "SHOP_STAGING_URL") + OPTIONAL_NUMBERS
+        names = REQUIRED + ("STATE_BUCKET", "STATE_OBJECT", "SHOP_STAGING_URL", "WATCH_MODE") + OPTIONAL_NUMBERS
         return cls(values={name: str(env.get(name, "")).strip() for name in names},
                    on_cloud_run=bool(env.get("K_SERVICE")))
 
@@ -130,8 +137,18 @@ class Config:
     def __repr__(self) -> str:
         return f"Config(set: {', '.join(sorted(n for n, v in self.values.items() if v))})"
 
+    @property
+    def standing(self) -> bool:
+        """Standing Orders: no model at night, code alone carries out the signed orders."""
+        return self.values.get("WATCH_MODE", "") == "standing"
+
     def problems(self) -> list[str]:
-        problems = [f"{name} is not set" for name in REQUIRED if not self.values[name]]
+        mode = self.values.get("WATCH_MODE", "")
+        problems = []
+        if mode and mode not in WATCH_MODES:
+            problems.append("WATCH_MODE must be one of " + ", ".join(WATCH_MODES))
+        skip = FLOW_ONLY if self.standing else ()
+        problems += [f"{name} is not set" for name in REQUIRED if not self.values[name] and name not in skip]
         for name in ("FLOW_CONSUMER_ID",) + OPTIONAL_NUMBERS:
             if self.values.get(name) and not self.values[name].isdigit():
                 problems.append(f"{name} must be a number")
@@ -149,6 +166,7 @@ class Relay:
     watch_issue: int | None = None      # the standing watch issue for the morning, if one is set
     gitlab: Any = None                  # gitlab_ports.GitLab, for the day sheet at dusk
     rehearse: Callable[[dict, datetime, Inputs], list[str]] | None = None  # the rehearsal of drafted orders
+    standing: bool = False              # Standing Orders: no model at night, code alone acts on signed orders
 
 
 @dataclass
@@ -221,7 +239,7 @@ def make_relay(config: Config, store: Any) -> Relay:
 
     return Relay(sources=GitLabSources(gitlab, budget, config["SHOP_METRICS_URL"]), store=store,
                  make_ports=make_ports, pager=make_pager(config), watch_issue=watch_issue, gitlab=gitlab_plain,
-                 rehearse=rehearse)
+                 rehearse=rehearse, standing=config.standing)
 
 
 def readiness(config: Config, make_store: Callable[[Config], Any]) -> list[str]:
@@ -365,7 +383,7 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
     night = Night(oncall=inputs.oncall, targets=inputs.targets, orders=inputs.orders,
                   orders_problems=inputs.orders_problems, signature=inputs.signature, ledger=ledger)
     ports = relay.make_ports(doc.get("ports") or {})
-    watch = Watch(night, ports, inputs.rules)
+    watch = Watch(night, ports, inputs.rules, standing=relay.standing)
     state.restore(watch, doc)
     seen = len(ledger.events)
     relay_doc = doc.setdefault("relay", {})
@@ -409,6 +427,7 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
     state.capture(watch, doc)
     doc["ports"] = ports.saved()
     relay_doc["status"] = status_of(inputs, now)
+    relay_doc["status"]["standing"] = relay.standing
     if ledger.events:
         relay_doc["watch_log"] = {"night": night_key, "text": render_watch_log(night)}
     if problem:
@@ -424,6 +443,7 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
         "ok": True,
         "at": now.astimezone(timezone.utc).isoformat(timespec="seconds"),
         "night": night_key,
+        "mode": "standing" if relay.standing else "flow",
         "orders": orders_line(relay_doc["status"], now),
         "open_incidents": [i.number for i in watch.incidents if not i.closed],
         "events": [f"{e.kind}: {e.text}"[:240] for e in ledger.events[seen:]],
@@ -457,6 +477,10 @@ def render_status(doc: dict | None, now: datetime, unavailable: bool = False) ->
         orders = status.get("orders")
         problems = status.get("problems") or []
         body.append("<h2>Tonight's orders</h2>")
+        if status.get("standing"):
+            body.append("<p><strong>Standing orders tonight.</strong> No model at night: code carries out the "
+                        "first signed order whose numbers hold, and says so on the incident. Everything else "
+                        "wakes the on-call person.</p>")
         if orders and not problems and orders["items"]:
             ends = datetime.fromisoformat(orders["ends_at"])
             when = f"Active until {_local(ends, tz)}." if now < ends else f"Expired at {_local(ends, tz)}."

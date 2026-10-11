@@ -136,7 +136,7 @@ class NightThroughTheRelay:
     current: "NightThroughTheRelay | None" = None
     tmp_path = None
 
-    def __init__(self, night, ports, rules):
+    def __init__(self, night, ports, rules, standing=False):
         self.night, self.rules, self.metrics, self.ports = night, rules, Metrics(), ports
         self.countersign = StateFile(None, None)
         ports.saved = lambda: {}

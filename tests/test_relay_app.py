@@ -76,7 +76,7 @@ class NoPorts:
 class Rig:
     """An app with fakes injected, a file store, a recorded pager and a settable clock."""
 
-    def __init__(self, tmp_path, sources, ports=None, gitlab=None, watch_issue=None):
+    def __init__(self, tmp_path, sources, ports=None, gitlab=None, watch_issue=None, standing=False):
         self.store = FileStore(tmp_path / "state.json")
         self.pages: list[tuple] = []
         self.now = local("22:00")
@@ -85,7 +85,7 @@ class Rig:
         def make_relay(config, store):
             return main.Relay(sources=sources, store=store, make_ports=lambda saved: self.ports,
                               pager=lambda title, lines, priority="urgent": self.pages.append((title, lines, priority)),
-                              watch_issue=watch_issue, gitlab=gitlab)
+                              watch_issue=watch_issue, gitlab=gitlab, standing=standing)
 
         app = main.create_app(make_store=lambda config: self.store, make_relay=make_relay, clock=lambda: self.now,
                               page_cache_seconds=0)
@@ -149,7 +149,7 @@ def test_a_tick_saves_state_and_returns_a_summary(tmp_path, relay_key):
     rig = Rig(tmp_path, QuietSources())
     response = rig.tick()
     assert response.status_code == 200
-    assert response.json() == {"ok": True, "at": "2026-10-21T05:00:00+00:00", "night": "2026-10-20",
+    assert response.json() == {"ok": True, "at": "2026-10-21T05:00:00+00:00", "night": "2026-10-20", "mode": "flow",
                                "orders": "nothing signed", "open_incidents": [], "events": [], "morning": []}
     doc = rig.doc()
     assert doc["version"] == 1 and doc["night"] == "2026-10-20"
@@ -166,11 +166,11 @@ class ThroughTheRelay:
     rig: Rig | None = None
     tmp_path = None
 
-    def __init__(self, night, ports, rules):
+    def __init__(self, night, ports, rules, standing=False):
         self.night, self.rules, self.metrics = night, rules, Metrics()
         ports.saved = lambda: {}  # the recording ports keep their own record, like GitLab would
         self.summaries: list[dict] = []
-        ThroughTheRelay.rig = Rig(ThroughTheRelay.tmp_path, self, ports)
+        ThroughTheRelay.rig = Rig(ThroughTheRelay.tmp_path, self, ports, standing=standing)
         ThroughTheRelay.rig.summaries = self.summaries
 
     def load(self, now):
