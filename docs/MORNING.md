@@ -23,7 +23,7 @@ For Alex, updated **Sun 11 Oct 2026**.
 | When | Who | What |
 |---|---|---|
 | Within 48 hours of the token | Claude Code | The live gate: [scripts/day_one.py](../scripts/day_one.py). It reports your role, whether you can merge, creates the two flags and the watch issue, and starts a probe flow through the Flows API. Results go in [STATUS.md](STATUS.md). |
-| Same day, 15 min on a laptop | Alex | Create the flows in GitLab from `flows/*.yml` and enable them in the project (the script's `catalog` step prints the exact clicks, or does it through the API if that is allowed). |
+| Same day, 15 min on a laptop | Alex | Create the four flows in GitLab and enable them, following [FLOWS_SETUP.md](FLOWS_SETUP.md) (or the script does it through the API if our role allows). |
 | Tue 13 or Wed 14 Oct, 30 min in Cloud Shell | Alex | Run `deploy/setup_gcp.sh` from [deploy/README.md](../deploy/README.md), paste the two hidden secrets when asked (the GitLab token and the Unleash instance ID), then press Play on the three deploy jobs. Install the ntfy app and subscribe to the topic the setup prints. |
 | Sat 17 or Sun 18 Oct, evening and morning | Alex | First test night ([TEST_NIGHT.md](TEST_NIGHT.md)): merge the orders, sleep, one thumbs-up if paged, countersign over coffee. |
 | Sat 24 Oct | Alex | Film ([VIDEO.md](VIDEO.md)). Submit by Mon 26 Oct, 9 PM Pacific ([PLAN.md](PLAN.md)). |

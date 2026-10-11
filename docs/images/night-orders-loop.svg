@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" role="img" aria-labelledby="title desc">
+  <title id="title">Night Orders: one night, dusk to dawn</title>
+  <desc id="desc">Three columns, dusk, night and dawn. Rows show the on-call person, the Duo flows, the relay code, and GitLab and Cloud Run. Before bed the person signs the orders a Duo flow drafted. At night code checks numbers and the watch flow checks the reason; the action comes from the signed file. At dawn code writes the log, the dawn flow proposes keep or restore, and the person countersigns.</desc>
+  <style>
+    text { font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #1b1b1b; }
+    .h { font-size: 22px; font-weight: 700; }
+    .t { font-size: 14px; }
+    .s { font-size: 12.5px; fill: #4a4a4a; }
+    .row { font-size: 13px; font-weight: 700; fill: #4a4a4a; }
+    .box { fill: #ffffff; stroke: #8a8a8a; stroke-width: 1.5; rx: 8; }
+    .code { fill: #e8f1ec; stroke: #1f4036; }
+    .duo { fill: #eef0fa; stroke: #4a4fa5; }
+    .person { fill: #fff3cd; stroke: #c9a227; }
+    .gl { fill: #f6f6f6; stroke: #8a8a8a; }
+    .arrow { stroke: #1b1b1b; stroke-width: 1.8; fill: none; marker-end: url(#head); }
+    .col { stroke: #d0d0d0; stroke-dasharray: 6 6; }
+  </style>
+  <defs>
+    <marker id="head" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#1b1b1b"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1200" height="660" fill="#ffffff"/>
+
+  <!-- column headers -->
+  <text x="290" y="40" class="h" text-anchor="middle">Dusk, 21:00 to 22:30</text>
+  <text x="635" y="40" class="h" text-anchor="middle">Night, until 07:00</text>
+  <text x="990" y="40" class="h" text-anchor="middle">Dawn, 07:00 and coffee</text>
+  <line x1="460" y1="60" x2="460" y2="585" class="col"/>
+  <line x1="810" y1="60" x2="810" y2="585" class="col"/>
+
+  <!-- row labels -->
+  <text x="14" y="112" class="row">On-call person</text>
+  <text x="14" y="252" class="row">Duo flows (Claude)</text>
+  <text x="14" y="392" class="row">Code: the relay</text>
+  <text x="14" y="532" class="row">GitLab, Cloud Run</text>
+
+  <!-- dusk column, centre 290 -->
+  <rect x="170" y="80" width="240" height="64" class="box person"/>
+  <text x="290" y="105" class="t" text-anchor="middle">Reads the orders, deletes any,</text>
+  <text x="290" y="127" class="t" text-anchor="middle">merges: that is the signature</text>
+
+  <rect x="170" y="220" width="240" height="64" class="box duo"/>
+  <text x="290" y="245" class="t" text-anchor="middle">Dusk flow drafts at most</text>
+  <text x="290" y="267" class="t" text-anchor="middle">three reversible orders</text>
+
+  <rect x="170" y="360" width="240" height="78" class="box code"/>
+  <text x="290" y="384" class="t" text-anchor="middle">Posts the day sheet; rehearses</text>
+  <text x="290" y="405" class="t" text-anchor="middle">each order on staging</text>
+  <text x="290" y="426" class="s" text-anchor="middle">apply, check the shop, restore</text>
+
+  <rect x="170" y="500" width="240" height="64" class="box gl"/>
+  <text x="290" y="525" class="t" text-anchor="middle">Watch issue, orders</text>
+  <text x="290" y="547" class="t" text-anchor="middle">merge request, CI checks</text>
+
+  <path d="M290,500 L290,438" class="arrow"/>
+  <path d="M290,360 L290,284" class="arrow"/>
+  <path d="M290,220 L290,144" class="arrow"/>
+
+  <!-- night column, centre 635 -->
+  <rect x="515" y="80" width="240" height="64" class="box person"/>
+  <text x="635" y="105" class="t" text-anchor="middle">Asleep. One page, only</text>
+  <text x="635" y="127" class="t" text-anchor="middle">when nothing signed fits</text>
+
+  <rect x="515" y="220" width="240" height="64" class="box duo"/>
+  <text x="635" y="245" class="t" text-anchor="middle">Watch flow reads the evidence,</text>
+  <text x="635" y="267" class="t" text-anchor="middle">names an order or declines</text>
+
+  <rect x="515" y="360" width="240" height="78" class="box code"/>
+  <text x="635" y="384" class="t" text-anchor="middle">Checks: signed, not expired,</text>
+  <text x="635" y="405" class="t" text-anchor="middle">numbers hold, first use tonight</text>
+  <text x="635" y="426" class="s" text-anchor="middle">the action comes from the signed file</text>
+
+  <rect x="515" y="500" width="240" height="64" class="box gl"/>
+  <text x="635" y="525" class="t" text-anchor="middle">Incident with notes;</text>
+  <text x="635" y="547" class="t" text-anchor="middle">flag off, or traffic moved</text>
+
+  <path d="M590,500 L590,438" class="arrow"/>
+  <path d="M680,438 L680,500" class="arrow"/>
+  <path d="M590,360 L590,284" class="arrow"/>
+  <path d="M680,284 L680,360" class="arrow"/>
+  <path d="M755,380 C 800,380 800,112 755,112" class="arrow"/>
+
+  <!-- dawn column, centre 990 -->
+  <rect x="870" y="80" width="240" height="64" class="box person"/>
+  <text x="990" y="105" class="t" text-anchor="middle">Reads the watch log,</text>
+  <text x="990" y="127" class="t" text-anchor="middle">countersigns: keep or restore</text>
+
+  <rect x="870" y="220" width="240" height="64" class="box duo"/>
+  <text x="990" y="245" class="t" text-anchor="middle">Dawn flow proposes keep</text>
+  <text x="990" y="267" class="t" text-anchor="middle">or restore for each change</text>
+
+  <rect x="870" y="360" width="240" height="78" class="box code"/>
+  <text x="990" y="384" class="t" text-anchor="middle">Orders expire. Writes the log.</text>
+  <text x="990" y="405" class="t" text-anchor="middle">After the countersign, restores</text>
+  <text x="990" y="426" class="s" text-anchor="middle">each target from its snapshot</text>
+
+  <rect x="870" y="500" width="240" height="64" class="box gl"/>
+  <text x="990" y="525" class="t" text-anchor="middle">Watch log note, countersign</text>
+  <text x="990" y="547" class="t" text-anchor="middle">merge request, flags restored</text>
+
+  <path d="M945,438 L945,500" class="arrow"/>
+  <path d="M945,360 L945,284" class="arrow"/>
+  <path d="M945,220 L945,144" class="arrow"/>
+  <path d="M1035,144 L1035,360" class="arrow"/>
+
+  <!-- legend -->
+  <rect x="170" y="604" width="18" height="18" class="box person"/>
+  <text x="196" y="618" class="s">a person decides</text>
+  <rect x="340" y="604" width="18" height="18" class="box duo"/>
+  <text x="366" y="618" class="s">the model chooses where to look</text>
+  <rect x="610" y="604" width="18" height="18" class="box code"/>
+  <text x="636" y="618" class="s">code decides what is true</text>
+  <rect x="840" y="604" width="18" height="18" class="box gl"/>
+  <text x="866" y="618" class="s">what a judge can click on afterwards</text>
+</svg>

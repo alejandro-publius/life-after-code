@@ -41,6 +41,8 @@ On the signed and approved path, code records **1 wake-up, 1 incident handled wh
 
 The model chooses where to look. Code decides what is true. A human decides when the agent acts on anything that matters.
 
+![One night, dusk to dawn: the person signs, Duo flows draft and judge, code checks and acts, GitLab and Cloud Run hold the record](docs/images/night-orders-loop.svg)
+
 - **Before bed:** the dusk drafter proposes at most three orders from the day's changes. Each names a condition and one reversible action: set a feature flag, or move a Cloud Run service's traffic to a named earlier revision. A database migration gets no order.
 - **Rehearsal:** before anyone signs, the relay tries each drafted flag order on staging, checks the staging shop still serves a checkout, restores the flag and posts the result on the merge request; a traffic order is checked for a revision that exists.
 - **Signature:** in the intended GitLab workflow, the on-call person's merge signs the orders. Unsigned orders grant no authority.

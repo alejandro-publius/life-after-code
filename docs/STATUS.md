@@ -51,7 +51,7 @@ Last updated: **Sun 11 Oct 2026, about 09:00 UTC**.
 | 4. Sponsors | [SPONSORS.md](SPONSORS.md) | Sponsor research. |
 | 5. Ideas | [IDEAS.md](IDEAS.md) | 74 concepts, 57 scored, five briefs; Night Orders chosen; the 6 Oct review on its own branch. |
 | 6. Build and plan | [PLAN.md](PLAN.md), code and pipeline files | Everything above the live line. |
-| Public materials | [README](../README.md), [GUIDE](GUIDE.md), [DEVPOST](DEVPOST.md), [VIDEO](VIDEO.md), [MORNING](MORNING.md), [TEST_NIGHT](TEST_NIGHT.md) | Current as of 11 Oct; links to a public GitLab project, a live URL and the video are pending. |
+| Public materials | [README](../README.md), [GUIDE](GUIDE.md), [DEVPOST](DEVPOST.md), [VIDEO](VIDEO.md), [MORNING](MORNING.md), [TEST_NIGHT](TEST_NIGHT.md), [FLOWS_SETUP](FLOWS_SETUP.md) | Current as of 11 Oct; links to a public GitLab project, a live URL and the video are pending. |
 
 ## Historical research access limits
 
