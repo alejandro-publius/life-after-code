@@ -2,7 +2,7 @@
 
 No Mouse checks whether a person who is blind could still buy something after a change to a shop. Code walks the checkout with the keyboard only and hears each control the way a screen reader would. When the recorded walk breaks, something has to decide whether the change is a harmless redesign or a barrier. In the product, that is a GitLab Duo flow; here, a local bench tests whether a model is better at it than a strong rule with no model.
 
-**Status:** feasibility stage, local only. The concept is under review ([docs/IDEAS.md, section 0](../docs/IDEAS.md#0-reopened-selection-6-oct-2026)) and the bench is pre-registered in [docs/research/nomouse_bench.md](../docs/research/nomouse_bench.md). Nothing here has run on GitLab.com or in a Duo flow.
+**Status:** feasibility stage, local only. The pre-registered bench failed its first criterion on 11 Oct (see [the results](../docs/research/nomouse_bench.md#results-11-oct-2026)); the concept is back with Codex and Alex ([docs/IDEAS.md, section 0.5](../docs/IDEAS.md#05-feasibility-result-11-oct-2026)). Nothing here has run on GitLab.com or in a Duo flow.
 
 **What is demo data:** Demo Beans is an invented shop. It takes no payment and keeps orders only in memory. The persona, products and planted changes are invented.
 

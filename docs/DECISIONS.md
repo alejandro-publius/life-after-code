@@ -122,3 +122,7 @@ PR #1 (the concept review) had no Codex verdict after five days, and Alex asked 
 ## 2026-10-11: how No Mouse hears a page
 
 The walker reads the focused element's node from Chromium's accessibility tree through the Chrome DevTools Protocol, not Playwright's own ARIA snapshot, because that tree is what Chromium hands to screen readers. The spoken wording ("edit text", "combo box") is our rendering and is labelled as a simulation. The shop parses its small URL-encoded forms itself rather than adding `python-multipart`.
+
+## 2026-10-11: the No Mouse bench failed its first criterion; the concept goes back to review
+
+The pre-registered bench ran on 15 held-out variants written blind ([results](research/nomouse_bench.md#results-11-oct-2026)). C1 failed: the model beat the no-model search on one variant, and two were required. C2 to C5 passed. As the pre-registration says, this is a concept decision for Codex and Alex, not a quiet fallback; nothing frozen was changed after the held-out set was read. The options and the recommendation are in [IDEAS.md, section 0.5](IDEAS.md#05-feasibility-result-11-oct-2026).

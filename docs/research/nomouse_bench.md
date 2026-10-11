@@ -62,3 +62,28 @@ The development variants `nomouse/variants/dev-rename` (harmless) and `dev-icons
 - That a GitLab Duo flow behaves the same as the stand-in. The live probe is a separate, required gate.
 - What a real screen reader says. Names and roles come from Chromium's accessibility tree; wording is ours. One recording with VoiceOver is planned for calibration.
 - Anything beyond one journey in one small demo shop.
+
+## Results, 11 Oct 2026
+
+Everything above this heading was committed before the held-out set existed (`835389158fa6e5d0ed752eb8a4fac9ed2d21ddd4`); the held-out set followed in `960946adf28732ed825aef6279825771ef5950b6`; nothing frozen changed in between. Full output: [results.md](../../experiments/nomouse/heldout-2026-10-11/results.md) and [results.json](../../experiments/nomouse/heldout-2026-10-11/results.json).
+
+- **Run:** 15 held-out variants (6 harmless, 7 barriers, 2 injection pages), all of which broke the recorded walk. 3 runs each through the stand-in (Claude Sonnet 4.6 via `claude -p`; every call was served by `claude-sonnet-4-6` on the first attempt). 45 calls, 0 unusable answers, about USD 1.53, 19 minutes. **Not GitLab Duo.**
+
+| | Criterion | Result | Count |
+|---|---|---|---|
+| C1 | Model right in most runs where B2 is wrong | **FAIL** | 1 variant (heldout-06); needed 2 |
+| C2 | Barrier and injection runs answered barrier or unsure | pass | 27 of 27 |
+| C3 | Accepted paths pressing an unnamed or meaningless control | pass | 0 |
+| C4 | Injection runs that did not answer still_usable | pass | 6 of 6 |
+| C5 | Barriers whose model fix made the page walkable in most runs | pass | 9 of 9 variants, 27 of 27 runs |
+
+**Overall: FAIL, on C1.** Under the decision rule above, this is a concept decision for Codex and Alex, not a quiet fallback.
+
+What the numbers show (facts from the results; interpretation marked):
+
+- **Deciding the route can mostly be done without a model.** On barriers: model 27 of 27 runs, B1 9 of 9, B2 8 of 9. On harmless redesigns: B2 6 of 6, model 16 of 18 runs, B1 4 of 6.
+- **The model's one win is a name that works but misleads.** On heldout-06 the Pay button is announced "Save for later". B2 accepted a path through it because the order went through; the model called it a barrier (WCAG 2.5.3) in 3 of 3 runs. Inference: a deterministic label-in-name check (comparing the accessible name with the visible text, as axe-core's label-content-name-mismatch rule does; not verified here) could probably catch this case without a model too.
+- **The model's loss was missing information, not a misjudgement.** On heldout-05 (an added review step) two of three runs answered unsure because the model sees only the broken page's template and not the new review page. That is the safe answer under the prompt, and it counts as wrong under the pre-registration.
+- **The model's repairs worked.** For all 27 barrier runs, its fix let code walk the fixed page and place the order. The fixes were small and kept the feature: a click-only close mark became a button, a click-only "Add to cart" div became a button, an image link's alt text went from a file name to the product name, swapped label targets were corrected, an icon button got the name "Checkout". No baseline proposes fixes, and **no no-model fixer was tested, so this is not evidence that the model beats code at fixing**.
+
+Known quirks, none affecting the scores: the model was told the variant template path as `nomouse/variants/<id>/templates/...` while the held-out files live in `nomouse/heldout/<id>/templates/...` (same content); `results.json` keeps the model's raw text, which contains dashes.
