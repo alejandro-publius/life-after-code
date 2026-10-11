@@ -114,3 +114,11 @@ Every one of the ten concerns listed in the 6 Oct handoff was checked against th
 ## 2026-10-06 (later): concept selection reopened; recommendation pending Codex review
 
 Supersedes "build Night Orders" above, which rested on AI persona scores and on platform assumptions that the [refresh](research/refresh_2026-10-06.md) no longer supports. Four candidates were rewritten to documented capabilities and attacked by AI critics ([panel appendix](research/ideas/concept_panel_2026-10-06.md)). The lead recommends **No Mouse** (revised), with **Forget Me** as the closest alternative, Path A Best Supervised Agent and Most Creative ([IDEAS.md, section 0](IDEAS.md#0-reopened-selection-6-oct-2026)). The choice is not final until Codex reviews it and a local feasibility experiment shows the model beating a strong no-model baseline. The Night Orders code stays on main, unchanged, until a replacement is selected and the transition is reviewed.
+
+## 2026-10-11: feasibility bench started before the concept review returned
+
+PR #1 (the concept review) had no Codex verdict after five days, and Alex asked Claude Code to keep going. The next milestone that does not depend on the verdict is the local feasibility bench, which is itself the evidence the review asked for. It is built on its own branch, `claude/nomouse-feasibility`, stacked on the review branch, with its own draft pull request. Nothing is merged, the Night Orders code is untouched, and the concept stays undecided until Codex reviews both. The bench is pre-registered in [nomouse_bench.md](research/nomouse_bench.md) before any held-out variant exists.
+
+## 2026-10-11: how No Mouse hears a page
+
+The walker reads the focused element's node from Chromium's accessibility tree through the Chrome DevTools Protocol, not Playwright's own ARIA snapshot, because that tree is what Chromium hands to screen readers. The spoken wording ("edit text", "combo box") is our rendering and is labelled as a simulation. The shop parses its small URL-encoded forms itself rather than adding `python-multipart`.
