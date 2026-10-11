@@ -115,7 +115,8 @@ def test_the_countersign_is_read_at_its_signed_commit_with_its_signer():
     server = Server(countersign_routes(), {("ops/state.yml", "cs0001"): text})
     state = state_sources(server).state_file("alex-velazquez")
     assert state.signature == Signature(method="merge", user="alex-velazquez",
-                                        at=datetime(2026, 10, 21, 14, 42, tzinfo=timezone.utc), commit="cs0001")
+                                        at=datetime(2026, 10, 21, 14, 42, tzinfo=timezone.utc), commit="cs0001",
+                                        merge_request=52)
     assert state.data["flags"][0]["keep"] == "off" and state.problem is None
     commits = next(r for r in server.requests if r.url.path == f"{API}/repository/commits")
     assert commits.url.params["path"] == "ops/state.yml"

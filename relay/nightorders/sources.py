@@ -57,6 +57,7 @@ class Inputs:
     orders_problems: tuple[str, ...]
     signature: Signature | None
     metrics: Metrics
+    project_url: str | None = None  # the GitLab project's web page, for the status page's links
 
 
 def parse_metrics(data: Any) -> Metrics:
@@ -107,15 +108,18 @@ class GitLabSources:
         self.metrics_url = metrics_url
 
     def load(self, now: datetime) -> Inputs:
-        branch = str(self.gitlab.json("read project", "GET", "")["default_branch"])
+        project = self.gitlab.json("read project", "GET", "")
+        branch = str(project["default_branch"])
         oncall = self._config("ops/oncall.yml", branch, parse_oncall)
         targets = self._config("ops/targets.yml", branch, parse_targets)
         rules = self._config("ops/alerts.yml", branch, parse_alert_rules)
         signature = self.signature(branch, oncall.user)
         text = self.gitlab.raw_file(ORDERS_PATH, signature.commit if signature else branch)
         orders, problems = parse_orders_text(text, targets, oncall)
+        web = project.get("web_url")
         return Inputs(oncall=oncall, targets=targets, rules=rules, orders=orders, orders_problems=problems,
-                      signature=signature, metrics=self.metrics())
+                      signature=signature, metrics=self.metrics(),
+                      project_url=str(web) if isinstance(web, str) and web.startswith("https://") else None)
 
     def _config(self, path: str, ref: str, parse: Any) -> Any:
         """A file the relay cannot work without. Any problem stops the tick, and the relay's error path pages."""
@@ -172,7 +176,8 @@ class GitLabSources:
             if detail.get("state") == "merged":
                 user = (detail.get("merge_user") or detail.get("merged_by") or {}).get("username")
                 at = parse_time(detail.get("merged_at"))
-                return [Signature(method="merge", user=str(user), at=at, commit=sha)] if user and at else []
+                return ([Signature(method="merge", user=str(user), at=at, commit=sha, merge_request=int(detail["iid"]))]
+                        if user and at else [])
             if detail.get("state") == "opened":
                 return self._approvals(int(detail["iid"]), sha)
             return []
@@ -198,5 +203,5 @@ class GitLabSources:
             user = (approval.get("user") or {}).get("username")
             at = parse_time(approval.get("approved_at"))
             if user and at:
-                approvals.append(Signature(method="approval", user=str(user), at=at, commit=commit))
+                approvals.append(Signature(method="approval", user=str(user), at=at, commit=commit, merge_request=iid))
         return approvals

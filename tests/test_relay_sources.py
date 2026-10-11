@@ -89,7 +89,8 @@ def load(routes: dict, files: dict, shop=None):
 def test_a_merged_orders_change_is_signed_by_its_merger_and_read_at_that_commit():
     inputs, fake = load(merged_by("alex-velazquez", "2026-10-21T05:06:00Z"), base_files("abc123"))
     assert inputs.signature == Signature(method="merge", user="alex-velazquez",
-                                         at=datetime(2026, 10, 21, 5, 6, tzinfo=timezone.utc), commit="abc123")
+                                         at=datetime(2026, 10, 21, 5, 6, tzinfo=timezone.utc), commit="abc123",
+                                         merge_request=31)
     assert [o.id for o in inputs.orders.orders] == [1, 2] and inputs.orders_problems == ()
     assert fake.refs("ops/night-orders.yml") == ["abc123"]
     assert fake.refs("ops/oncall.yml") == fake.refs("ops/targets.yml") == fake.refs("ops/alerts.yml") == ["main"]
@@ -112,7 +113,8 @@ def test_an_approved_open_merge_request_signs_and_its_head_commit_is_read():
     inputs, fake = load(routes, base_files("head41"))
     # The on-call person's approval counts, even though a teammate approved later.
     assert inputs.signature == Signature(method="approval", user="alex-velazquez",
-                                         at=datetime(2026, 10, 21, 5, 6, tzinfo=timezone.utc), commit="head41")
+                                         at=datetime(2026, 10, 21, 5, 6, tzinfo=timezone.utc), commit="head41",
+                                         merge_request=41)
     assert fake.refs("ops/night-orders.yml") == ["head41"]
     listed = next(r for r in fake.requests if r.url.path == f"{API}/merge_requests")
     assert listed.url.params["state"] == "opened" and listed.url.params["target_branch"] == "main"

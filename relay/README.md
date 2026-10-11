@@ -48,7 +48,8 @@ that finds one held answers 409 and leaves everything else alone.
 | `GET /healthz` | deploy job | `{"ok": true, "commit": ...}` |
 | `GET /readyz` | deploy job, probes | `{"ready": true, "store": "ok"}`, or 503 with the missing setting names and the store's problem in a few words (never a token or a URL) |
 | `POST /tick` | Cloud Scheduler, with the `X-Relay-Key` header | one tick, as above |
-| `GET /` | anyone | read-only status page: tonight's orders, whether the night runs on standing orders, the last watch log (labelled demo) |
+| `GET /` | anyone | read-only status page, drawn with the demo's stylesheet: tonight's orders with a countdown, the last hour of the shop's numbers with a marker per decision, tonight's events with links into GitLab, the dusk chores, the countersign and links to the project's sessions, pipelines, flags and incidents |
+| `GET /status.json` | anyone | the same facts as JSON, read-only; never a setting or a secret |
 
 ## Settings
 

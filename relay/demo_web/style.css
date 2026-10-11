@@ -203,8 +203,8 @@ button[hidden], [hidden] { display: none !important; }
 .persona-note strong { color: var(--ink); font-weight: 650; }
 
 .order-list { display: grid; gap: 10px; margin: 18px 0; padding: 0; list-style: none; }
-.order-card { position: relative; padding: 16px 17px 16px 72px; border: 1px solid var(--line); border-radius: 12px; background: #fffefa; }
-.order-number { position: absolute; left: 16px; top: 16px; display: inline-grid; place-items: center; width: 42px; height: 26px; border: 1px solid #d7dbd3; border-radius: 7px; color: #6a7870; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; white-space: nowrap; }
+.order-card { position: relative; padding: 16px 17px 16px 84px; border: 1px solid var(--line); border-radius: 12px; background: #fffefa; }
+.order-number { position: absolute; left: 16px; top: 16px; display: inline-grid; place-items: center; min-width: 46px; padding: 0 5px; height: 26px; border: 1px solid #d7dbd3; border-radius: 7px; color: #6a7870; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; white-space: nowrap; }
 .order-title { margin: 0 0 6px; font-size: 14px; font-weight: 700; line-height: 1.4; letter-spacing: -.15px; }
 .order-condition { margin: 0 0 7px; color: #5a6a70; font-size: 13px; line-height: 1.55; }
 .order-action { margin: 0; color: #31494f; font-size: 13px; font-weight: 650; }
@@ -251,7 +251,7 @@ button[hidden], [hidden] { display: none !important; }
 .context-panel li { padding: 12px 0; border-top: 1px solid #415761; color: #cbd5d5; font-size: 12px; line-height: 1.6; }
 .context-panel li strong { display: block; margin-bottom: 3px; color: #faf6e8; font-size: 12px; font-weight: 650; }
 .context-panel .status-tag { margin-bottom: 12px; color: #d5e5d2; background: #38554c; }
-.context-panel .small-copy { padding-top: 14px; border-top: 1px solid #415761; color: #aabec1; font-size: 11px; }
+.context-panel .small-copy { padding-top: 14px; border-top: 1px solid #415761; color: #b3c5c8; font-size: 12px; }
 .context-panel .text-link { color: #e5c687; }
 .context-panel .persona-strip { padding: 0 0 18px; margin-bottom: 20px; border-bottom: 1px solid #415761; border-radius: 0; background: transparent; }
 .context-panel .avatar { color: #f4e7c6; background: #41585d; }
@@ -474,7 +474,7 @@ details > summary::-webkit-details-marker { display: none; }
   .persona-note { font-size: 12px; }
   .order-list { margin-top: 16px; gap: 8px; }
   .order-card { padding: 13px 12px 13px 65px; }
-  .order-number { left: 12px; top: 13px; width: 44px; height: 24px; font-size: 11px; }
+  .order-number { left: 12px; top: 13px; min-width: 46px; height: 24px; font-size: 11px; }
   .order-title { font-size: 13px; }
   .order-condition, .order-action { font-size: 13px; }
   .order-reason { font-size: 13px; }
@@ -553,8 +553,16 @@ details > summary::-webkit-details-marker { display: none; }
   .step-number, .order-number, .rehearsal-kicker, .gl-state, .gl-meta time, .gl-ref, .event-time, .status-tag,
   .choice-badge, .decision-kicker, .phone-app, .marker-dot, .stat-label, .avatar, .eyebrow, .context-panel .eyebrow,
   .proof-log, .proof-log mark, .mono { font-size: 12px; }
-  .order-number { width: 48px; }
+  .order-card { padding-left: 80px; }
   .gitlab-objects li { grid-template-columns: 1fr auto; }
   .gl-ref { grid-column: 1 / -1; }
   .three-ways table { font-size: 12px; }
 }
+
+/* The relay's status page at /, drawn with the same parts as the demo */
+.status-page .event-body a { margin-left: 4px; color: #6e49cb; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; font-weight: 650; }
+.status-page .proof-links li a { color: #f3dcaa; }
+.status-page .proof-links li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.status-page .context-panel .small-copy { padding-top: 0; border-top: 0; color: #aabec1; }
+.status-page .intro .action-row { position: static; margin: 18px 0 0; padding: 0; background: none; }
+.status-page .order-list { margin-top: 12px; }

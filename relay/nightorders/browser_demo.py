@@ -14,6 +14,7 @@ from pathlib import Path
 
 import httpx
 
+from . import REPO_URL
 from .compare import compare
 from .countersign import parse_state, plan_morning
 from .dawn import loose_ends, render_watch_log
@@ -282,6 +283,7 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
     rehearsed = rehearsal(night.oncall, night.targets, scenario, objects)
     return {
         "label": LABEL, "choices": {"signed": signed, "approved": approved},
+        "repo_url": REPO_URL,
         "rehearsal": rehearsed,
         "objects": gitlab_objects(night, ports, objects, signed, morning, rehearsed),
         "three_ways": list(three_ways()),

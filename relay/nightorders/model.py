@@ -190,6 +190,7 @@ class Signature:
     user: str
     at: datetime
     commit: str
+    merge_request: int | None = None  # the merge request that carried the signed file, when known
 
 
 @dataclass(frozen=True)

@@ -215,9 +215,10 @@ def test_status_page_shows_the_demo_label_the_orders_and_the_watch_log(replayed)
     page = rig.client.get("/")
     assert page.status_code == 200 and page.headers["content-security-policy"].startswith("default-src 'none'")
     text = page.text
-    assert "DEMO: planted faults, simulated shop" in text
+    assert "Live relay. Demo shop, planted faults." in text and 'href="/demo/assets/style.css"' in text
     assert "Expired at 07:00." in text and "Signed by Priya at 22:06 (merge)" in text
-    assert "Order 1: when checkout error rate (new path) above 5.0% for 5 min, new_checkout off in production." in text
+    assert "When checkout error rate (new path) above 5.0% for 5 min," in text
+    assert "new_checkout off in production." in text
     assert "Woken: 1 time (01:52)." in text and "Handled while you slept: incident #2 (order 1)." in text
     assert "&lt;script" not in text and "<script" not in text
     rig.now = local("03:00")
@@ -246,7 +247,7 @@ def test_status_page_before_any_tick_and_when_the_state_cannot_be_read(tmp_path)
         raise RelayError("Cloud Storage read state: HTTP 403")
 
     text = TestClient(main.create_app(make_store=broken)).get("/").text
-    assert "cannot be read right now" in text and "DEMO: planted faults, simulated shop" in text
+    assert "cannot be read right now" in text and "Live relay. Demo shop, planted faults." in text
 
 
 def test_a_burst_of_page_views_reads_the_state_once(tmp_path):
@@ -438,5 +439,5 @@ def test_status_page_shows_the_dusk_chores(tmp_path, relay_key):
     doc["relay"]["rehearsed"] = {"31": "abc123"}
     rig.store.save(doc)
     text = rig.client.get("/").text
-    assert "<h2>Dusk</h2>" in text and "Day sheet posted on the watch issue for 2026-10-20." in text
-    assert "Rehearsed on staging: !31." in text
+    assert '<h3 class="section-title">Dusk</h3>' in text and "Day sheet posted on the watch issue for 2026-10-20." in text
+    assert "Rehearsed on staging: <span>!31</span>." in text  # a link once the project address is known

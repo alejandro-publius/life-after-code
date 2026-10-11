@@ -75,7 +75,7 @@ from fastapi import FastAPI, Header
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from nightorders import daysheet, morning, rehearsal, state
+from nightorders import daysheet, morning, rehearsal, state, status_page
 from nightorders.dawn import render_watch_log
 from nightorders.decide import Night
 from nightorders.gitlab_ports import GitLab, GitLabPorts, GoogleToken, Http, RelayError, push
@@ -101,8 +101,10 @@ WATCH_MODES = ("flow", "standing")
 FLOW_ONLY = ("FLOW_CONSUMER_ID", "FLOW_SERVICE_ACCOUNT")  # not needed under standing orders
 PAGE_HEADERS = {
     "Cache-Control": "no-store",
-    "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+    "Content-Security-Policy": "default-src 'none'; style-src 'self'; img-src 'self' data:; base-uri 'none'; "
+                               "form-action 'none'; frame-ancestors 'none'",
     "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "same-origin",
 }
 DEMO_PAGE_HEADERS = {
     "Cache-Control": "no-store",
@@ -314,6 +316,7 @@ def status_of(inputs: Inputs, now: datetime) -> dict:
         "signed_by": signer,
         "signed_at": signature.at.isoformat() if signature else None,
         "method": signature.method if signature else None,
+        "merge_request": signature.merge_request if signature else None,
     }
     return status
 
@@ -444,7 +447,8 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
     state.capture(watch, doc)
     doc["ports"] = ports.saved()
     relay_doc["status"] = status_of(inputs, now)
-    relay_doc["status"]["standing"] = relay.standing
+    relay_doc["status"].update(standing=relay.standing, project_url=inputs.project_url, watch_issue=relay.watch_issue,
+                               samples=status_page.samples_of(inputs.metrics, now))
     if ledger.events:
         relay_doc["watch_log"] = {"night": night_key, "text": render_watch_log(night)}
     if problem:
@@ -473,112 +477,8 @@ def _e(text: Any) -> str:
 
 
 def render_status(doc: dict | None, now: datetime, unavailable: bool = False) -> str:
-    """The public status page. Plain HTML, no scripts; every value from the state is escaped."""
-    relay_doc = (doc or {}).get("relay") or {}
-    status = relay_doc.get("status")
-    body = [
-        f'<p class="demo">{_e(DEMO_LABEL)}. The shop, its traffic and its faults are simulated. '
-        "This status page shows only results reported by the connected night watch.</p>",
-        "<h1>Night Orders</h1>",
-        "<p>Before bed, the on-call engineer signs what the agent may do alone tonight. "
-        "Everything else wakes them. This page is read-only.</p>",
-        '<p><a class="try-demo" href="/demo">Try one night with Priya</a></p>',
-        '<p class="quiet">A guided demo replay with recorded agent replies. No setup needed.</p>',
-    ]
-    if unavailable:
-        body.append("<p>The relay's state cannot be read right now.</p>")
-    elif not status:
-        body.append("<p>No check has run yet.</p>")
-    else:
-        tz = ZoneInfo(status["timezone"])
-        orders = status.get("orders")
-        problems = status.get("problems") or []
-        body.append("<h2>Tonight's orders</h2>")
-        if status.get("standing"):
-            body.append("<p><strong>Standing orders tonight.</strong> No model at night: code carries out the "
-                        "first signed order whose numbers hold, and says so on the incident. Everything else "
-                        "wakes the on-call person.</p>")
-        if orders and not problems and orders["items"]:
-            ends = datetime.fromisoformat(orders["ends_at"])
-            when = f"Active until {_local(ends, tz)}." if now < ends else f"Expired at {_local(ends, tz)}."
-            signed = datetime.fromisoformat(orders["signed_at"])
-            body.append(f"<p><strong>{_e(when)}</strong> Signed by {_e(orders['signed_by'])} at "
-                        f"{_local(signed, tz)} ({_e(orders['method'])}), for the night of {_e(orders['night'])}.</p>")
-            body.append("<ol>")
-            for item in orders["items"]:
-                body.append(f"<li>Order {_e(item['id'])}: when {_e(item['when'])}, {_e(item['do'])}."
-                            f"<br>Because: {_e(item['because'])}</li>")
-            body.append("</ol>")
-        else:
-            body.append("<p><strong>Nothing signed.</strong> Every alert wakes the on-call person.</p>")
-            if orders and not problems:
-                body.append("<p>The signed file has no orders.</p>")
-            if problems:
-                body.append("<ul>" + "".join(f"<li>{_e(p)}</li>" for p in problems) + "</ul>")
-        body.append("<h2>Last watch log</h2>")
-        watch_log = relay_doc.get("watch_log")
-        if watch_log:
-            body.append(f"<pre>{_e(watch_log['text'])}</pre>")
-        else:
-            body.append("<p>Nothing has happened yet tonight.</p>")
-        chores = []
-        if relay_doc.get("daysheet"):
-            chores.append(f"Day sheet posted on the watch issue for {_e(relay_doc['daysheet'])}.")
-        sheet_problem = relay_doc.get("daysheet_problem")
-        if sheet_problem:
-            sheet_day = sheet_problem.get("date")
-            why = _e(sheet_problem.get("reason") or "")
-            if sheet_day and sheet_day != now.astimezone(tz).date().isoformat():
-                chores.append(f"The day sheet for {_e(sheet_day)} was not posted ({why}).")
-            else:
-                chores.append(f"The day sheet could not be posted yet ({why}); the relay tries again every few "
-                              "minutes until midnight.")
-        rehearsed = relay_doc.get("rehearsed") or {}
-        if rehearsed:
-            chores.append("Rehearsed on staging: " + ", ".join(f"!{_e(iid)}" for iid in sorted(rehearsed, key=int)) + ".")
-        if relay_doc.get("rehearsal_pending"):
-            chores.append("A rehearsal stopped before it could put staging back; the relay restores it on the "
-                          "next ticks.")
-        left = relay_doc.get("rehearsal_left")
-        if left:
-            chores.append(f"Staging was left with {_e(left.get('what'))} after a rehearsal of !{_e(left.get('iid'))} "
-                          f"and code could not put it back ({_e(left.get('reason'))}). It was "
-                          f"{_e(left.get('before'))} before; a person has to restore it.")
-        if relay_doc.get("rehearsal_problem"):
-            chores.append("A rehearsal could not be finished; the relay tries again on the next ticks.")
-        if chores:
-            body.append("<h2>Dusk</h2>")
-            body.append("<ul>" + "".join(f"<li>{line}</li>" for line in chores) + "</ul>")
-        dawn = relay_doc.get("dawn")
-        if dawn:
-            body.append("<h2>Morning countersign</h2>")
-            if dawn.get("countersign_text"):
-                body.append(f"<pre>{_e(dawn['countersign_text'])}</pre>")
-            else:
-                count = len(dawn.get("loose_ends") or [])
-                body.append(f"<p>Waiting for the on-call person to keep or undo {count} change"
-                            f"{'' if count == 1 else 's'} from the night of {_e(dawn['night'])}.</p>")
-                if dawn.get("refused_text"):
-                    body.append(f"<pre>{_e(dawn['refused_text'])}</pre>")
-        checked = datetime.fromisoformat(status["checked_at"])
-        body.append(f"<p>Last check {_local(checked, tz)} ({_e(status['timezone'])}).</p>")
-        if relay_doc.get("error"):
-            body.append("<p>The relay's latest check failed. It pages the on-call person if failures continue.</p>")
-    style = (
-        "body{font:16px/1.5 system-ui,sans-serif;max-width:46rem;margin:0 auto;padding:16px;color:#1b1b1b;"
-        "background:#fff}"
-        ".demo{background:#fff3cd;border:1px solid #c9a227;padding:8px 12px;font-weight:600}"
-        "pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f4f4;padding:12px}"
-        ".try-demo{display:inline-block;background:#1f4036;color:#fff;padding:12px 18px;"
-        "border-radius:8px;text-decoration:none;font-weight:700}"
-        ".quiet{color:#686868;font-size:14px}"
-        "@media (prefers-color-scheme:dark){body{color:#e8e8e8;background:#121212}"
-        ".demo{background:#3b3000;border-color:#8a7000}pre{background:#1e1e1e}}"
-    )
-    return ("<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">"
-            "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
-            f"<title>Night Orders relay</title><style>{style}</style></head><body>\n"
-            + "\n".join(body) + "\n</body></html>\n")
+    """The public status page: plain HTML drawn with the demo's stylesheet, no scripts, every value escaped."""
+    return status_page.render(doc, now, unavailable)
 
 
 def _key_ok(given: str | None, expected: str) -> bool:
@@ -662,8 +562,17 @@ def create_app(make_store: Callable[[Config], Any] = make_store,
         finally:
             one_at_a_time.release()
 
+    @app.get("/status.json")
+    def status_json() -> JSONResponse:
+        try:
+            doc, _ = make_store(Config.from_env()).load()
+        except Exception as error:
+            log.warning("status json: %s", reason(error))
+            return JSONResponse({"available": False}, status_code=503, headers={"Cache-Control": "no-store"})
+        return JSONResponse({"available": True, **status_page.public(doc, now())}, headers={"Cache-Control": "no-store"})
+
     @app.get("/", response_class=HTMLResponse)
-    def status_page() -> HTMLResponse:
+    def status_html() -> HTMLResponse:
         if time.monotonic() < cached["until"]:
             return HTMLResponse(cached["page"], headers=PAGE_HEADERS)
         try:

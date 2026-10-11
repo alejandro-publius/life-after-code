@@ -214,6 +214,15 @@ def main():
                     page = context.new_page()
                     walk(page, base, signed=signed, approved=approved, screenshots=args.screenshots, screen=screen)
                     page.close()
+                page = context.new_page()  # the relay's own page at /, drawn with the demo's stylesheet
+                page.goto(base + "/", wait_until="networkidle")
+                expect(page.locator("h1")).to_have_text("Nothing signed yet. Here is the demo.")
+                expect(page.locator("a.try-demo")).to_have_attribute("href", "/demo")
+                fits_screen(page)
+                if screen == "phone":
+                    readable(page)
+                capture(page, args.screenshots, f"status-{screen}.png")
+                page.close()
                 context.close()
                 print(f"{screen}: signed, declined and unsigned paths passed")
             context = browser.new_context(viewport={"width": 390, "height": 844}, java_script_enabled=False)
