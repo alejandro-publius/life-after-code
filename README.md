@@ -2,6 +2,8 @@
 
 **Before bed, you sign what the agent may do alone tonight. Everything else wakes you. The orders end at 07:00.**
 
+> **03:12.** The new checkout starts failing. Priya is asleep. At 22:06 she signed one order: if new checkout errors stay above 5% for five minutes, turn the new checkout off. Code checks her signature, the expiry and the numbers; the model checks that the order fits this incident. At 03:13 the flag goes off, the whole shop is re-checked at 03:23, and her phone stays dark. Earlier that night, at 01:52, the same order's numbers matched, but the model saw the old checkout failing too, declined, and woke her with one fix to approve. *Demo night: invented persona and shop, planted faults, decisions by the real code.*
+
 For the engineer on call for a small team, an obvious reversible fix can still mean a broken night's sleep. Night Orders lets that person permit a few exact actions before bed, while keeping every other decision with them.
 
 Why it matters: Google's SRE book puts the ceiling at two incidents per 12-hour shift, because each takes about six hours to handle properly ([source](https://sre.google/sre-book/being-on-call/), unverified), and a survey of on-call workers outside software found that 56% slept worse on on-call nights even when no call came ([source](https://pmc.ncbi.nlm.nih.gov/articles/PMC5876943/), unverified). A small team cannot staff its way under that ceiling at night. [Notes and what is still to check](docs/research/oncall_case.md).
@@ -72,6 +74,22 @@ The model chooses where to look. Code decides what is true. A human decides when
 - **Every grant ends:** a kept change can name the merge request that fixes its cause (`until_deployed: 39`). In daytime, code asks GitLab whether that merge request is merged and whether its commit is in the last successful production deployment; when both are true, it restores the change from the same snapshot and notes it on the watch issue. A kept flag never quietly becomes permanent. In the replay, the rounding fix ships at 15:31 and the new checkout is back on at 15:40.
 
 Payment errors, a second alert during a re-check, expired permission, a malformed reply, a reply timeout and an exhausted nightly model budget cannot be covered by an order. An order never acts on thin traffic: every minute of its window needs at least the checkouts or requests `ops/targets.yml` sets (10 checkouts a minute here), so one failed checkout out of two is never "50% errors" at night. After an order runs, the re-check cannot pass on an emptied path: a checkout path that was switched off reads 0%, so the whole shop must be back under the limit on enough checkouts, and every other alert of the same incident must be back too, or she is paged. The decision and watch loops enforce those limits in [code](relay/nightorders/).
+
+## Life after code, stage by stage
+
+What runs after a change is merged, and where to read it:
+
+| Stage | What Night Orders does | Where |
+|---|---|---|
+| Verify | The merge request pipeline checks tonight's orders and the morning countersign file against the targets and the floor, and the Duo flows against GitLab's schema | [.gitlab-ci.yml](.gitlab-ci.yml), [cli.py](relay/nightorders/cli.py) |
+| Secure | SAST, IaC scanning, secret detection, a hash-checked dependency audit with an SBOM; log text reaches the model fenced as data | [.gitlab-ci.yml](.gitlab-ci.yml), [watch.py](relay/nightorders/watch.py) |
+| Release | Each drafted order is tried on staging and restored before anyone signs; the dusk flow drafts from the day's merges | [rehearsal.py](relay/nightorders/rehearsal.py), [dusk.yml](flows/dusk.yml) |
+| Deploy | Keyless Cloud Run deploys, manual, from the protected default branch only | [deploy/](deploy/README.md) |
+| Monitor | The relay reads the shop's numbers every minute and applies the alert rules, ignoring thin traffic | [signals.py](relay/nightorders/signals.py) |
+| Respond | An incident with an evidence pack; two keys (code and the watch flow); a three-line page with at most one fix to approve | [decide.py](relay/nightorders/decide.py), [watch.yml](flows/watch.yml) |
+| Recover | The signed action, then a re-check of the whole shop ten minutes later; anything else wakes her | [watch.py](relay/nightorders/watch.py) |
+| Restore | The countersign restores every change not kept to its snapshot; a kept change ends when its fix is deployed | [morning.py](relay/nightorders/morning.py), [kept.py](relay/nightorders/kept.py) |
+| Learn | The watch log, a timeline on each incident, and each night's report kept as a pipeline artifact | [dawn.py](relay/nightorders/dawn.py), [night_report.py](scripts/night_report.py) |
 
 ## GitLab workflow and current limits
 
