@@ -1,17 +1,20 @@
 """The night report: one night's record, from the relay's public /status.json, as Markdown.
 
     python scripts/night_report.py https://YOUR_RELAY.run.app --out night-report.md
-    python scripts/night_report.py saved-status.json
+    python scripts/night_report.py saved-status.json --project-url https://gitlab.com/GROUP/PROJECT
 
 The relay keeps one night at a time. The scheduled `night_report` job in .gitlab-ci.yml runs this each morning
 and keeps the file as a job artifact, so every night stays readable in GitLab after the relay moves on. It reads
 only the public status JSON (no token), and copies text from it as data: inside code spans or a code fence.
+In the pipeline it also links each step of the night to where it is in GitLab (CI_PROJECT_URL), so a reader can
+open the signed orders and every incident from the report.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import urllib.request
 from datetime import datetime
@@ -50,7 +53,38 @@ def _fence(text: str) -> list[str]:
     return ["```text", text.rstrip("\n").replace("```", "'''"), "```"]
 
 
-def render(data: dict) -> str:
+def _base(url: str | None) -> str | None:
+    """A public https URL to link from, or None. A URL carrying a user name or password is never printed."""
+    parts = urlsplit(url or "")
+    if parts.scheme != "https" or not parts.hostname or parts.username or parts.password:
+        return None
+    return f"https://{parts.netloc}{parts.path}".rstrip("/")
+
+
+def in_gitlab(data: dict, project_url: str | None, pipeline_url: str | None = None) -> list[str]:
+    """Where each step of the night is in GitLab: the signed orders, every incident, the pipeline that kept this."""
+    project = _base(project_url)
+    if project is None:
+        return []
+    rows = []
+    orders = data.get("orders") or {}
+    if orders.get("merge_request"):
+        iid = int(orders["merge_request"])
+        rows.append(f"| Tonight's orders and their signature | [!{iid}]({project}/-/merge_requests/{iid}) |")
+    first: dict[int, str] = {}
+    for event in data.get("events") or []:
+        if event.get("incident") is not None:
+            first.setdefault(int(event["incident"]), _cell(event.get("text")))
+    rows += [f"| Incident #{n}: {text} | [#{n}]({project}/-/issues/{n}) |" for n, text in first.items()]
+    pipeline = _base(pipeline_url)
+    if pipeline:
+        rows.append(f"| The pipeline that kept this report | [pipeline]({pipeline}) |")
+    if not rows:
+        return []
+    return ["## In GitLab", "", "| Step | Open it |", "|---|---|", *rows, ""]
+
+
+def render(data: dict, project_url: str | None = None, pipeline_url: str | None = None) -> str:
     tz = ZoneInfo(data.get("timezone") or "UTC")
 
     def hhmm(text: str | None) -> str:
@@ -103,6 +137,7 @@ def render(data: dict) -> str:
         lines += [f"- {_cell(line)}" for line in kept]
         lines += [f"- Ended {_cell(item.get('at', ''))[:16]}: {_cell(item.get('text'))}" for item in ended]
         lines.append("")
+    lines += in_gitlab(data, project_url, pipeline_url)
     return "\n".join(lines)
 
 
@@ -118,9 +153,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("source", help="the relay's base URL, its /status.json, or a saved status JSON file")
     parser.add_argument("--out", type=Path, help="write the report here instead of printing it")
+    parser.add_argument("--project-url", default=os.environ.get("CI_PROJECT_URL"),
+                        help="the GitLab project to link each step to (default: CI_PROJECT_URL)")
+    parser.add_argument("--pipeline-url", default=os.environ.get("CI_PIPELINE_URL"),
+                        help="the pipeline that keeps this report (default: CI_PIPELINE_URL)")
     args = parser.parse_args(argv)
     try:
-        text = render(fetch(args.source))
+        text = render(fetch(args.source), args.project_url, args.pipeline_url)
     except (OSError, ValueError, KeyError, TypeError) as error:
         print(f"night report: could not read {_shown(args.source)} ({type(error).__name__}: {error})", file=sys.stderr)
         return 2

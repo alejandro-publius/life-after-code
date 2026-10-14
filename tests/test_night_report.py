@@ -54,3 +54,23 @@ def test_the_command_reads_a_saved_file_and_refuses_credentials_in_a_url(status,
         fetch("https://user:secret@relay.example")
     assert report_main(["https://user:secret@relay.example"]) == 2
     assert "secret" not in capsys.readouterr().err
+
+
+def test_the_report_links_each_step_to_gitlab(status):
+    text = render(status, "https://gitlab.com/group/night-orders/", "https://gitlab.com/group/night-orders/-/pipelines/7")
+    section = text.split("## In GitLab\n", 1)[1]
+    assert "| Step | Open it |" in section
+    signed = status["orders"]["merge_request"]
+    if signed:
+        assert f"[!{signed}](https://gitlab.com/group/night-orders/-/merge_requests/{signed})" in section
+    incidents = sorted({e["incident"] for e in status["events"] if e.get("incident") is not None})
+    assert incidents
+    for n in incidents:
+        assert f"[#{n}](https://gitlab.com/group/night-orders/-/issues/{n})" in section
+    assert "[pipeline](https://gitlab.com/group/night-orders/-/pipelines/7)" in section
+
+
+def test_no_link_is_made_from_a_url_with_credentials_or_without_https(status):
+    for url in ("https://user:secret@gitlab.com/group/p", "http://gitlab.com/group/p", "", None):
+        text = render(status, url)
+        assert "## In GitLab" not in text and "secret" not in text
