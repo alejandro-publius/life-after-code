@@ -28,7 +28,7 @@ SLIDES = [
     ("01-dusk", "Before bed", "She signs what the agent may do alone tonight.",
      "At most three orders, each one reversible action with a measured condition. Each was checked before she "
      "signed, and anything that cannot be undone is left out, so it wakes her.", ["dusk-orders"]),
-    ("02-decline", "01:52", "The model can say no. It cannot say more.",
+    ("02-decline", "01:52", "Code allowed it. The watch flow said it was the wrong fix.",
      "Code would have allowed order 1. The model saw the old checkout failing too, declined, and woke her "
      "with three lines and one fix to approve with a thumbs-up.", ["wake-veto", "wake-phone"]),
     ("03-handled", "03:13", "The signed order ran. Her phone stayed dark.",

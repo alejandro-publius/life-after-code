@@ -39,11 +39,11 @@ Blanket permission for an agent to change production is too broad. Approving eve
 
 ## What it does
 
-**The model can say no. It cannot say more.**
+**Permission for one night, signed by the person who gets woken.**
 
 Before bed, the **dusk flow**, a custom GitLab Duo Agent Platform flow, reads the day's merged merge requests, deployments and feature flags, and drafts at most three orders as a merge request. Each order is one measured condition and one reversible action from a fixed menu: set a GitLab feature flag in one environment, or move a Cloud Run service's traffic to a named earlier revision. A change that cannot be undone safely, such as a database migration, gets no order, so it will wake her. Before she signs, code tries each flag order on staging and puts it back, checks that each traffic order's revision exists, and posts the result on the merge request; GitLab Duo Code Review reads the orders with the project's own rules. She signs by merging or approving.
 
-At night the relay reads the shop's numbers every minute. When an alert fires, it opens a GitLab incident with an evidence pack and asks the **watch flow**, a second Duo flow. Two keys must agree. Code checks the signature, the expiry, the numbers on enough traffic, and first use tonight. The watch flow must name the signed order and say why the evidence fits, or decline. The action always comes from the signed file, never from the model's text or a log line. If a code check fails or the watch flow declines, she gets a three-line page and at most one fix she can approve with a thumbs-up. Ten minutes after any action, code re-checks the whole shop, not just the path it switched off.
+At night the relay reads the shop's numbers every minute. When an alert fires, it opens a GitLab incident with an evidence pack and asks the **watch flow**, a second Duo flow. Code and the watch flow must both say yes. Code checks the signature, the expiry, the numbers on enough traffic, and first use tonight. The watch flow must name the signed order and say why the evidence fits, or decline. The action always comes from the signed file, never from the model's text or a log line. If a code check fails or the watch flow declines, she gets a three-line page and at most one fix she can approve with a thumbs-up. Ten minutes after any action, code re-checks the whole shop, not just the path it switched off.
 
 At 07:00 the grant ends. Code posts the watch log and one quiet push. The **dawn flow** proposes what to keep in a countersign merge request; she merges it over coffee, and code puts every change she did not keep back exactly as it was, from the snapshot it took before acting. A kept change can name the merge request that fixes its cause, and once that fix is deployed, code ends the keep by itself. Every grant ends.
 
@@ -63,9 +63,9 @@ At 07:00 the grant ends. Code posts the watch log and one quiet push. The **dawn
 
 ## What is new here
 
-Automatic remediation is not new: rules that roll back or run a runbook when an alert fires exist in many tools. They are standing permissions, written once and kept until someone removes them. Night Orders makes the permission nightly: drafted from that day's merges, checked before she signs, void at 07:00, and narrowed, never widened, by the agent. Each morning she decides what stays, and a kept change ends when its fix is deployed.
+Automatic remediation is not new: rules that roll back or run a runbook when an alert fires exist in many tools. They are standing permissions, written once and kept until someone removes them. Agent pipelines that grade autonomy per change decide it at deploy time, from risk scores or tests. Night Orders decides it per night and per person, for the faults that show up hours after the deploy, when the person who would approve is asleep. The permission is nightly: drafted from that day's merges, checked before she signs, void at 07:00, and narrowed, never widened, by the agent. Each morning she decides what stays, and a kept change ends when its fix is deployed.
 
-The agent's role is unusual too. It does not get to act; it gets a veto. In the demo night at 01:52 the numbers matched order 1, so code would have allowed it, but the watch flow saw the old checkout failing as well, declined, and woke her with the fix that did help. At 03:13 the same order fit, and her phone stayed dark.
+The watch flow's job is narrow. It never chooses an action; it decides whether tonight's incident is the one she signed for, and a decline is not a dead end: it wakes her with the one fix that fits. In the demo night at 01:52 the numbers matched order 1, so code would have allowed it, but the watch flow saw the old checkout failing as well, declined, and woke her with the fix that did help. At 03:13 the same order fit, and her phone stayed dark.
 
 ## The working demonstration
 

@@ -151,7 +151,7 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
     if signed:
         veto = page.locator(".veto-card")
         expect(veto).to_contain_text("Permitted, and declined")
-        expect(veto).to_contain_text("The model can say no. It cannot say more.")
+        expect(veto).to_contain_text("It can only narrow what she signed.")
         expect(page.locator("#chapter-heading")).to_have_text("The agent was allowed to act. It chose to wake her.")
         if approved:
             capture(page, screenshots, f"demo-{screen}-wake.png")
