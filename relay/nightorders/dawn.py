@@ -6,13 +6,14 @@ ops/state.yml. The facts in the log come from the ledger, not from the model.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from .decide import Night
 from .model import Action, describe_before
 
 SHOWN = ("alert", "asked", "acted", "failed", "declined", "woke", "approved", "refused", "recovered", "stood_down",
          "expired")
+FAILED = "failed and may be in place"  # added to the why of a loose end whose change raised
 
 
 @dataclass(frozen=True)
@@ -20,12 +21,15 @@ class LooseEnd:
     """A change made tonight and still in place: what was done, why, and the target's state before the night.
 
     before is the snapshot the port took before the first night action on this target (None for records
-    written before snapshots existed). The morning restores from it, never by guessing.
+    written before snapshots existed). The morning restores from it, never by guessing. also holds the night's
+    other changes to this target that may be in place instead (a change that failed may or may not have taken), so
+    the morning restores the target when it holds any of them.
     """
 
     action: Action
     why: str
     before: dict | None = None
+    also: tuple[Action, ...] = ()
 
 
 def action_from(data: dict) -> Action:
@@ -42,7 +46,9 @@ def loose_ends(night: Night) -> list[LooseEnd]:
     the key, from before changes were recorded, count as changed. A change that failed after the port read
     its target (the record has that snapshot) may have gone through all the same, so it counts too: putting
     a target back as the snapshot says changes nothing if it is already so. A failure with no snapshot wrote
-    nothing.
+    nothing. A failure never replaces an earlier change to the same target that took, which is still in place if
+    the failed one never took: that change stays the loose end, and the failed one goes in also. A change that
+    failed and is found in place when tried again (changed is False) did take: it is then the loose end.
     """
     latest: dict[tuple, LooseEnd] = {}
     first_before: dict[tuple, dict | None] = {}
@@ -57,13 +63,23 @@ def loose_ends(night: Night) -> list[LooseEnd]:
         target = ("flag", action.flag, action.environment) if action.kind == "flag_set" else ("service", action.service)
         if target not in first_before:  # the first change of the night is the state before the night
             first_before[target] = before
-        if event.data.get("changed") is False:
-            continue
         when = night.oncall.hhmm(event.at)
         why = f"order {event.order}, {when}" if event.order is not None else f"approved by thumbs-up, {when}"
-        if event.kind == "failed":
-            why += ", failed and may be in place"
-        latest[target] = LooseEnd(action=action, why=why, before=first_before[target])
+        if event.data.get("changed") is False:  # already in place: a change to it that failed took after all
+            end = latest.get(target)
+            if end is not None and (action in end.also or (action == end.action and FAILED in end.why)):
+                latest[target] = LooseEnd(action=action, why=why, before=first_before[target])
+            continue
+        if event.kind != "failed":
+            latest[target] = LooseEnd(action=action, why=why, before=first_before[target])
+            continue
+        end = LooseEnd(action=action, why=f"{why}, {FAILED}", before=first_before[target])
+        earlier = latest.get(target)
+        if earlier is not None:  # still in place if this change never took; one that took stays the loose end
+            shown = end if FAILED in earlier.why else earlier
+            tried = dict.fromkeys((earlier.action, *earlier.also, action))
+            end = replace(shown, also=tuple(other for other in tried if other != shown.action))
+        latest[target] = end
     return list(latest.values())
 
 
@@ -94,7 +110,9 @@ def render_watch_log(night: Night) -> str:
     lines.append("|---|---|")
     for event in ledger.events:
         if event.kind in SHOWN:
-            text = _one_line(event.text).replace("|", "/")
+            # A record can hold the agent's words, and the log is posted with the relay's token: an @ mention there
+            # could start a flow by its Mention trigger or notify people, so it is defused as in mention_note.
+            text = _one_line(event.text).replace("|", "/").replace("@", "(at)")
             prefix = f"Incident #{event.incident}: " if event.incident is not None and event.kind == "alert" else ""
             lines.append(f"| {oncall.hhmm(event.at)} | {prefix}{text} |")
     lines.append("")
@@ -128,6 +146,13 @@ def render_watch_log(night: Night) -> str:
     return "\n".join(lines) + "\n"
 
 
+def may_be_in_place(also: tuple[Action, ...] | list[Action]) -> str:
+    """What a loose end's line adds when a change to its target failed and may be in place instead."""
+    if not also:
+        return ""
+    return " A change that failed may be in place instead: " + ", ".join(other.describe() for other in also) + "."
+
+
 def dawn_goal(night: Night, watch_issue: int, ends: list[LooseEnd] | None = None) -> str:
     """The goal the relay gives the dawn flow at the watch end. Facts come from the ledger, not the model.
 
@@ -143,7 +168,7 @@ def dawn_goal(night: Night, watch_issue: int, ends: list[LooseEnd] | None = None
     if ends:
         lines.append("Loose ends, changed overnight and still in place. Propose keep or restore for each:")
         lines += [f"- {end.action.describe()} ({end.why}). Before the night: {describe_before(end.before)}."
-                  for end in ends]
+                  + may_be_in_place(end.also) for end in ends]
     else:
         lines.append("Loose ends: none. Post one note saying nothing needs a countersign, and open no merge request.")
     return "\n".join(lines)

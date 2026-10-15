@@ -159,14 +159,18 @@ def plan_morning(loose: list[LooseEnd], kept: list[Kept]) -> MorningPlan:
     """What the countersign does, given last night's loose ends and the merged ops/state.yml."""
     problems = []
     for item in kept:
-        match = next((end.action for end in loose if end.action.same_target(item.action)), None)
-        if match is None:
+        end = next((end for end in loose if end.action.same_target(item.action)), None)
+        if end is None:
             problems.append(f"ops/state.yml keeps {item.action.describe()}, but nothing changed it last night")
-        elif match.kind == "flag_set" and match.to != item.action.to:
-            problems.append(f"ops/state.yml keeps {item.action.describe()}, but last night set it {match.to}")
-        elif match.kind == "traffic_to_revision" and match.revision != item.action.revision:
+            continue
+        tried = (end.action, *end.also)  # a change that failed may be in place instead of the loose end's
+        if end.action.kind == "flag_set" and item.action.to not in [each.to for each in tried]:
+            set_to = " or ".join(dict.fromkeys(str(each.to) for each in tried))
+            problems.append(f"ops/state.yml keeps {item.action.describe()}, but last night set it {set_to}")
+        elif end.action.kind == "traffic_to_revision" and item.action.revision not in [each.revision for each in tried]:
+            sent_to = " or ".join(dict.fromkeys(str(each.revision) for each in tried))
             problems.append(f"ops/state.yml keeps {item.action.describe()}, but last night sent it to "
-                            f"revision {match.revision}")
+                            f"revision {sent_to}")
     if problems:
         raise OrdersError(problems)
 

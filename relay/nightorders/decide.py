@@ -165,8 +165,11 @@ def triage(alerts: list[Alert], night: Night, metrics: Metrics, now: datetime) -
 
 
 def check_request(note_text: str | None, ask: Ask, asked_at: datetime, alerts: list[Alert], night: Night,
-                  metrics: Metrics, now: datetime) -> Act | Wake | StandDown | Waiting:
-    """The model's key, checked by code. The note can only name an order or decline."""
+                  metrics: Metrics, now: datetime, incident: int | None = None) -> Act | Wake | StandDown | Waiting:
+    """The model's key, checked by code. The note can only name an order or decline.
+
+    incident is the incident the agent was asked about: only its failed changes stand in the way of a stand-down.
+    When it is None, every incident's do."""
     timeout = timedelta(minutes=night.oncall.answer_timeout_minutes)
     if note_text is None:
         if now - asked_at >= timeout:
@@ -216,9 +219,11 @@ def check_request(note_text: str | None, ask: Ask, asked_at: datetime, alerts: l
         return Wake(tuple(reasons), default_page(alerts, reasons, night))
     holds, detail = condition_holds(order.when, metrics, now)
     if not holds:
-        failed = [e.text for e in night.ledger.of("failed") if e.order == order.id]
+        failed = [e.text for e in night.ledger.of("failed") if e.order == order.id
+                  and incident in (None, e.incident) and e.data.get("before") is not None]
         if failed:
-            # The change raised when it was tried and may have gone through, so code cannot say nothing changed.
+            # The change raised after the port read its target and may have gone through, so code cannot say nothing
+            # changed. A failure with no snapshot wrote nothing (dawn.loose_ends reads it the same way).
             reasons = [failed[-1]]
         else:
             thin = thin_traffic(order, detail, metrics, now)
@@ -269,11 +274,14 @@ def recheck(order: Order, night: Night, metrics: Metrics, now: datetime) -> tupl
 
 
 def approve_suggestion(suggestion: Action, reaction_user: str, reaction_at: datetime, paged_at: datetime,
-                       night: Night, now: datetime | None = None) -> tuple[bool, str]:
+                       night: Night, now: datetime | None = None,
+                       orders_end: datetime | None = None) -> tuple[bool, str]:
     """A thumbs-up on the page note approves the one suggested action, if code agrees it may.
 
     now is when code would make the change. Once tonight's orders have ended it never does: the morning makes its
     record of the night then, and a change made later would reach neither the record nor the countersign.
+    orders_end is when the orders she was paged under end (the watch keeps it on the incident), so the cutoff holds
+    even when the orders read now are gone or are the next night's. Whichever end comes first counts.
     """
     if reaction_user != night.oncall.user:
         return False, f"The reaction came from {reaction_user}, not the on-call person."
@@ -281,10 +289,12 @@ def approve_suggestion(suggestion: Action, reaction_user: str, reaction_at: date
         return False, "The reaction is older than the page."
     if reaction_at > paged_at + timedelta(minutes=APPROVAL_WINDOW_MINUTES):
         return False, f"The reaction came more than {APPROVAL_WINDOW_MINUTES} minutes after the page."
-    if now is not None and night.orders is not None:
-        _, end = watch_window(night.orders, night.oncall)
-        if now >= end:
-            return False, f"Tonight's orders ended at {night.oncall.hhmm(end)}; approve it by hand."
+    if now is not None:
+        ends = [] if orders_end is None else [orders_end]
+        if night.orders is not None:
+            ends.append(watch_window(night.orders, night.oncall)[1])
+        if ends and now >= min(ends):
+            return False, f"Tonight's orders ended at {night.oncall.hhmm(min(ends))}; approve it by hand."
     if suggestion.kind not in MENU:
         return False, f"{suggestion.kind} is not on the menu."
     problems = action_problems(suggestion, night.targets)

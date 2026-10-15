@@ -23,7 +23,7 @@ from datetime import timedelta
 
 from . import kept
 from .countersign import describe_restored, parse_state, plan_morning, target_words, undo
-from .dawn import LooseEnd, action_from, dawn_goal, loose_ends, render_watch_log
+from .dawn import FAILED, LooseEnd, action_from, dawn_goal, loose_ends, may_be_in_place, render_watch_log
 from .decide import Night
 from .model import Action, Change, Signature, describe_before
 from .orders import OrdersError, watch_window
@@ -31,7 +31,6 @@ ALREADY_BACK = " (already as before the night)"
 DAWN_GRACE = timedelta(minutes=20)  # after this, with no countersign request open, code opens one itself
 STATE_PATH = "ops/state.yml"
 MAX_RESTORE_TRIES = 5  # a restore that keeps failing is left for a person, and the countersign note says so
-FAILED = "failed and may be in place"  # what dawn.loose_ends adds to the why of a change that raised
 
 
 class MorningPorts(Protocol):
@@ -40,6 +39,8 @@ class MorningPorts(Protocol):
     def apply(self, action: Action, at: datetime) -> Change: ...
     def restore(self, action: Action, before: dict, at: datetime) -> Change: ...
     def holds(self, action: Action) -> bool: ...  # whether the target is still as the action left it
+    # Optional: as_before(action, before) -> bool, whether the target is already as the snapshot says. A port without
+    # it never counts a restore tried again as done already.
 
 
 def _one_line(text: object) -> str:
@@ -81,9 +82,15 @@ def new_record(night: Night, carried: dict | None = None) -> dict:
             ends[_target(item["action"])] = dict(item)
     for loose in loose_ends(night):
         item = {"action": loose.action.as_dict(), "why": loose.why, "before": loose.before}
+        also = [other.as_dict() for other in loose.also]
         key = _target(item["action"])
         if key in ends:
             item["before"] = ends[key].get("before")  # how it was before the first of these nights
+            if FAILED in loose.why:  # tonight's change may never have taken, so the earlier one may be in place
+                also += [other for other in [ends[key]["action"], *(ends[key].get("also") or [])]
+                         if other != item["action"] and other not in also]
+        if also:
+            item["also"] = also
         ends[key] = item
     return {
         "night": night.orders.night.isoformat(),
@@ -124,8 +131,9 @@ def countersign_request(record: dict, replaces: list[int] | tuple[int, ...] = ()
              "Changed overnight and still in place:", ""]
     for item in record["loose_ends"]:
         action = action_from(item["action"])
+        also = [action_from(other) for other in item.get("also") or []]
         lines.append("- " + _one_line(f"{action.describe()} ({item.get('why', '')}). Before the night: "
-                                      f"{describe_before(item.get('before'))}."))
+                                      f"{describe_before(item.get('before'))}." + may_be_in_place(also)))
     if replaces:
         older = ", ".join(f"!{int(number)}" for number in replaces)
         lines += ["", f"This replaces {older}: still open, but its ops/state.yml does not name the night of {night}. "
@@ -145,13 +153,18 @@ def countersign_request(record: dict, replaces: list[int] | tuple[int, ...] = ()
 
 
 def loose_from(record: dict) -> list[LooseEnd]:
-    return [LooseEnd(action=action_from(item["action"]), why=str(item.get("why", "")), before=item.get("before"))
+    return [LooseEnd(action=action_from(item["action"]), why=str(item.get("why", "")), before=item.get("before"),
+                     also=tuple(action_from(other) for other in item.get("also") or []))
             for item in record.get("loose_ends") or []]
 
 
 def step(relay_doc: dict, night: Night, watch_expired: bool, state_file: StateFile | None,
-         ports: Any, now: datetime, watch_issue: int | None) -> list[str]:
-    """One morning pass. Returns short lines saying what happened, for the tick summary."""
+         ports: Any, now: datetime, watch_issue: int | None, earlier: bool = False) -> list[str]:
+    """One morning pass. Returns short lines saying what happened, for the tick summary.
+
+    For an earlier night (one that ended with no good tick before noon) it makes the record and does the steps
+    written from that night's own ledger, then returns: the countersign request and the countersign that follow are
+    the record's, and the current night's step does them in the same tick."""
     done: list[str] = []
     orders = night.orders
     record = relay_doc.get("dawn")
@@ -175,6 +188,8 @@ def step(relay_doc: dict, night: Night, watch_expired: bool, state_file: StateFi
         record["flow_started"] = True
         ports.start_dawn_flow(dawn_goal(night, watch_issue, loose_from(record)), now)
         done.append("dawn flow started")
+    if earlier:
+        return done
     # code_request is None until code has looked (a record from before this existed has no key: left alone).
     if (record["loose_ends"] and record["countersign"] is None and record.get("code_request", 0) is None
             and hasattr(ports, "open_countersign_request")):
@@ -267,9 +282,19 @@ def _accept(record: dict, state_file: StateFile, night: Night) -> dict | None:
                                   kept.environment_of(item.action, night.targets.services))
                       for item in plan.kept for end in loose if end.action.same_target(item.action)]
     result["by_hand"] = list(plan.by_hand)
-    record["applying"] = {"result": result, "undo": [{"action": action.as_dict(), "before": before, "why": why,
-                                                      "tries": 0} for action, before, why in plan.undo]}
+    record["applying"] = {"result": result, "undo": [_undo_item(action, before, why, loose)
+                                                     for action, before, why in plan.undo]}
     return None
+
+
+def _undo_item(action: Action, before: dict | None, why: str, loose: list[LooseEnd]) -> dict:
+    """One restore of the plan, kept in the record until it is done, with the night's other changes to its target
+    that may be in place instead (also)."""
+    item: dict = {"action": action.as_dict(), "before": before, "why": why, "tries": 0}
+    also = next((end.also for end in loose if end.action == action), ())
+    if also:
+        item["also"] = [other.as_dict() for other in also]
+    return item
 
 
 def _carry_out(record: dict, ports: Any, now: datetime) -> dict:
@@ -280,8 +305,10 @@ def _carry_out(record: dict, ports: Any, now: datetime) -> dict:
     again: Exception | None = None
     for item in list(applying["undo"]):
         action = action_from(item["action"])
+        also = tuple(action_from(other) for other in item.get("also") or [])
         try:
-            _put_back(action, item["before"], item["why"], result, ports, now)
+            _put_back(action, item["before"], item["why"], result, ports, now, also,
+                      retry=int(item.get("tries", 0)) > 0)
         except Exception as error:
             if getattr(error, "sent", True):  # a call the tick had no time left to send was not a try
                 item["tries"] = int(item.get("tries", 0)) + 1
@@ -296,10 +323,16 @@ def _carry_out(record: dict, ports: Any, now: datetime) -> dict:
     return result
 
 
-def _put_back(action: Action, before: dict | None, why: str, result: dict, ports: Any, now: datetime) -> None:
-    """Restore one loose end, unless its target is no longer as the night left it: then a person changed it after
-    the night (or a change that failed never took), and code leaves it as it is."""
-    if not ports.holds(action):
+def _put_back(action: Action, before: dict | None, why: str, result: dict, ports: Any, now: datetime,
+              also: tuple[Action, ...] = (), retry: bool = False) -> None:
+    """Restore one loose end, unless its target is no longer as the night left it (by this action, or by another
+    night change to it in also): then a person changed it after the night (or a change that failed never took), and
+    code leaves it as it is. On a retry, a target already as the snapshot says was put back by the try before, whose
+    write went through although it raised."""
+    if not any(ports.holds(each) for each in (action, *also)):
+        if retry and before is not None and hasattr(ports, "as_before") and ports.as_before(action, before):
+            result["restored"].append(describe_restored(action, before) + ALREADY_BACK)
+            return
         if FAILED in why:
             result["left"].append(f"{action.describe()} did not take, or was changed after the night, so code left "
                                   "it as it is")

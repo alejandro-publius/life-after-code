@@ -146,6 +146,7 @@ def dump_incident(incident: Incident) -> dict:
         "closed": incident.closed,
         "keys": sorted(incident.keys),
         "unsent_page": None if incident.unsent_page is None else _dump_wake(incident.unsent_page),
+        "orders_end": _time(incident.orders_end),
     }
 
 
@@ -176,6 +177,7 @@ def load_incident(data: dict) -> Incident:
         closed=bool(data.get("closed")),
         keys=set(data.get("keys") or []),
         unsent_page=None if data.get("unsent_page") is None else _load_wake(data["unsent_page"]),
+        orders_end=_moment(data.get("orders_end")),
     )
 
 
@@ -255,11 +257,14 @@ def earlier_nights(doc: dict, oncall: OnCall, targets: Targets) -> list[Night]:
     return nights
 
 
-def forget_recorded(doc: dict) -> None:
-    """Drop the earlier nights the morning has made its record of."""
+def forget_recorded(doc: dict, finished: list[Night]) -> None:
+    """Drop the earlier nights whose morning step ran to the end: their record is made, and the watch log, the push
+    and the dawn flow, which are written from that night's own ledger and orders, have been tried. A step that
+    raised partway keeps its night for the next tick."""
+    done = {night.orders.night.isoformat() for night in finished if night.orders is not None}
     earlier = doc["watch"].get("earlier")
     if earlier:
-        doc["watch"]["earlier"] = [item for item in earlier if not _recorded(doc, item["orders"]["night"])]
+        doc["watch"]["earlier"] = [item for item in earlier if item["orders"]["night"] not in done]
 
 
 def encode(doc: dict) -> bytes:

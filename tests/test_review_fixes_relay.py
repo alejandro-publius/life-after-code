@@ -3,7 +3,9 @@
 Text the relay did not write itself (a drafted orders file, a state file, a loose end) can never start a line
 with / in a note or a merge request description, where GitLab would run it as a quick action with the relay's
 token; /status.json reads the same cached state as the page; and one kept change that cannot be checked does not
-stall the others.
+stall the others. From the 14 Oct review: a merge request title stays on one line in the day sheet, and the relay
+problem page says whether the rest of the watch still runs. From the 15 Oct review: it does not say so when the state
+cannot be saved, or when a new alert cannot be opened.
 
 The demo night is demo data (planted faults, simulated shop). Every other name, number and time is test data.
 """
@@ -16,17 +18,20 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
-from conftest import OPS, ORDERS
-from nightorders import kept
+from conftest import OPS, ORDERS, at
+from nightorders import Metrics, kept
+from nightorders.daysheet import collect, render
 from nightorders.gitlab_ports import RelayError
 from nightorders.morning import StateFile, countersign_request, step
-from nightorders.orders import OrdersError, load_context, parse_orders
+from nightorders.orders import OrdersError, load_context, load_yaml, parse_orders
 from nightorders.state import FileStore
+from test_daysheet import API as DAYSHEET_API, NOW as DUSK, Server as DaySheetServer, gitlab_for, routes
 from test_kept import KEEP_OFF, LeasePorts, countersigned
 from test_morning import FakePorts, local, night, signed  # noqa: F401
 from test_rehearsal import World, run
-from test_relay_app import main
+from test_relay_app import DEMO, KEY, ONCALL, TARGETS, QuietSources, Rig, demo_signature, main
 from test_relay_ports import FLAG, Server, flag, ports_for
+from test_standing_orders import bad_minutes
 
 
 def quick_actions(text: str) -> list[str]:
@@ -175,3 +180,102 @@ def test_one_kept_change_that_cannot_be_checked_does_not_stall_the_others(night)
     ports = LeasePorts()
     kept.step(relay_doc, local(night, "2026-10-21T15:50"), night.oncall, ports)
     assert "kept_problem" not in relay_doc  # every kept change could be checked this time
+
+
+# 14 Oct review: a carriage return in a merge request title used to start a line in the day sheet note.
+
+def test_a_merge_request_title_with_a_carriage_return_cannot_start_a_line_in_the_day_sheet():
+    oncall, targets = load_context(OPS)
+    data = routes()
+    data[f"{DAYSHEET_API}/merge_requests"][0]["title"] = "Price rounding\r/close\u2028/label ~done"
+    text = render(collect(gitlab_for(DaySheetServer(data)), DUSK, oncall, targets))
+    assert quick_actions(text) == []
+    assert "`Price rounding /close /label ~done`" in text
+
+
+# 14 Oct review: the relay problem page said alerts were not handled, although one failing step stops nothing else.
+
+class AnswerUnreadable:
+    """Opens the incident and asks the watch flow, then cannot read its answer: the watch runs, one step fails."""
+
+    def saved(self):
+        return {}
+
+    def open_incident(self, title, description, at):
+        return 7
+
+    def start_watch_flow(self, incident, goal, at):
+        pass
+
+    def request_note(self, incident, at):
+        raise RelayError("GitLab read notes: HTTP 502")
+
+
+def test_the_relay_problem_page_says_whether_the_rest_of_the_watch_still_runs(tmp_path, monkeypatch):
+    monkeypatch.setenv("RELAY_KEY", KEY)
+    metrics = Metrics()
+    bad_minutes(metrics, ONCALL, "checkout_error_rate.new", "03:07", 30, 0.079)
+    orders = parse_orders(load_yaml(DEMO / "orders.yml"), TARGETS, ONCALL)
+    rig = Rig(tmp_path, QuietSources(orders=orders, signature=demo_signature(), metrics=metrics), AnswerUnreadable())
+    for moment in ("03:12", "03:13", "03:14", "03:15"):  # asked at 03:12, then the answer cannot be read
+        rig.now = at(ONCALL, moment)
+        rig.tick()
+    [(_title, lines, _priority)] = rig.pages
+    assert lines[1:] == ("Last problem: stopped partway through a tick (GitLab read notes: HTTP 502).",
+                         "The rest of the watch still runs; the failed step is tried again every minute.")
+
+    down = Rig(tmp_path / "down", QuietSources(failures=3))  # tonight's inputs cannot be read: nothing runs
+    for minute in range(1, 4):
+        down.now = at(ONCALL, f"22:0{minute}")
+        down.tick()
+    [(_title, lines, _priority)] = down.pages
+    assert lines[2] == "Alerts are not being handled until it works again."
+
+
+class Asking(AnswerUnreadable):
+    """Opens incident after incident and asks the watch flow each time; the answer never comes."""
+
+    def __init__(self):
+        self.opened = []
+
+    def open_incident(self, title, description, at):
+        self.opened.append(at)
+        return len(self.opened)
+
+    def request_note(self, incident, at):
+        return None
+
+
+class GitLabDown(Asking):
+    def open_incident(self, title, description, at):
+        raise RelayError("GitLab create incident: HTTP 503")
+
+
+def test_the_relay_problem_page_does_not_say_the_watch_runs_when_nothing_is_kept_or_no_alert_can_be_opened(
+        tmp_path, monkeypatch):
+    # 15 Oct review: with every save refused, each tick started again from the last saved state, opened the incident
+    # again and asked again, and the page said the rest of the watch still ran. The same when no incident could open.
+    monkeypatch.setenv("RELAY_KEY", KEY)
+    metrics = Metrics()
+    bad_minutes(metrics, ONCALL, "checkout_error_rate.new", "03:07", 30, 0.079)
+    orders = parse_orders(load_yaml(DEMO / "orders.yml"), TARGETS, ONCALL)
+
+    def refused(doc, version):
+        raise RelayError("state store write: HTTP 403")
+
+    unsaved = Rig(tmp_path / "unsaved", QuietSources(orders=orders, signature=demo_signature(), metrics=metrics),
+                  Asking())
+    monkeypatch.setattr(unsaved.store, "save", refused)
+    no_incident = Rig(tmp_path / "no incident", QuietSources(orders=orders, signature=demo_signature(),
+                                                             metrics=metrics), GitLabDown())
+    for rig in (unsaved, no_incident):
+        for moment in ("03:12", "03:13", "03:14"):
+            rig.now = at(ONCALL, moment)
+            rig.tick()
+    assert len(unsaved.ports.opened) == 3  # nothing a tick did was kept, so each opened the incident again
+    [(_title, lines, _priority)] = unsaved.pages
+    assert lines[1:] == ("Last problem: could not save the relay state (state store write: HTTP 403).",
+                         "Alerts are not being handled until it works again.")
+    [(_title, lines, _priority)] = no_incident.pages
+    assert lines[1:] == ("Last problem: stopped partway through a tick (GitLab create incident: HTTP 503).",
+                         "Alerts are not being handled until it works again.")

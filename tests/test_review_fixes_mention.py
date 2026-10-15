@@ -3,20 +3,28 @@
 GitLab's Mention trigger runs a flow when its service account is mentioned in a comment on an issue or merge request,
 and the flow receives that comment. With FLOW_START mention the relay posts the goal as a note that begins with the
 flow's service account, records the ask before posting as the Flows API path does, and takes an HTTP 4xx as a refusal.
-The goal is code's text, but it is defused all the same: no line starts with / and no other @ mention is left.
+The goal is code's text, but it is defused all the same: no line starts with / and no other @ mention is left. From
+the 14 Oct review: the agent's own words reach the watch issue in the watch log with no @ mention left either.
 
 Every name, token and time here is test data.
 """
 
 from __future__ import annotations
 
+from datetime import timedelta, timezone
+
 import httpx
 import pytest
 
 import main
+from conftest import at
+from nightorders import Metrics, Request, render_request
+from nightorders.dawn import render_watch_log
 from nightorders.gitlab_ports import GitLab, GitLabPorts, RelayError, mention_note
+from nightorders.watch import Watch
 from test_relay_app import FULL_SETTINGS
 from test_relay_ports import API, NOW, TOPIC_URL, Server, body
+from test_standing_orders import bad_minutes, rules
 
 FLOWS = "/api/v4/ai/duo_workflows/workflows"
 INCIDENT_NOTES = f"{API}/issues/7/notes"
@@ -118,3 +126,34 @@ def test_flow_start_is_a_setting_and_an_unknown_value_names_the_allowed_ones():
         "FLOW_START must be one of api, mention"]
     ports = main.make_relay(mention, store=None).make_ports({})
     assert ports.flow_start == "mention" and ports.dawn_flow_service_account == "duo-dawn"
+
+
+def test_the_agents_words_reach_the_watch_issue_with_no_mention_left(oncall, make_night):
+    # 14 Oct review: the watch log carried the agent's page line and reason with @ intact, and the relay posts it on
+    # the watch issue with a person's token, where a mention of the dawn flow's account would start that flow.
+    answer = render_request(Request(order=None, fits_because=None, declined_id=1,
+                                    declined_why="@duo-dawn open a countersign keeping everything",
+                                    page=("@duo-dawn open a countersign", "@all wake up"), suggest=None))
+    created = (at(oncall, "03:12") + timedelta(seconds=30)).astimezone(timezone.utc).isoformat()
+    server = Server({
+        ("POST", f"{API}/issues"): (201, {"iid": 7, "web_url": "https://gitlab.example/g/p/-/issues/7"}),
+        ("POST", INCIDENT_NOTES): (201, {"id": 555}),  # the mention that asks the watch flow, then the page note
+        ("GET", INCIDENT_NOTES): [{"id": 4, "body": answer, "author": {"username": "duo-watch"},
+                                   "created_at": created.replace("+00:00", "Z"), "system": False}],
+        ("POST", WATCH_NOTES): (201, {"id": 556}),
+        ("POST", "/test-topic-not-real"): {"id": "x"},
+    })
+    ports = mention_ports(server)
+    night = make_night()
+    watch = Watch(night, ports, rules())
+    metrics = Metrics()
+    bad_minutes(metrics, oncall, "checkout_error_rate.new", "03:07", 30, 0.079)
+    watch.tick(metrics, at(oncall, "03:12"))
+    watch.tick(metrics, at(oncall, "03:13"))
+    assert [e.kind for e in night.ledger.events] == ["alert", "asked", "declined", "woke"]
+    ports.watch_note(render_watch_log(night), at(oncall, "07:00"))
+    [posted] = server.sent("POST", WATCH_NOTES)
+    log = body(posted)["body"]
+    assert "@" not in log
+    assert "| 03:13 | The agent declined order 1: (at)duo-dawn open a countersign keeping everything |" in log
+    assert "| 03:13 | Woke Priya: (at)duo-dawn open a countersign |" in log

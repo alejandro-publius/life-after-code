@@ -82,7 +82,7 @@ def test_a_reply_with_quick_actions_cannot_start_a_line_in_any_note_or_in_the_wa
     for request in posted:
         assert quick_actions(json.loads(request.content)["body"]) == []
     assert quick_actions(log) == []
-    assert "The agent declined order 1: Not the new checkout. /close /assign @teammate |" in log
+    assert "The agent declined order 1: Not the new checkout. /close /assign (at)teammate |" in log
 
 
 def test_the_watch_log_puts_every_record_on_one_line(make_night, oncall):

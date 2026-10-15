@@ -359,8 +359,9 @@ def orders_line(status: dict | None, now: datetime) -> str:
 
 
 def _failed(relay: Relay, health: Health, now: datetime, problem: str, doc: dict | None, version: Any = None,
-            inputs: Inputs | None = None, night: Night | None = None) -> tuple[int, dict]:
-    """Count a failed tick, page the on-call person if failures persist, and save what can be saved."""
+            inputs: Inputs | None = None, night: Night | None = None, watch_runs: bool = False) -> tuple[int, dict]:
+    """Count a failed tick, page the on-call person if failures persist, and save what can be saved. watch_runs says
+    the watch ran in that tick, its state is saved and new alerts are opened: one step that failed stopped no other."""
     log.error("tick failed: %s", problem)
     health.failures += 1
     health.since = health.since or now
@@ -368,10 +369,12 @@ def _failed(relay: Relay, health: Health, now: datetime, problem: str, doc: dict
     paged = False
     if health.failures >= FAILURES_BEFORE_PAGE and (
             health.paged_at is None or now - health.paged_at >= PAGE_AGAIN_AFTER):
+        still = ("The rest of the watch still runs; the failed step is tried again every minute." if watch_runs
+                 else "Alerts are not being handled until it works again.")
         lines = (f"The night watch relay has failed {health.failures} checks in a row since "
                  f"{_local(health.since, tz)}.",
                  f"Last problem: {problem[:160]}.",
-                 "Alerts are not being handled until it works again.")
+                 still)
         try:
             relay.pager("Night Orders: relay problem", lines)
             paged = True
@@ -463,17 +466,22 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
     if not problem:
         # The morning comes after the watch and, like the chores below, never fails a tick or pages: a restore that
         # keeps failing is logged, kept in the state and tried again (morning.py hands it to a person in the end).
-        # A night that ended with no good tick before noon gets its record first, from the ledger kept for it.
+        # A night that ended with no good tick before noon gets its record first, from the ledger kept for it. That
+        # ledger is dropped only once its morning step ran to the end: the push and the dawn flow are written from it.
+        # The countersign request for its record is left to the current night's step, so one that keeps failing
+        # never keeps the earlier night, or holds up the next night's morning.
+        finished: list[Night] = []
         try:
             for earlier in state.earlier_nights(doc, inputs.oncall, inputs.targets):
-                done += morning.step(relay_doc, earlier, True, None, ports, now, relay.watch_issue)
+                done += morning.step(relay_doc, earlier, True, None, ports, now, relay.watch_issue, earlier=True)
+                finished.append(earlier)
             state_file = countersign_file(relay, relay_doc, inputs.oncall.user, now)
             done += morning.step(relay_doc, night, watch.expired, state_file, ports, now, relay.watch_issue)
             relay_doc.pop("morning_problem", None)
         except Exception as error:
             relay_doc["morning_problem"] = {"at": now.isoformat(), "reason": reason(error)}
             log.warning("morning not finished: %s", reason(error))
-        state.forget_recorded(doc)
+        state.forget_recorded(doc, finished)
     if not problem and relay.gitlab is not None and relay.watch_issue is not None:
         # The day sheet is a convenience for the dusk flow, not the watch: a failure is logged, kept in the
         # state so the next tick tries again, and never counted as a failed tick or paged.
@@ -511,13 +519,14 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
     if ledger.events:
         relay_doc["watch_log"] = {"night": night_key, "text": render_watch_log(night)}
     if problem:
-        return _failed(relay, health, now, problem, doc, version, inputs, night)
+        return _failed(relay, health, now, problem, doc, version, inputs, night, watch_runs=watch.alerts_opened)
 
     relay_doc.pop("error", None)
     try:
         relay.store.save(doc, version)
     except Exception as error:
-        return _failed(relay, health, now, f"could not save the relay state ({reason(error)})", None)
+        # Nothing the tick did is kept, so the next tick starts again from the last saved state.
+        return _failed(relay, health, now, f"could not save the relay state ({reason(error)})", None, inputs=inputs)
     _working_again(relay, health, now, inputs.oncall.timezone)
     return 200, {
         "ok": True,

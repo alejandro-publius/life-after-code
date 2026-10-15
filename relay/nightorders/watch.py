@@ -87,6 +87,7 @@ class Incident:
     closed: bool = False
     keys: set[str] = field(default_factory=set)
     unsent_page: Wake | None = None  # a page that did not go out; the next tick sends it before anything else
+    orders_end: datetime | None = None  # when the orders she was paged under end; no suggestion runs from then on
 
 
 class Watch:
@@ -100,6 +101,7 @@ class Watch:
         self.standing = standing
         self.incidents: list[Incident] = []
         self.expired = False
+        self.alerts_opened = True  # False when the last tick could not open an incident for a new alert
 
     # The order of steps matters: pages that did not go out come first, then answers and re-checks for open
     # incidents, then new alerts, so a new alert during a re-check is seen as exactly that. A step that fails on
@@ -125,6 +127,7 @@ class Watch:
                 self._stand_down_deadline(incident, now)
             except Exception as error:
                 errors.append(error)
+        self.alerts_opened = True
         try:
             self._new_alerts(metrics, now)
         except Exception as error:
@@ -160,7 +163,9 @@ class Watch:
             return
         ledger = self.night.ledger
         title = "Night watch: " + ", ".join(a.describe() for a in fresh)
+        self.alerts_opened = False  # until GitLab has opened the incident: no new alert is handled without one
         number = self.ports.open_incident(title, self._evidence(fresh, metrics, now), now)
+        self.alerts_opened = True
         incident = Incident(number=number, alerts=fresh, opened_at=now, keys={a.key for a in fresh})
         self.incidents.append(incident)
         ledger.record(now, "alert", title, incident=number)
@@ -284,7 +289,8 @@ class Watch:
             self._wake(incident, Wake(tuple(reasons), default_page(incident.alerts, reasons, self.night)), now)
             return
         note = self.ports.request_note(incident.number, now)
-        result = check_request(note, incident.ask, incident.asked_at, incident.alerts, self.night, metrics, now)
+        result = check_request(note, incident.ask, incident.asked_at, incident.alerts, self.night, metrics, now,
+                               incident.number)
         ledger = self.night.ledger
         if isinstance(result, Waiting):
             return
@@ -410,7 +416,8 @@ class Watch:
             return
         ledger = self.night.ledger
         for user, at in self.ports.thumbs_up(incident.number, now):
-            ok, text = approve_suggestion(incident.suggest, user, at, incident.paged_at, self.night, now)
+            ok, text = approve_suggestion(incident.suggest, user, at, incident.paged_at, self.night, now,
+                                          incident.orders_end)
             if ok:
                 try:
                     change = _as_change(self.ports.apply(incident.suggest, now))
@@ -445,6 +452,8 @@ class Watch:
             lines += (f"Thumbs-up the note on #{incident.number} to: {wake.suggest.describe()}.",)
         # Kept on the incident until the page goes out: a page that fails is sent first on the next tick.
         incident.unsent_page = Wake(wake.reasons, lines, wake.suggest)
+        if self.night.orders is not None:  # a later tick may read no orders, or the next night's
+            incident.orders_end = watch_window(self.night.orders, self.night.oncall)[1]
         self._send_page(incident, now)
 
     def _send_page(self, incident: Incident, now: datetime) -> None:

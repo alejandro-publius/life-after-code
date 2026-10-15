@@ -156,8 +156,9 @@ def collect(gitlab: GitLab, now: datetime, oncall: OnCall, targets: Targets) -> 
 
 
 def _plain(text: str) -> str:
-    """Text copied as data: in backticks, so Markdown links and emphasis in it stay inert."""
-    return "`" + str(text).replace("`", "'").replace("\n", " ") + "`"
+    """Text copied as data: in backticks, so Markdown links and emphasis in it stay inert, and on one line, so it
+    cannot start a line with / (a GitLab quick action)."""
+    return "`" + " ".join(str(text).replace("`", "'").split()) + "`"
 
 
 def render(sheet: dict) -> str:

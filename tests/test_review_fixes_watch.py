@@ -2,7 +2,8 @@
 
 A page that fails is sent on the next tick; a stand-down cannot hide a live alert; an apply that fails after it
 reached production leaves a loose end and wakes her; a failing apply cannot block the rest of the night; a flow the
-Flows API refuses wakes her at once, and an ask that never went out is sent again.
+Flows API refuses wakes her at once, and an ask that never went out is sent again. From the 14 Oct review: only a
+failed change of the incident's own that may have gone through stops a stand-down.
 
 Every time, name and number here is test data; the orders are the test night's orders (conftest.ORDERS).
 """
@@ -382,4 +383,36 @@ def test_loose_ends_skip_a_failure_with_no_snapshot_and_keep_the_earliest_one(ma
     ledger.record(at(oncall, "03:15"), "acted", "Order 1 carried out 03:15.", incident=1, order=1,
                   action=action.as_dict(), changed=False, before=later)
     [end] = loose_ends(night)  # the retry found it already off: the timed-out change had gone through
-    assert end.before == BEFORE and end.why == "order 1, 03:14, failed and may be in place"
+    assert end.before == BEFORE and end.why == "order 1, 03:15"  # it took, so it no longer says it may have failed
+
+
+# 14 Oct review: a failure that wrote nothing, or another incident's, used to turn a stand-down into a page.
+
+def test_a_change_the_tick_had_no_time_to_send_does_not_stop_a_stand_down(oncall, make_night):
+    skipped = PortError("GitLab set flag new_checkout: skipped, the tick ran out of time", sent=False)
+    night, ports = make_night(), Ports(reply=reply(order=1), apply_errors=[skipped])
+    watch = Watch(night, ports, rules())
+    metrics = Metrics()
+    bad_minutes(metrics, oncall, NEW, "03:07", 6, 0.079)
+    bad_minutes(metrics, oncall, NEW, "03:13", 30, 0.01)  # the numbers dip from 03:13 on
+    assert tick_through(watch, metrics, oncall, "03:12", "03:14") == ["03:13"]
+    assert loose_ends(night) == []  # nothing was written
+    [stood] = night.ledger.of("stood_down")
+    assert stood.at == at(oncall, "03:14") and stood.text.endswith("Nothing was changed.")
+    assert ports.pages == [] and ports.applied == []
+
+
+def test_another_incidents_failed_change_does_not_stop_a_stand_down(oncall, make_night):
+    timeout = PortError("GitLab set flag new_checkout: no answer within 10 s", before=BEFORE)
+    night, ports = make_night(), Ports(reply=reply(order=1), apply_errors=[timeout, timeout])
+    watch = Watch(night, ports, rules())
+    metrics = Metrics()
+    bad_minutes(metrics, oncall, NEW, "03:07", 9, 0.079)  # incident 1: its change fails twice, she is woken at 03:15
+    bad_minutes(metrics, oncall, NEW, "03:16", 10, 0.01)  # and it closes once the signals are back
+    bad_minutes(metrics, oncall, NEW, "03:26", 5, 0.079)  # incident 2 opens at 03:31; order 1 has not run tonight
+    bad_minutes(metrics, oncall, NEW, "03:31", 30, 0.01)  # and its numbers dip before the agent answers
+    tick_through(watch, metrics, oncall, "03:12", "03:33")
+    assert [number for number, _ in ports.pages] == [1]
+    [stood] = night.ledger.of("stood_down")
+    assert stood.incident == 2 and stood.text.endswith("Nothing was changed.")
+    assert ports.closed == [1, 2]

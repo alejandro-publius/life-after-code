@@ -19,7 +19,8 @@ holds a URL, a token or the push topic.
                     the earlier traffic allocation
   page              a push to an ntfy topic, and the page as a note on the incident (the thumbs-up target)
   thumbs_up         every thumbsup reaction on that page note, oldest first; decide.approve_suggestion checks
-                    who and when, so a teammate's reaction cannot block the on-call person's
+                    who and when, so a teammate's reaction cannot block the on-call person's. A page note that
+                    failed while the push went out is posted here first, on a later tick
   close_incident    a closing note, then state_event close
   watch_note        a note on the standing watch issue (the watch log, the countersign result)
   start_dawn_flow   the same for the dawn flow, on the watch issue
@@ -454,12 +455,14 @@ class PortMemory:
     asked: dict[int, datetime] = field(default_factory=dict)   # when the watch flow was asked
     page_notes: dict[int, int] = field(default_factory=dict)   # the note that holds the page
     links: dict[int, str] = field(default_factory=dict)        # the incident's web page
+    unposted: dict[int, dict] = field(default_factory=dict)    # a page that went out without its note: at, lines
 
     def dump(self) -> dict:
         return {
             "asked": {str(k): v.isoformat() for k, v in self.asked.items()},
             "page_notes": {str(k): v for k, v in self.page_notes.items()},
             "links": {str(k): v for k, v in self.links.items()},
+            "unposted": {str(k): v for k, v in self.unposted.items()},
         }
 
     @classmethod
@@ -469,6 +472,7 @@ class PortMemory:
             asked={int(k): datetime.fromisoformat(v) for k, v in (data.get("asked") or {}).items()},
             page_notes={int(k): int(v) for k, v in (data.get("page_notes") or {}).items()},
             links={int(k): str(v) for k, v in (data.get("links") or {}).items()},
+            unposted={int(k): dict(v) for k, v in (data.get("unposted") or {}).items()},
         )
 
 
@@ -626,6 +630,20 @@ class GitLabPorts:
             _url, _headers, current = self._service(action.service)
             return traffic_all_on(current.get("traffic") or [], action.revision)
         raise RelayError(f"holds: {action.kind} is not on the menu")
+
+    def as_before(self, action: Action, before: dict) -> bool:
+        """Whether the target is already as the snapshot says, so a restore would change nothing. A snapshot that
+        does not fit the action (restore refuses it) is never as before."""
+        kind = (before or {}).get("kind")
+        if (action.kind == "flag_set" and action.flag and action.environment and kind == "flag" and "active" in before
+                and isinstance(before.get("strategies"), list)):
+            flag = self.gitlab.json(f"read flag {action.flag}", "GET", self._flag_path(action.flag))
+            return flag_restore_changes(flag, action.environment, before)[0] is None
+        if action.kind == "traffic_to_revision" and action.service and kind == "traffic" and isinstance(
+                before.get("traffic"), list):
+            _url, _headers, current = self._service(action.service)
+            return _serving(current.get("traffic") or []) == _serving(before["traffic"])
+        return False
 
     def shipped(self, merge_request: int, environment: str) -> tuple[str, str]:
         """("shipped" | "waiting" | "closed", plain words): whether the merge request's commit is in the last
@@ -848,19 +866,39 @@ class GitLabPorts:
 
     # Waking a person, and the one tap she can answer with.
 
+    def _page_note(self, incident: int, lines: tuple[str, ...] | list[str], at: datetime, again: bool = False) -> None:
+        """The page as a note on the incident, the thumbs-up target. It is posted inside a code block, so text the
+        agent wrote cannot mention people or add links. Posted again, it is first looked for: a post that got no
+        answer in time may have created the note all the same, and her thumbs-up is on that one."""
+        shown = "\n".join(line.replace("`", "'") for line in lines)
+        text = f"Page sent to the on-call person:\n\n```text\n{shown}\n```"
+        try:
+            note = self._find_note(incident, text) if again else None
+            if note is None:
+                note = self._post_note(incident, text + timeline("Paged the on-call person", at))
+            self.memory.page_notes[incident] = int(note["id"])
+        except (KeyError, TypeError, ValueError):
+            raise RelayError("GitLab post note: unexpected answer") from None
+        self.memory.unposted.pop(incident, None)
+
+    def _find_note(self, incident: int, text: str) -> dict | None:
+        """The incident's first note that starts with text (GitLab drops the quick action lines it ran), or None."""
+        notes = self.gitlab.json("read notes", "GET", f"/issues/{incident}/notes",
+                                 params={"sort": "asc", "order_by": "created_at", "per_page": 100})
+        return next((note for note in notes if not note.get("system") and str(note.get("body") or "").startswith(text)),
+                    None)
+
     def page(self, incident: int, lines: tuple[str, ...], at: datetime) -> None:
         """The push wakes her; the note is the thumbs-up target. A page tried again after its push failed posts its
-        note once (an incident is paged once). A push that went out counts as sent even if the note failed."""
+        note once (an incident is paged once). A push that went out counts as sent even if the note failed: the note
+        is then kept, and thumbs_up posts it on a later tick."""
         problems = []
         if incident not in self.memory.page_notes:
-            # The note is posted inside a code block, so text the agent wrote cannot mention people or add links.
-            shown = "\n".join(line.replace("`", "'") for line in lines)
             try:
-                note = self._post_note(incident, f"Page sent to the on-call person:\n\n```text\n{shown}\n```"
-                                       + timeline("Paged the on-call person", at))
-                self.memory.page_notes[incident] = int(note["id"])
-            except (RelayError, KeyError, TypeError, ValueError) as error:
-                problems.append(str(error) if isinstance(error, RelayError) else "GitLab post note: unexpected answer")
+                self._page_note(incident, lines, at)
+            except RelayError as error:
+                self.memory.unposted[incident] = {"at": at.isoformat(), "lines": list(lines)}
+                problems.append(str(error))
         link = self.memory.links.get(incident)
         if link and incident in self.memory.page_notes:
             link = f"{link}#note_{self.memory.page_notes[incident]}"
@@ -870,6 +908,11 @@ class GitLabPorts:
             raise RelayError("; ".join(problems + [str(error)])) from None
 
     def thumbs_up(self, incident: int, at: datetime) -> list[tuple[str, datetime]]:
+        unposted = self.memory.unposted.get(incident)
+        if unposted is not None and incident not in self.memory.page_notes:
+            # The page went out but its note did not, so there is nothing to give the thumbs-up on yet: post it now.
+            # A failure raises, so the tick says why the approval cannot work, and the next tick tries again.
+            self._page_note(incident, unposted["lines"], datetime.fromisoformat(unposted["at"]), again=True)
         note = self.memory.page_notes.get(incident)
         if note is None:
             return []
