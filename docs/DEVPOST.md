@@ -93,7 +93,7 @@ Source code and instructions: [README](../README.md), [decision core](../relay/n
 
 ## Challenges
 
-The hard part is making permission precise. A metric can cross a threshold while the order is still the wrong fix for the incident, so Night Orders needs both a numerical check and a reasoned match. A switched-off checkout path reads 0% errors, so the re-check reads the whole shop. One failed checkout out of two is "50%", so an order never acts on thin traffic. Log text is evidence, never authority, and the action always comes from the signed file.
+The hard part is making permission precise. A metric can cross a threshold while the order is still the wrong fix for the incident, so Night Orders needs both a numerical check and a reasoned match. A switched-off checkout path reads 0% errors, so the re-check reads the whole shop. One failed checkout out of two is "50%", so an order never acts on thin traffic. Log text is evidence, never authority, and the action always comes from the signed file. GitLab runs a note line that starts with "/" as a quick action with the poster's token, so every piece of text the relay did not write itself is put on one line before it is posted.
 
 Expiry and morning cleanup are separate decisions. Ending the grant at seven does not mean undoing a recovery while the bug is still present. The countersign keeps that distinction and can only keep changes that actually happened.
 
@@ -101,7 +101,7 @@ Expiry and morning cleanup are separate decisions. Ending the grant at seven doe
 
 The demo makes the boundary visible to someone who has never read the code: one unsigned branch, one necessary wake-up, one eligible automatic action and one morning account, all computed rather than drawn.
 
-Independent reviews of the code found real defects, and each fix comes with a test that failed before it. The first fixed: a fourth drafted order made the orders check print the whole file back.
+Independent reviews of the code found real defects, and each fix comes with a test that failed before it. A few of them: a page that failed once was never sent again; a drafted order value like `1`, a blank line and `/approve` would have put a GitLab quick action into a note the relay posts, approving as the on-call person; an approval given before a later push still signed the new commit; the countersign would have put a change back over a fix a person made after the night; and a change that timed out after reaching production left the morning nothing to restore.
 
 The design lesson is that useful autonomy can be narrow. The agent investigates and can decline an order; code verifies the facts; a person grants and renews permission for consequential actions, every night.
 
