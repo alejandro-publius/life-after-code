@@ -133,6 +133,14 @@ def _why(error: BaseException) -> str:
     return str(error) if isinstance(error, RuntimeError) else type(error).__name__
 
 
+def _note(lines: list[str]) -> str:
+    """The note text: each entry on one line of its own. Entries can echo the drafted file (its problems, its
+    targets), and GitLab runs a line that starts with / as a quick action with the relay's token, so whitespace in
+    an entry is collapsed and no line may start with /."""
+    shown = [" ".join(str(line).split()) for line in lines]
+    return "\n".join("'" + line if line.startswith("/") else line for line in shown) + "\n"
+
+
 def restore_pending(relay_doc: dict, ports: Any) -> list[str]:
     """Put staging back after a rehearsal that stopped between its apply and its restore. Tried every tick,
     at most MAX_RESTORE_TRIES times per change; after that the change is left for a person and shown on the
@@ -168,15 +176,15 @@ def rehearse(gitlab: GitLab, ports: Any, http: Http, oncall: OnCall, targets: Ta
     lines = [f"Rehearsal on staging at {when}, written by code for commit {sha[:8]}.", ""]
     if text is None:
         lines.append("This draft removes the orders file: merging it signs nothing, so every alert wakes you.")
-        return "\n".join(lines) + "\n"
+        return _note(lines)
     try:
         data = yaml.safe_load(text or "") or {}
         orders = parse_orders(data, targets, oncall)
     except (OrdersError, yaml.YAMLError, KeyError, TypeError, ValueError, AttributeError) as error:
         problems = error.problems if isinstance(error, OrdersError) else [f"the file could not be read ({type(error).__name__})"]
         lines.append("Code refuses this draft, so it cannot be signed:")
-        lines += [f"- {p}" for p in problems]
-        return "\n".join(lines) + "\n"
+        lines += [f"- {' '.join(str(p).split())}" for p in problems]
+        return _note(lines)
     would_sign = Signature(method="merge", user=oncall.user, at=now, commit=sha)
     problems = signature_problems(orders, would_sign, oncall, now)
     if problems:
@@ -185,11 +193,11 @@ def rehearse(gitlab: GitLab, ports: Any, http: Http, oncall: OnCall, targets: Ta
                      f"and a signature at {when} on {oncall.local(now):%d %b} would fall outside its window "
                      f"({oncall.hhmm(start)} on {oncall.local(start):%d %b} to {oncall.hhmm(end)} on "
                      f"{oncall.local(end):%d %b}). Set night to tonight's local date.")
-        lines += [f"- {p}" for p in problems]
-        return "\n".join(lines) + "\n"
+        lines += [f"- {' '.join(str(p).split())}" for p in problems]
+        return _note(lines)
     if not orders.orders:
         lines.append("No orders in this draft: nothing to rehearse. Merging it signs nothing, so every alert wakes you.")
-        return "\n".join(lines) + "\n"
+        return _note(lines)
     for order in orders.orders:
         try:
             lines.append("- " + rehearse_order(order, ports, targets, http, staging_url, pending, iid, sha, sleep, now))
@@ -201,7 +209,7 @@ def rehearse(gitlab: GitLab, ports: Any, http: Http, oncall: OnCall, targets: Ta
                          "code restores it on the next ticks")
             lines.append(text)
     lines += ["", f"{len(orders.orders)} order(s) checked. Merge to sign; the orders end at {orders.expires:%H:%M}."]
-    return "\n".join(lines) + "\n"
+    return _note(lines)
 
 
 def step(relay_doc: dict, now: datetime, oncall: OnCall, targets: Targets, gitlab: GitLab, ports: Any,

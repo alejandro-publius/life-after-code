@@ -13,25 +13,32 @@ The signature never comes from the orders file. Two routes can sign it:
   approval  An open merge request into the default branch that changes ops/night-orders.yml and has an
             approval. The hackathon subgroups let only Maintainers merge to the default branch, while
             Developers can approve (docs/SPONSORS.md, point 4), so this is the route Alex can use. The orders
-            are read at the merge request's head commit, the version that was approved. This relies on
-            GitLab's default of removing approvals when commits are added to the source branch.
+            are read at the merge request's head commit. An approval counts only if it was given at or after
+            the push of that commit: the merge request's versions say when each head commit was pushed. So a
+            commit pushed after the approval is never signed by it, whether or not the project removes
+            approvals on a push (a setting the relay cannot see).
 
 When several signatures exist, the on-call person's newest one counts; if she signed none, the newest
 one counts, so the reason she is woken names who signed. orders.signature_problems then checks the person
-and the time. A file pushed straight to the default branch has no signature.
+and the time. A file pushed straight to the default branch has no signature. When an approval given before
+the commit it would sign outranks the signature that counts, and the orders are not signed tonight without it,
+the reason goes in orders_problems, so the page and the status page say why.
 
 Sources, read on 2026-10-06:
   https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/api/repository_files.md (raw file, ref)
   https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/api/commits.md (path filter; merge requests of a commit)
   https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/api/merge_requests.md (merge_user, merged_at, diffs)
   https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/api/merge_request_approvals.md (approved_by, approved_at)
+Read on 2026-10-14:
+  https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/api/merge_requests.md (diff versions, newest first:
+  head_commit_sha, created_at)
 """
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import yaml
@@ -39,7 +46,7 @@ import yaml
 from .gitlab_ports import GitLab, Http, RelayError, parse_time
 from .model import OnCall, Orders, Signature, Targets
 from .morning import StateFile
-from .orders import OrdersError, parse_oncall, parse_orders, parse_targets
+from .orders import OrdersError, parse_oncall, parse_orders, parse_targets, signature_problems, watch_window
 from .signals import Metrics
 from .watch import AlertRule, parse_alert_rules
 
@@ -101,6 +108,14 @@ def parse_orders_text(text: str | None, targets: Targets, oncall: OnCall) -> tup
         return None, (f"{ORDERS_PATH} could not be read ({type(error).__name__})",)
 
 
+def signed_tonight(orders: Orders | None, signature: Signature | None, oncall: OnCall, now: datetime) -> bool:
+    """Whether the orders were signed properly within their window, whether or not that window has ended yet."""
+    if orders is None:
+        return False
+    _, end = watch_window(orders, oncall)
+    return not signature_problems(orders, signature, oncall, min(now, end - timedelta(microseconds=1)))
+
+
 class GitLabSources:
     def __init__(self, gitlab: GitLab, http: Http, metrics_url: str):
         self.gitlab = gitlab
@@ -113,9 +128,11 @@ class GitLabSources:
         oncall = self._config("ops/oncall.yml", branch, parse_oncall)
         targets = self._config("ops/targets.yml", branch, parse_targets)
         rules = self._config("ops/alerts.yml", branch, parse_alert_rules)
-        signature = self.signature(branch, oncall.user)
+        signature, too_old = self.signed(branch, oncall.user)
         text = self.gitlab.raw_file(ORDERS_PATH, signature.commit if signature else branch)
         orders, problems = parse_orders_text(text, targets, oncall)
+        if too_old and not signed_tonight(orders, signature, oncall, now):
+            problems = (too_old,) + problems
         web = project.get("web_url")
         return Inputs(oncall=oncall, targets=targets, rules=rules, orders=orders, orders_problems=problems,
                       signature=signature, metrics=self.metrics(),
@@ -128,6 +145,8 @@ class GitLabSources:
             raise RelayError(f"{path} is missing on {ref}")
         try:
             return parse(yaml.safe_load(text) or {})
+        except OrdersError as error:  # a value code refuses, said in plain words
+            raise RelayError("; ".join(error.problems)) from None
         except (yaml.YAMLError, KeyError, TypeError, ValueError, AttributeError) as error:
             raise RelayError(f"{path} could not be read ({type(error).__name__})") from None
 
@@ -142,10 +161,18 @@ class GitLabSources:
     # The signature.
 
     def signature(self, branch: str, oncall_user: str, path: str = ORDERS_PATH) -> Signature | None:
+        return self.signed(branch, oncall_user, path)[0]
+
+    def signed(self, branch: str, oncall_user: str, path: str = ORDERS_PATH) -> tuple[Signature | None, str | None]:
+        """The signature that counts, and why an approval that would outrank it does not count (None if none does)."""
         found = self._merged(branch, path) + self._approved(branch, path)
-        if not found:
-            return None
-        return max(found, key=lambda s: (s.user == oncall_user, s.at))
+
+        def rank(item: tuple[Signature, str | None]) -> tuple[bool, datetime]:
+            return item[0].user == oncall_user, item[0].at
+
+        counted = max((item for item in found if item[1] is None), key=rank, default=None)
+        top = max(found, key=rank, default=None)
+        return (counted[0] if counted else None), (top[1] if top else None)
 
     def state_file(self, oncall_user: str) -> StateFile:
         """The morning countersign: ops/state.yml as signed, read at the signed commit, and who signed it."""
@@ -160,7 +187,7 @@ class GitLabSources:
             return StateFile(None, signature, f"{STATE_PATH} is not a YAML mapping")
         return StateFile(data, signature)
 
-    def _merged(self, branch: str, path: str = ORDERS_PATH) -> list[Signature]:
+    def _merged(self, branch: str, path: str = ORDERS_PATH) -> list[tuple[Signature, str | None]]:
         commits = self.gitlab.json(f"find the last change to {path}", "GET", "/repository/commits",
                                    params={"ref_name": branch, "path": path, "per_page": 1})
         if not commits:
@@ -176,18 +203,18 @@ class GitLabSources:
             if detail.get("state") == "merged":
                 user = (detail.get("merge_user") or detail.get("merged_by") or {}).get("username")
                 at = parse_time(detail.get("merged_at"))
-                return ([Signature(method="merge", user=str(user), at=at, commit=sha, merge_request=int(detail["iid"]))]
-                        if user and at else [])
+                return ([(Signature(method="merge", user=str(user), at=at, commit=sha,
+                                    merge_request=int(detail["iid"])), None)] if user and at else [])
             if detail.get("state") == "opened":
                 return self._approvals(int(detail["iid"]), sha)
             return []
         return []
 
-    def _approved(self, branch: str, path: str = ORDERS_PATH) -> list[Signature]:
+    def _approved(self, branch: str, path: str = ORDERS_PATH) -> list[tuple[Signature, str | None]]:
         requests = self.gitlab.json("list open merge requests", "GET", "/merge_requests",
                                     params={"state": "opened", "target_branch": branch, "order_by": "created_at",
                                             "sort": "desc", "per_page": OPEN_MERGE_REQUESTS_READ})
-        found: list[Signature] = []
+        found: list[tuple[Signature, str | None]] = []
         for request in requests[:OPEN_MERGE_REQUESTS_READ]:
             iid = int(request["iid"])
             diffs = self.gitlab.json("read merge request changes", "GET", f"/merge_requests/{iid}/diffs",
@@ -196,7 +223,9 @@ class GitLabSources:
                 found.extend(self._approvals(iid, str(request["sha"])))
         return found
 
-    def _approvals(self, iid: int, commit: str) -> list[Signature]:
+    def _approvals(self, iid: int, commit: str) -> list[tuple[Signature, str | None]]:
+        """Each approval as a signature of commit, with why it does not count, or None when it does: it counts only
+        if it was given at or after the push of commit (the newest version whose head it is)."""
         state = self.gitlab.json("read approvals", "GET", f"/merge_requests/{iid}/approvals")
         approvals = []
         for approval in state.get("approved_by") or []:
@@ -204,4 +233,14 @@ class GitLabSources:
             at = parse_time(approval.get("approved_at"))
             if user and at:
                 approvals.append(Signature(method="approval", user=str(user), at=at, commit=commit, merge_request=iid))
-        return approvals
+        if not approvals:
+            return []
+        versions = self.gitlab.json("read merge request versions", "GET", f"/merge_requests/{iid}/versions")
+        pushed = next((parse_time(v.get("created_at")) for v in versions
+                       if isinstance(v, dict) and v.get("head_commit_sha") == commit), None)
+        if pushed is None:
+            why = (f"!{iid} has no version at commit {commit[:8]}, so code cannot tell if it was approved after "
+                   "that commit")
+            return [(approval, why) for approval in approvals]
+        why = f"!{iid} was approved before commit {commit[:8]} was pushed to it, so approve it again"
+        return [(approval, None if approval.at >= pushed else why) for approval in approvals]

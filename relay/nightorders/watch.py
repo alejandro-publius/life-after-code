@@ -14,12 +14,14 @@ from typing import Protocol
 
 from .decide import (APPROVAL_WINDOW_MINUTES, Act, Ask, Night, StandDown, Waiting, Wake, approve_suggestion,
                      check_request, default_page, recheck, standing_order, triage)
+from .ledger import Event
 from .model import Action, Alert, Change, Order, count_key, count_noun, fmt_value
 from .orders import watch_window
 from .signals import Metrics, condition_holds, recovered
 from .model import Condition
 
-STANDING_RETRY_MINUTES = 2  # under standing orders, an apply that raised is tried once more this soon
+STANDING_RETRY_MINUTES = 2  # an apply that raised is tried once more this soon (standing orders and the flow alike)
+STAND_DOWN_MINUTES = 10     # how long a stood-down incident may stay open when its order names no minutes
 LOG_LINES_MINUTES = 30      # the shop's error lines copied into an evidence pack: this far back
 LOG_LINES_MAX = 10
 LOG_LINE_CHARS = 240
@@ -84,6 +86,7 @@ class Incident:
     acted_at: datetime | None = None
     closed: bool = False
     keys: set[str] = field(default_factory=set)
+    unsent_page: Wake | None = None  # a page that did not go out; the next tick sends it before anything else
 
 
 class Watch:
@@ -98,16 +101,36 @@ class Watch:
         self.incidents: list[Incident] = []
         self.expired = False
 
-    # The order of steps matters: answers and re-checks for open incidents come before new alerts,
-    # so a new alert during a re-check is seen as exactly that.
+    # The order of steps matters: pages that did not go out come first, then answers and re-checks for open
+    # incidents, then new alerts, so a new alert during a re-check is seen as exactly that. A step that fails on
+    # one incident (a change that raised, a page that did not go out) does not stop the others or a new alert:
+    # the first error is raised at the end, so the tick still counts as failed.
     def tick(self, metrics: Metrics, now: datetime) -> None:
         self._expire(now)
+        errors: list[Exception] = []
         for incident in self._open():
-            self._answer(incident, metrics, now)
-            self._recheck(incident, metrics, now)
-            self._approval(incident, now)
-            self._maybe_close(incident, metrics, now)
-        self._new_alerts(metrics, now)
+            if incident.unsent_page is not None:
+                try:
+                    self._send_page(incident, now)
+                except Exception as error:
+                    errors.append(error)
+        for incident in self._open():
+            if incident.unsent_page is not None:
+                continue  # nothing else happens on an incident until its page is out
+            try:
+                self._answer(incident, metrics, now)
+                self._recheck(incident, metrics, now)
+                self._approval(incident, now)
+                self._maybe_close(incident, metrics, now)
+                self._stand_down_deadline(incident, now)
+            except Exception as error:
+                errors.append(error)
+        try:
+            self._new_alerts(metrics, now)
+        except Exception as error:
+            errors.append(error)
+        if errors:
+            raise errors[0]
 
     def _open(self) -> list[Incident]:
         return [i for i in self.incidents if not i.closed]
@@ -153,11 +176,36 @@ class Watch:
             self._act(incident, standing_order(decision, self.night), now)
             incident.ask = None
             return
-        incident.ask, incident.asked_at = decision, now
-        self.ports.start_watch_flow(number, self._goal(number, decision), now)
-        which = ", ".join(map(str, decision.eligible))
-        noun = "order" if len(decision.eligible) == 1 else "orders"
-        ledger.record(now, "asked", f"Asked the agent about {noun} {which}.", incident=number)
+        incident.ask = decision
+        self._ask(incident, now)
+
+    def _ask(self, incident: Incident, now: datetime) -> None:
+        """Start the watch flow on the incident. A start that raised may have started the flow all the same, so it
+        counts as asked and its answer is still read. Two errors say more: sent False (the tick had no time left,
+        nothing went out) leaves the ask for the next tick to send, and an HTTP 4xx status (the Flows API refused
+        it) wakes her at once, since no answer can come."""
+        ask = incident.ask
+        assert ask is not None
+        try:
+            self.ports.start_watch_flow(incident.number, self._goal(incident.number, ask), now)
+        except Exception as error:
+            if getattr(error, "sent", True) is False:
+                raise
+            self._asked(incident, ask, now)
+            status = getattr(error, "status", None)
+            if not (isinstance(status, int) and 400 <= status < 500):
+                raise
+            incident.ask = None
+            reasons = [f"The watch flow could not be started (HTTP {status})."]
+            self._wake(incident, Wake(tuple(reasons), default_page(incident.alerts, reasons, self.night)), now)
+            return
+        self._asked(incident, ask, now)
+
+    def _asked(self, incident: Incident, ask: Ask, now: datetime) -> None:
+        incident.asked_at = now
+        which = ", ".join(map(str, ask.eligible))
+        noun = "order" if len(ask.eligible) == 1 else "orders"
+        self.night.ledger.record(now, "asked", f"Asked the agent about {noun} {which}.", incident=incident.number)
 
     def _goal(self, number: int, decision: Ask) -> str:
         """What the watch flow is asked. Each eligible order comes with its action and the reason it was signed,
@@ -222,9 +270,18 @@ class Watch:
     def _answer(self, incident: Incident, metrics: Metrics, now: datetime) -> None:
         if incident.ask is None or incident.acted is not None or incident.paged_at is not None:
             return
-        assert incident.asked_at is not None
         if self.standing:
             self._standing_retry(incident, metrics, now)
+            return
+        if incident.asked_at is None:
+            self._ask(incident, now)  # the tick that decided to ask had no time left to start the flow
+            return
+        failed = self._failures(incident)
+        if failed and now - failed[0].at >= timedelta(minutes=STANDING_RETRY_MINUTES):
+            # The apply raised and was tried once more, as under standing orders: she is woken with the failure.
+            reasons = [failed[-1].text]
+            incident.ask = None
+            self._wake(incident, Wake(tuple(reasons), default_page(incident.alerts, reasons, self.night)), now)
             return
         note = self.ports.request_note(incident.number, now)
         result = check_request(note, incident.ask, incident.asked_at, incident.alerts, self.night, metrics, now)
@@ -237,7 +294,7 @@ class Watch:
             self._wake(incident, result, now)
             return
         if isinstance(result, StandDown):
-            ledger.record(now, "stood_down", result.reason, incident=incident.number)
+            ledger.record(now, "stood_down", result.reason, incident=incident.number, order=result.order)
             self.ports.note(incident.number, result.reason, now)
             incident.ask = None
             return
@@ -250,10 +307,12 @@ class Watch:
         Within two minutes, while the same order is still first in line, it is tried once more (the ports
         apply nothing twice). After that, or if the numbers moved, she is woken with the recorded failure.
         """
-        assert incident.ask is not None and incident.asked_at is not None
+        assert incident.ask is not None
         ledger = self.night.ledger
         wanted = incident.ask.eligible[0]
-        if any(e.kind == "asked" and e.incident == incident.number for e in ledger.events):
+        # An ask the tick had no time to send (asked_at None) was made under the watch flow too.
+        if incident.asked_at is None or any(e.kind == "asked" and e.incident == incident.number
+                                            for e in ledger.events):
             reasons = ["The relay switched to standing orders while the agent was being asked; nothing was done."]
         else:
             decision = triage(incident.alerts, self.night, metrics, now)
@@ -262,20 +321,29 @@ class Watch:
                 self._act(incident, standing_order(decision, self.night), now)
                 incident.ask = None
                 return
-            failed = [e.text for e in ledger.events if e.kind == "failed" and e.incident == incident.number]
-            reasons = [failed[-1] if failed else f"Order {wanted} could not be carried out."]
+            failed = self._failures(incident)
+            reasons = [failed[-1].text if failed else f"Order {wanted} could not be carried out."]
         incident.ask = None
         self._wake(incident, Wake(tuple(reasons), default_page(incident.alerts, reasons, self.night)), now)
+
+    def _failures(self, incident: Incident) -> list[Event]:
+        return [e for e in self.night.ledger.events if e.kind == "failed" and e.incident == incident.number]
+
+    def _failed(self, incident: Incident, action: Action, what: str, error: Exception, now: datetime,
+                order: int | None = None) -> None:
+        """Recorded before the error stops the step, so the watch log and the status page show it at once. A port
+        that read the target before its change failed passes that snapshot on the error (before): the change may
+        have gone through all the same, so the morning can put the target back from it."""
+        why = str(error) if isinstance(error, RuntimeError) else type(error).__name__
+        self.night.ledger.record(now, "failed", f"{what} could not be carried out ({why}).", incident=incident.number,
+                                 order=order, action=action.as_dict(), before=getattr(error, "before", None))
 
     def _act(self, incident: Incident, result: Act, now: datetime) -> None:
         """Carry out an order both keys (or, under standing orders, code's key alone) agreed on."""
         try:
             change = _as_change(self.ports.apply(result.order.do, now))
         except Exception as error:
-            # Recorded before the error stops the tick, so the watch log and the status page show it at once.
-            why = str(error) if isinstance(error, RuntimeError) else type(error).__name__
-            self.night.ledger.record(now, "failed", f"Order {result.order.id} could not be carried out ({why}).",
-                                     incident=incident.number, order=result.order.id)
+            self._failed(incident, result.order.do, f"Order {result.order.id}", error, now, order=result.order.id)
             raise
         incident.acted, incident.acted_at = result.order, now
         text = (
@@ -342,9 +410,14 @@ class Watch:
             return
         ledger = self.night.ledger
         for user, at in self.ports.thumbs_up(incident.number, now):
-            ok, text = approve_suggestion(incident.suggest, user, at, incident.paged_at, self.night)
+            ok, text = approve_suggestion(incident.suggest, user, at, incident.paged_at, self.night, now)
             if ok:
-                change = _as_change(self.ports.apply(incident.suggest, now))
+                try:
+                    change = _as_change(self.ports.apply(incident.suggest, now))
+                except Exception as error:  # the thumbs-up still stands: the next tick tries again
+                    self._failed(incident, incident.suggest, f"The approved change, {incident.suggest.describe()},",
+                                 error, now)
+                    raise
                 text = f"{text} Done {self.night.oncall.hhmm(now)}: {incident.suggest.describe()}."
                 if not change.changed:
                     text += NOTHING_CHANGED
@@ -367,14 +440,41 @@ class Watch:
             incident.suggest = None
 
     def _wake(self, incident: Incident, wake: Wake, now: datetime) -> None:
-        incident.paged_at = now
-        incident.suggest = wake.suggest
-        lines = wake.page
+        lines = tuple(wake.page)
         if wake.suggest is not None:
-            lines = tuple(lines) + (f"Thumbs-up the note on #{incident.number} to: {wake.suggest.describe()}.",)
-        self.ports.page(incident.number, tuple(lines), now)
-        self.night.ledger.record(now, "woke", f"Woke {self.night.oncall.first_name}: {lines[0]}",
-                                 incident=incident.number, page=list(lines), reasons=list(wake.reasons))
+            lines += (f"Thumbs-up the note on #{incident.number} to: {wake.suggest.describe()}.",)
+        # Kept on the incident until the page goes out: a page that fails is sent first on the next tick.
+        incident.unsent_page = Wake(wake.reasons, lines, wake.suggest)
+        self._send_page(incident, now)
+
+    def _send_page(self, incident: Incident, now: datetime) -> None:
+        """Page her. Only a page that went out is recorded, and the approval window starts when it did."""
+        wake = incident.unsent_page
+        assert wake is not None
+        self.ports.page(incident.number, wake.page, now)
+        incident.unsent_page = None
+        incident.paged_at, incident.suggest = now, wake.suggest
+        self.night.ledger.record(now, "woke", f"Woke {self.night.oncall.first_name}: {wake.page[0]}",
+                                 incident=incident.number, page=list(wake.page), reasons=list(wake.reasons))
+
+    def _stand_down_deadline(self, incident: Incident, now: datetime) -> None:
+        """A stand-down is for numbers that dipped before the order ran. If the incident is still open its order's
+        for_minutes later (it closes when the signals are back), the dip did not last, and she is woken: nothing
+        else would look at the incident again."""
+        if incident.closed or incident.ask is not None or incident.acted is not None or incident.paged_at is not None:
+            return
+        stood = [e for e in self.night.ledger.events if e.kind == "stood_down" and e.incident == incident.number]
+        if not stood:
+            return
+        event = stood[-1]
+        orders = self.night.orders
+        order = orders.get(event.order) if orders is not None and event.order is not None else None
+        minutes = order.when.for_minutes if order is not None else STAND_DOWN_MINUTES
+        if now < event.at + timedelta(minutes=minutes):
+            return
+        reasons = [f"Order {event.order} stood down at {self.night.oncall.hhmm(event.at)} when its numbers dipped, "
+                   f"but the signals are not back to normal {minutes} minutes later."]
+        self._wake(incident, Wake(tuple(reasons), default_page(incident.alerts, reasons, self.night)), now)
 
     def _maybe_close(self, incident: Incident, metrics: Metrics, now: datetime) -> None:
         if incident.ask is not None and incident.acted is None and incident.paged_at is None:

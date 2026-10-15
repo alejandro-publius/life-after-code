@@ -98,23 +98,25 @@ def chart(samples: list[dict], events: list[dict], tz: Any) -> str:
         parts.append(f'<line x1="{left}" y1="{y(rate):.1f}" x2="{left + plot_w}" y2="{y(rate):.1f}" class="chart-grid"/>'
                      f'<text x="{left - 10}" y="{y(rate) + 7:.1f}" text-anchor="end" class="chart-label">'
                      f"{round(rate * 100)}%</text>")
-    parts.append(f'<line x1="{left}" y1="{y(0.05):.1f}" x2="{left + plot_w}" y2="{y(0.05):.1f}" class="chart-threshold"/>'
-                 f'<text x="{left + plot_w}" y="{y(0.05) - 7:.1f}" text-anchor="end" class="chart-label limit-label">'
-                 "5% limit</text>")
+    # As in the demo (app.js): the limit's label is drawn after the lines, so a line near 5% never runs through it.
+    parts.append(f'<line x1="{left}" y1="{y(0.05):.1f}" x2="{left + plot_w}" y2="{y(0.05):.1f}" '
+                 'class="chart-threshold"/>')
     parts.append(f'<path d="{path("new")}" class="chart-line new"/><path d="{path("old")}" class="chart-line old"/>')
+    parts.append(f'<text x="{left + plot_w}" y="{y(0.05) - 7:.1f}" text-anchor="end" class="chart-label limit-label">'
+                 "5% limit</text>")
     markers, legend, last_x, lift = [], [], -1e9, 0
     for event in events:
         moment = datetime.fromisoformat(event["at"])
         if not first <= moment <= last + timedelta(seconds=59):
             continue
         at = min(x(moment), left + plot_w)
-        lift = lift + 1 if at - last_x < 26 else 0
+        lift = lift + 1 if at - last_x < 32 else 0
         last_x = at
         number = len(legend) + 1
-        cy = top + 12 + lift * 26
+        cy = top + 16 + lift * 32
         markers.append(f'<line x1="{at:.1f}" y1="{top}" x2="{at:.1f}" y2="{top + plot_h}" class="chart-action"/>'
-                       f'<circle cx="{at:.1f}" cy="{cy}" r="11" class="marker-badge"/>'
-                       f'<text x="{at:.1f}" y="{cy + 6}" text-anchor="middle" class="marker-number">{number}</text>')
+                       f'<circle cx="{at:.1f}" cy="{cy}" r="16" class="marker-badge"/>'
+                       f'<text x="{at:.1f}" y="{cy + 8}" text-anchor="middle" class="marker-number">{number}</text>')
         legend.append(f'<li><span class="marker-dot" aria-hidden="true">{number}</span>{_e(_local(moment, tz))} '
                       f'{_e(KIND_WORDS.get(event["kind"], event["kind"]).lower())}</li>')
     parts += markers
@@ -317,6 +319,9 @@ def render(doc: dict | None, now: datetime, unavailable: bool = False) -> str:
                             f"{'' if count == 1 else 's'} from the night of {_e(dawn['night'])}.</p>")
                 if dawn.get("refused_text"):
                     main.append(f'<pre class="proof-log">{_e(dawn["refused_text"])}</pre>')
+            if relay.get("morning_problem"):
+                main.append("<p>The morning could not be finished last time; the relay tries again on the next "
+                            "tick.</p>")
         kept_now, ended = relay.get("kept") or [], relay.get("kept_ended") or []
         if kept_now or ended:
             main.append('<h3 class="section-title">Kept from earlier nights</h3>')

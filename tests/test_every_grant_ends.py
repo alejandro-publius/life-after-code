@@ -28,8 +28,8 @@ class MorningPorts(FakePorts):
     def dawn_flow_ready(self):
         return self.flow_ready
 
-    def countersign_request_open(self):
-        return self.open_request
+    def countersign_request_open(self, night):
+        return self.open_request, []
 
     def open_countersign_request(self, night, state_text, title, description):
         self.opened.append((night, state_text, title, description))
@@ -166,7 +166,8 @@ def test_the_live_countersign_request_takes_a_free_branch_name_and_updates_the_f
 
 def test_the_live_check_finds_an_open_countersign_request_by_its_file():
     server = Server({("GET", API): PROJECT,
-                     ("GET", f"{API}/merge_requests"): [{"iid": 50}, {"iid": 52}],
+                     ("GET", f"{API}/merge_requests"): [{"iid": 50, "sha": "a1"}, {"iid": 52, "sha": "b2"}],
                      ("GET", f"{API}/merge_requests/50/diffs"): [{"new_path": "README.md", "old_path": "README.md"}],
-                     ("GET", f"{API}/merge_requests/52/diffs"): [{"new_path": "ops/state.yml", "old_path": "ops/state.yml"}]})
-    assert ports_for(server).countersign_request_open() == 52
+                     ("GET", f"{API}/merge_requests/52/diffs"): [{"new_path": "ops/state.yml", "old_path": "ops/state.yml"}],
+                     ("GET", f"{API}/repository/files/ops/state.yml/raw"): (200, 'night: "2026-10-20"\nflags: []\n')})
+    assert ports_for(server).countersign_request_open("2026-10-20") == (52, [])

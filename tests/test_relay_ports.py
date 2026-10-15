@@ -328,6 +328,14 @@ def test_flag_change_that_gitlab_does_not_confirm_is_an_error():
 
 SERVICE = "/v2/projects/demo-project/locations/us-central1/services/shop"
 TOKEN_PATH = "/computeMetadata/v1/instance/service-accounts/default/token"
+DONE = {"name": "projects/demo-project/locations/us-central1/operations/1", "done": True, "response": {}}
+
+
+def then_serving(before: dict, traffic: list):
+    """The service as read before the change, then as Cloud Run reports it once the change is done."""
+    answers = [before, {**before, "traffic": traffic, "reconciling": False,
+                        "terminalCondition": {"state": "CONDITION_SUCCEEDED"}, "trafficStatuses": traffic}]
+    return lambda request: answers.pop(0) if len(answers) > 1 else answers[0]
 
 
 def test_traffic_to_revision_sends_all_traffic_to_the_named_revision():
@@ -338,9 +346,9 @@ def test_traffic_to_revision_sends_all_traffic_to_the_named_revision():
         "template": {"containers": [{"image": "example/shop@sha256:1"}]},
         "traffic": [{"type": "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST", "percent": 100}],
     }
+    pinned = [{"type": "TRAFFIC_TARGET_ALLOCATION_TYPE_REVISION", "revision": "shop-00041", "percent": 100}]
     server = Server({("GET", TOKEN_PATH): {"access_token": "test-google-token", "expires_in": 3599},
-                     ("GET", SERVICE): current,
-                     ("PATCH", SERVICE): {"name": "projects/demo-project/locations/us-central1/operations/1"}})
+                     ("GET", SERVICE): then_serving(current, pinned), ("PATCH", SERVICE): DONE})
     ports_for(server).apply(Action(kind="traffic_to_revision", service="shop", revision="shop-00041"), NOW)
     [token] = server.sent("GET", TOKEN_PATH)
     assert token.url.host == "metadata.google.internal" and token.headers["Metadata-Flavor"] == "Google"
@@ -361,15 +369,14 @@ def test_traffic_change_records_the_earlier_allocation_and_restore_puts_it_back(
     current = {"name": "projects/demo-project/locations/us-central1/services/shop", "etag": "etag-5",
                "uid": "abc", "template": {"containers": [{"image": "example/shop@sha256:1"}]}, "traffic": latest}
     routes = {("GET", TOKEN_PATH): {"access_token": "test-google-token", "expires_in": 3599},
-              ("GET", SERVICE): current,
-              ("PATCH", SERVICE): {"name": "projects/demo-project/locations/us-central1/operations/1"}}
+              ("GET", SERVICE): then_serving(current, pinned), ("PATCH", SERVICE): DONE}
     server = Server(routes)
     traffic = Action(kind="traffic_to_revision", service="shop", revision="shop-00041")
     change = ports_for(server).apply(traffic, NOW)
     assert change == Change(changed=True, before={"kind": "traffic", "service": "shop", "traffic": latest},
                             detail="shop traffic was 100% to the latest revision")
 
-    server = Server({**routes, ("GET", SERVICE): {**current, "traffic": pinned}})
+    server = Server({**routes, ("GET", SERVICE): then_serving({**current, "traffic": pinned}, latest)})
     restored = ports_for(server).restore(traffic, change.before, NOW)
     assert restored.changed is True and restored.detail == "shop traffic is 100% to the latest revision again"
     assert restored.before == {"kind": "traffic", "service": "shop", "traffic": pinned}
@@ -422,10 +429,13 @@ def test_page_pushes_to_ntfy_and_posts_the_page_note_for_the_thumbs_up():
     assert ports.memory.page_notes == {7: 555}
 
 
-def test_page_still_pushes_when_the_note_fails_and_then_reports_the_failure():
+def test_page_still_pushes_when_the_note_fails_and_reports_both_failures_when_the_push_fails_too():
+    # A push that went out counts as sent even if the note failed (test_review_fixes_ports), so the error is raised
+    # only when the push failed as well, and then it names both.
     server = Server({("POST", f"{API}/issues/7/notes"): (502, {"message": "Bad gateway"}),
-                     ("POST", "/test-topic-not-real"): {"id": "x"}})
-    with pytest.raises(RelayError, match="GitLab post note: HTTP 502") as error:
+                     ("POST", "/test-topic-not-real"): (503, {"error": "busy"})})
+    both = r"GitLab post note: HTTP 502 \(Bad gateway\); push to the on-call phone: HTTP 503"
+    with pytest.raises(RelayError, match=both) as error:
         ports_for(server).page(7, ("Wake up.",), NOW)
     assert server.sent("POST", "/test-topic-not-real")
     assert TOKEN not in str(error.value) and "test-topic" not in str(error.value)

@@ -25,6 +25,7 @@ JSON_FENCE = re.compile(r"```json[ \t]*\r?\n(.*?)\r?\n```", re.DOTALL)
 ALLOWED_KEYS = {"order", "fits_because", "declined", "page", "suggest"}
 MAX_PAGE_LINES = 3
 MAX_LINE = 160
+MAX_REASON = 300  # a declined order's reason, which goes into the watch log and the page
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,12 @@ class Request:
 @dataclass(frozen=True)
 class Malformed:
     reason: str
+
+
+def _one_line(text: str) -> str:
+    """The model's text on one line. A newline in it could start a line with / where the text is shown, and GitLab
+    runs such a line as a quick action with the relay's token."""
+    return " ".join(text.split())
 
 
 def _json_object(block: str) -> object:
@@ -92,7 +99,7 @@ def parse_request(text: str) -> Request | Malformed:
         return Malformed("page must be a list of short lines")
     if len(page) > MAX_PAGE_LINES:
         return Malformed(f"page has {len(page)} lines; the limit is {MAX_PAGE_LINES}")
-    page = [line.strip()[:MAX_LINE] for line in page]
+    page = [_one_line(line)[:MAX_LINE] for line in page]
 
     suggest = data.get("suggest")
     if suggest is not None and not isinstance(suggest, dict):
@@ -104,7 +111,7 @@ def parse_request(text: str) -> Request | Malformed:
         order=order,
         fits_because=fits.strip() if isinstance(fits, str) else None,
         declined_id=declined_id,
-        declined_why=declined_why.strip() if isinstance(declined_why, str) else None,
+        declined_why=_one_line(declined_why)[:MAX_REASON] if isinstance(declined_why, str) else None,
         page=tuple(page),
         suggest=suggest,
     )

@@ -110,6 +110,8 @@ def test_an_approved_open_merge_request_signs_and_its_head_commit_is_read():
         {"user": {"username": "alex-velazquez"}, "approved_at": "2026-10-21T05:06:00.000Z"},
         {"user": {"username": "teammate"}, "approved_at": "2026-10-21T05:30:00.000Z"},
     ]}
+    routes[("GET", f"{API}/merge_requests/41/versions")] = [{"head_commit_sha": "head41",
+                                                            "created_at": "2026-10-21T05:00:00.000Z"}]
     inputs, fake = load(routes, base_files("head41"))
     # The on-call person's approval counts, even though a teammate approved later.
     assert inputs.signature == Signature(method="approval", user="alex-velazquez",

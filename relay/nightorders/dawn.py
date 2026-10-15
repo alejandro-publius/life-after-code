@@ -39,26 +39,37 @@ def loose_ends(night: Night) -> list[LooseEnd]:
     """State changed tonight and not changed back, in the order the targets were first changed.
 
     An action that changed nothing (changed is False in its record) leaves no loose end. Records without
-    the key, from before changes were recorded, count as changed.
+    the key, from before changes were recorded, count as changed. A change that failed after the port read
+    its target (the record has that snapshot) may have gone through all the same, so it counts too: putting
+    a target back as the snapshot says changes nothing if it is already so. A failure with no snapshot wrote
+    nothing.
     """
     latest: dict[tuple, LooseEnd] = {}
     first_before: dict[tuple, dict | None] = {}
     for event in night.ledger.events:
-        if event.kind not in ("acted", "approved"):
+        if event.kind not in ("acted", "approved", "failed"):
             continue
         data = event.data.get("action")
-        if not data:
+        before = event.data.get("before")
+        if not data or (event.kind == "failed" and before is None):
             continue
         action = action_from(data)
         target = ("flag", action.flag, action.environment) if action.kind == "flag_set" else ("service", action.service)
         if target not in first_before:  # the first change of the night is the state before the night
-            first_before[target] = event.data.get("before")
+            first_before[target] = before
         if event.data.get("changed") is False:
             continue
         when = night.oncall.hhmm(event.at)
-        why = f"order {event.order}, {when}" if event.kind == "acted" else f"approved by thumbs-up, {when}"
+        why = f"order {event.order}, {when}" if event.order is not None else f"approved by thumbs-up, {when}"
+        if event.kind == "failed":
+            why += ", failed and may be in place"
         latest[target] = LooseEnd(action=action, why=why, before=first_before[target])
     return list(latest.values())
+
+
+def _one_line(text: str) -> str:
+    """A record on one line, so no text in the watch log can start a line with / (a GitLab quick action)."""
+    return " ".join(text.split())
 
 
 def render_watch_log(night: Night) -> str:
@@ -83,20 +94,24 @@ def render_watch_log(night: Night) -> str:
     lines.append("|---|---|")
     for event in ledger.events:
         if event.kind in SHOWN:
-            text = event.text.replace("|", "/")
+            text = _one_line(event.text).replace("|", "/")
             prefix = f"Incident #{event.incident}: " if event.incident is not None and event.kind == "alert" else ""
             lines.append(f"| {oncall.hhmm(event.at)} | {prefix}{text} |")
     lines.append("")
 
     woke = ledger.of("woke")
-    acted = ledger.of("acted")
+    handled = ledger.handled_asleep()
     lines.append(
         f"Woken: {len(woke)} time{'s' if len(woke) != 1 else ''}"
         + (f" ({', '.join(oncall.hhmm(e.at) for e in woke)})." if woke else ".")
     )
-    if acted:
-        slept = ", ".join(f"incident #{e.incident} (order {e.order})" for e in acted)
+    if handled:
+        slept = ", ".join(f"incident #{e.incident} (order {e.order})" for e in handled)
         lines.append(f"Handled while you slept: {slept}.")
+    then_woke = [e for e in ledger.of("acted") if e not in handled]  # the order ran, and its incident woke her
+    if then_woke:
+        woken = ", ".join(f"incident #{e.incident} (order {e.order})" for e in then_woke)
+        lines.append(f"Acted, then woke you: {woken}.")
     lines.append("")
 
     ends = loose_ends(night)
@@ -104,7 +119,7 @@ def render_watch_log(night: Night) -> str:
         lines.append("Loose ends: changed tonight and still in place.")
         lines.append("")
         for end in ends:
-            lines.append(f"- {end.action.describe()} ({end.why})")
+            lines.append("- " + _one_line(f"{end.action.describe()} ({end.why})"))
         lines.append("")
         lines.append("The dawn flow proposes keep or undo for each in ops/state.yml. You decide by merging or approving. "
                      "What is not kept, code restores to how it was before the night.")

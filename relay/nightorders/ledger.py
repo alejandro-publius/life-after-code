@@ -55,6 +55,12 @@ class Ledger:
     def model_runs(self) -> int:
         return len(self.of("asked"))
 
+    def handled_asleep(self) -> list[Event]:
+        """The orders carried out on incidents that never woke the on-call person. An order that ran and then
+        woke her (the re-check failed, say) is not one of them."""
+        woken = {e.incident for e in self.of("woke")}
+        return [e for e in self.of("acted") if e.incident not in woken]
+
     def pending_recheck(self) -> Event | None:
         """The latest action whose re-check has not finished (no recovery or page after it)."""
         for event in reversed(self.events):

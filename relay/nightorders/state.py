@@ -6,12 +6,15 @@ ISO 8601 text with their offset.
 
 A night's record runs from noon to noon in the on-call person's time zone: noon is when orders may first
 be signed (orders.watch_window). At noon a new record starts with an empty ledger. Open incidents carry
-over, so an alert that is still firing does not open a second incident or page twice.
+over, so an alert that is still firing does not open a second incident or page twice. If no good tick came
+between the watch end and noon, the morning has not made its record of that night yet: the night's ledger,
+orders and signature are then kept under watch.earlier until it has (earlier_nights, forget_recorded).
 
 Document layout:
 
     {"version": 1, "night": "2026-10-20",
-     "watch": {"expired": false, "expired_orders": null, "incidents": [...], "ledger": [...]},
+     "watch": {"expired": false, "expired_orders": null, "incidents": [...], "ledger": [...],
+               "orders": {...}, "signature": {...}, "earlier": [...]},
      "ports": {...},   # the ports' own memory, maps keyed by incident number
      "relay": {...}}   # the relay's status and last watch log, for the status page
 
@@ -34,14 +37,14 @@ import json
 import os
 import secrets
 from dataclasses import asdict
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import quote
 
-from .decide import Ask
+from .decide import Ask, Night, Wake
 from .ledger import Event, Ledger
-from .model import Action, Alert, Condition, OnCall, Order, Orders
+from .model import Action, Alert, Condition, OnCall, Order, Orders, Signature, Targets
 from .orders import watch_window
 from .watch import Incident, Watch
 
@@ -109,6 +112,24 @@ def _load_order(data: dict) -> Order:
     return Order(id=int(data["id"]), because=data["because"], when=Condition(**data["when"]), do=Action(**data["do"]))
 
 
+def _dump_orders(orders: Orders) -> dict:
+    return {"night": orders.night.isoformat(), "expires": orders.expires.strftime("%H:%M"),
+            "orders": [_dump_order(o) for o in orders.orders], "drafted_by": orders.drafted_by}
+
+
+def _load_orders(data: dict) -> Orders:
+    return Orders(night=date.fromisoformat(data["night"]), expires=time.fromisoformat(data["expires"]),
+                  orders=tuple(_load_order(o) for o in data["orders"]), drafted_by=data.get("drafted_by"))
+
+
+def _dump_signature(signature: Signature | None) -> dict | None:
+    return None if signature is None else {**asdict(signature), "at": signature.at.isoformat()}
+
+
+def _load_signature(data: dict | None) -> Signature | None:
+    return None if data is None else Signature(**{**data, "at": datetime.fromisoformat(data["at"])})
+
+
 def dump_incident(incident: Incident) -> dict:
     ask = incident.ask
     return {
@@ -124,7 +145,18 @@ def dump_incident(incident: Incident) -> dict:
         "acted_at": _time(incident.acted_at),
         "closed": incident.closed,
         "keys": sorted(incident.keys),
+        "unsent_page": None if incident.unsent_page is None else _dump_wake(incident.unsent_page),
     }
+
+
+def _dump_wake(wake: Wake) -> dict:
+    return {"reasons": list(wake.reasons), "page": list(wake.page),
+            "suggest": None if wake.suggest is None else asdict(wake.suggest)}
+
+
+def _load_wake(data: dict) -> Wake:
+    return Wake(reasons=tuple(data["reasons"]), page=tuple(data["page"]),
+                suggest=None if data.get("suggest") is None else Action(**data["suggest"]))
 
 
 def load_incident(data: dict) -> Incident:
@@ -143,6 +175,7 @@ def load_incident(data: dict) -> Incident:
         acted_at=_moment(data.get("acted_at")),
         closed=bool(data.get("closed")),
         keys=set(data.get("keys") or []),
+        unsent_page=None if data.get("unsent_page") is None else _load_wake(data["unsent_page"]),
     )
 
 
@@ -173,15 +206,31 @@ def capture(watch: Watch, doc: dict) -> None:
     if orders is not None:  # with no orders file the flag cannot change, so keep what it was about
         saved["expired"] = watch.expired
         saved["expired_orders"] = orders.night.isoformat() if watch.expired else None
+        # What the morning needs to make its record of the night, should no good tick come before noon.
+        saved["orders"], saved["signature"] = _dump_orders(orders), _dump_signature(watch.night.signature)
+
+
+def _recorded(doc: dict, night: str) -> bool:
+    """Whether the morning has made its record of this night, or of a later one (which carries it)."""
+    dawn = (doc.get("relay") or {}).get("dawn") or {}
+    return str(dawn.get("night") or "") >= night
 
 
 def next_night(doc: dict, night: str, orders: Orders | None, oncall: OnCall, now: datetime) -> dict:
     """Start a new night's record. Open incidents and their port memory carry over; the ledger starts empty.
 
     Orders that had already ended before this record began count as expired, so their old expiry is not
-    written into the new night's log.
+    written into the new night's log. A night whose orders ended without the morning making its record (no
+    good tick from the watch end to noon) keeps its ledger, orders and signature under watch.earlier, so its
+    loose ends still reach the countersign.
     """
     fresh = new_document(night)
+    earlier = list(doc["watch"].get("earlier") or [])
+    ended = doc["watch"].get("orders")
+    if ended is not None and ended["night"] == doc["night"] and not _recorded(doc, ended["night"]):
+        earlier.append({"orders": ended, "signature": doc["watch"].get("signature"), "ledger": doc["watch"]["ledger"]})
+    if earlier:
+        fresh["watch"]["earlier"] = earlier
     still_open = [item for item in doc["watch"]["incidents"] if not item.get("closed")]
     fresh["watch"]["incidents"] = still_open
     keep = {str(item["number"]) for item in still_open}
@@ -192,6 +241,25 @@ def next_night(doc: dict, night: str, orders: Orders | None, oncall: OnCall, now
         fresh["watch"]["expired"] = True
         fresh["watch"]["expired_orders"] = orders.night.isoformat()
     return fresh
+
+
+def earlier_nights(doc: dict, oncall: OnCall, targets: Targets) -> list[Night]:
+    """The nights kept under watch.earlier, oldest first, each with its own orders, signature and ledger, for
+    the morning to make its record of."""
+    nights = []
+    for item in doc["watch"].get("earlier") or []:
+        ledger = Ledger()
+        ledger.events = [load_event(event) for event in item["ledger"]]
+        nights.append(Night(oncall=oncall, targets=targets, orders=_load_orders(item["orders"]), orders_problems=(),
+                            signature=_load_signature(item.get("signature")), ledger=ledger))
+    return nights
+
+
+def forget_recorded(doc: dict) -> None:
+    """Drop the earlier nights the morning has made its record of."""
+    earlier = doc["watch"].get("earlier")
+    if earlier:
+        doc["watch"]["earlier"] = [item for item in earlier if not _recorded(doc, item["orders"]["night"])]
 
 
 def encode(doc: dict) -> bytes:

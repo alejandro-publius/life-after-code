@@ -60,6 +60,7 @@ class Act:
 @dataclass(frozen=True)
 class StandDown:
     reason: str
+    order: int | None = None  # the order whose numbers dipped; the watch wakes her if the incident stays open
 
 
 @dataclass(frozen=True)
@@ -95,15 +96,30 @@ def floor_reasons(alerts: list[Alert], night: Night, now: datetime) -> list[str]
     return reasons
 
 
+def thin_traffic(order: Order, detail: str, metrics: Metrics, now: datetime) -> str | None:
+    """The reason to wake when an order's numbers match but the traffic behind them is too thin to act on."""
+    if order.when.min_count and condition_holds(replace(order.when, min_count=None), metrics, now)[0]:
+        return f"Order {order.id} matches the numbers, but {detail}."
+    return None
+
+
+def unusable(night: Night) -> list[str]:
+    """Why there are no orders to use tonight, or nothing: no file, a file code refuses, or a reason the sources
+    found that the file is not signed (an approval given before the commit it would sign)."""
+    if night.orders is None or night.orders_problems:
+        why = "; ".join(night.orders_problems) if night.orders_problems else "there is no orders file"
+        return [f"No usable orders tonight ({why})."]
+    return []
+
+
 def triage(alerts: list[Alert], night: Night, metrics: Metrics, now: datetime) -> Wake | Ask:
     """Code's key. Decide whether to wake now, or ask the agent about the eligible orders."""
     reasons = floor_reasons(alerts, night, now)
     if reasons:
         return Wake(tuple(reasons), default_page(alerts, reasons, night))
 
-    if night.orders is None or night.orders_problems:
-        why = "; ".join(night.orders_problems) if night.orders_problems else "there is no orders file"
-        reasons = [f"No usable orders tonight ({why})."]
+    reasons = unusable(night)
+    if reasons:
         return Wake(tuple(reasons), default_page(alerts, reasons, night))
 
     problems = signature_problems(night.orders, night.signature, night.oncall, now)
@@ -122,8 +138,9 @@ def triage(alerts: list[Alert], night: Night, metrics: Metrics, now: datetime) -
         holds, detail = condition_holds(order.when, metrics, now)
         if not holds:
             # The numbers match but the traffic behind them is too thin to act on: say so on the page.
-            if order.when.min_count and condition_holds(replace(order.when, min_count=None), metrics, now)[0]:
-                thin.append(f"Order {order.id} matches the numbers, but {detail}.")
+            reason = thin_traffic(order, detail, metrics, now)
+            if reason:
+                thin.append(reason)
             continue
         if night.ledger.used(order.id):
             used.append(order.id)
@@ -182,12 +199,16 @@ def check_request(note_text: str | None, ask: Ask, asked_at: datetime, alerts: l
         reasons = [f"The agent asked for order {request.order}, which is not eligible right now."]
         return Wake(tuple(reasons), default_page(alerts, reasons, night))
 
-    # Re-check everything at the moment of acting: time has passed since the ask.
+    # Re-check everything at the moment of acting: time has passed since the ask, and the orders read now may
+    # not be the ones that were signed then (a commit pushed after the approval, say).
     orders = night.orders
-    assert orders is not None
-    problems = signature_problems(orders, night.signature, night.oncall, now) + floor_reasons(alerts, night, now)
+    problems = unusable(night)
+    if orders is not None and not problems:
+        problems = signature_problems(orders, night.signature, night.oncall, now)
+    problems += floor_reasons(alerts, night, now)
     if problems:
         return Wake(tuple(problems), default_page(alerts, problems, night))
+    assert orders is not None
     order = orders.get(request.order)
     assert order is not None
     if night.ledger.used(order.id):
@@ -195,7 +216,16 @@ def check_request(note_text: str | None, ask: Ask, asked_at: datetime, alerts: l
         return Wake(tuple(reasons), default_page(alerts, reasons, night))
     holds, detail = condition_holds(order.when, metrics, now)
     if not holds:
-        return StandDown(f"Order {order.id} is no longer needed: {detail}. Nothing was changed.")
+        failed = [e.text for e in night.ledger.of("failed") if e.order == order.id]
+        if failed:
+            # The change raised when it was tried and may have gone through, so code cannot say nothing changed.
+            reasons = [failed[-1]]
+        else:
+            thin = thin_traffic(order, detail, metrics, now)
+            if not thin:
+                return StandDown(f"Order {order.id} is no longer needed: {detail}. Nothing was changed.", order=order.id)
+            reasons = [thin]  # the numbers did not dip: there is too little traffic to judge, as triage says
+        return Wake(tuple(reasons), default_page(alerts, reasons, night))
 
     signature = night.signature
     assert signature is not None
@@ -239,14 +269,22 @@ def recheck(order: Order, night: Night, metrics: Metrics, now: datetime) -> tupl
 
 
 def approve_suggestion(suggestion: Action, reaction_user: str, reaction_at: datetime, paged_at: datetime,
-                       night: Night) -> tuple[bool, str]:
-    """A thumbs-up on the page note approves the one suggested action, if code agrees it may."""
+                       night: Night, now: datetime | None = None) -> tuple[bool, str]:
+    """A thumbs-up on the page note approves the one suggested action, if code agrees it may.
+
+    now is when code would make the change. Once tonight's orders have ended it never does: the morning makes its
+    record of the night then, and a change made later would reach neither the record nor the countersign.
+    """
     if reaction_user != night.oncall.user:
         return False, f"The reaction came from {reaction_user}, not the on-call person."
     if reaction_at < paged_at:
         return False, "The reaction is older than the page."
     if reaction_at > paged_at + timedelta(minutes=APPROVAL_WINDOW_MINUTES):
         return False, f"The reaction came more than {APPROVAL_WINDOW_MINUTES} minutes after the page."
+    if now is not None and night.orders is not None:
+        _, end = watch_window(night.orders, night.oncall)
+        if now >= end:
+            return False, f"Tonight's orders ended at {night.oncall.hhmm(end)}; approve it by hand."
     if suggestion.kind not in MENU:
         return False, f"{suggestion.kind} is not on the menu."
     problems = action_problems(suggestion, night.targets)

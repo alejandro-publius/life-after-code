@@ -28,12 +28,19 @@ SCHEMA_PATH = Path(__file__).with_name("night-orders.schema.json")
 # ops/targets.yml can add signals to this set, never remove these.
 CODE_FLOOR = frozenset({"payment_error_rate"})
 MENU = ("flag_set", "traffic_to_revision")
+NOON = time(12, 0)  # orders may be signed from noon, and the relay starts a new night's record at noon (state.py)
 
 
 class OrdersError(ValueError):
-    """Raised when an orders file cannot be trusted. Holds every problem found, in plain words."""
+    """Raised when an orders file cannot be trusted. Holds every problem found, in plain words, each on one line.
+
+    A problem can echo a value from the file, and the relay posts problems on GitLab (the rehearsal note, the
+    countersign note). A newline in such a value could start a line with /, which GitLab runs as a quick action
+    with the relay's token, so every problem has its whitespace collapsed here.
+    """
 
     def __init__(self, problems: list[str]):
+        problems = [" ".join(str(problem).split()) for problem in problems]
         super().__init__("; ".join(problems))
         self.problems = problems
 
@@ -50,11 +57,16 @@ def _hhmm(text: str) -> time:
 
 
 def parse_oncall(data: dict) -> OnCall:
+    watch_ends = _hhmm(str(data.get("watch_ends", "07:00")))
+    if watch_ends >= NOON:
+        # The night's record starts again at noon: a watch that ended later would lose its ledger before the morning.
+        raise OrdersError([f"ops/oncall.yml: watch_ends {watch_ends:%H:%M} must be before 12:00, when the next "
+                           "night's record starts"])
     return OnCall(
         user=str(data["user"]),
         display_name=str(data.get("display_name", data["user"])),
         timezone=ZoneInfo(str(data["timezone"])),
-        watch_ends=_hhmm(str(data.get("watch_ends", "07:00"))),
+        watch_ends=watch_ends,
         recheck_minutes=int(data.get("recheck_minutes", 10)),
         answer_timeout_minutes=int(data.get("answer_timeout_minutes", 8)),
         model_runs_per_night=int(data.get("model_runs_per_night", 3)),
@@ -218,7 +230,7 @@ def parse_orders(data: dict, targets: Targets, oncall: OnCall) -> Orders:
 
 def watch_window(orders: Orders, oncall: OnCall) -> tuple[datetime, datetime]:
     """Orders can be signed from noon on the night's date and end at the expiry the next morning."""
-    start = datetime.combine(orders.night, time(12, 0), tzinfo=oncall.timezone)
+    start = datetime.combine(orders.night, NOON, tzinfo=oncall.timezone)
     end = datetime.combine(orders.night + timedelta(days=1), orders.expires, tzinfo=oncall.timezone)
     return start, end
 

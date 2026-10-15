@@ -7,11 +7,13 @@ holds a URL, a token or the push topic.
 
   open_incident     POST /projects/:id/issues with issue_type incident; the evidence pack is the description
   note              POST /projects/:id/issues/:iid/notes
-  start_watch_flow  POST /ai/duo_workflows/workflows (Flows API) with the incident as issue_id
+  start_watch_flow  POST /ai/duo_workflows/workflows (Flows API) with the incident as issue_id, or with FLOW_START
+                    mention a note on the incident that mentions the flow's service account (its Mention trigger)
   request_note      the newest note by the watch flow's service account, written after the ask, that holds
                     a night-orders-request block
   apply             flag_set: the Feature Flags API, changing only the named environment's scopes;
-                    traffic_to_revision: the Cloud Run Admin API v2, 100% of traffic to the named revision.
+                    traffic_to_revision: the Cloud Run Admin API v2, 100% of traffic to the named revision, done
+                    once its operation is done and the service reports that traffic as serving.
                     Both return a Change with a snapshot of the target from before the action
   restore           the target back exactly as that snapshot says: the environment's earlier strategies, or
                     the earlier traffic allocation
@@ -20,7 +22,7 @@ holds a URL, a token or the push topic.
                     who and when, so a teammate's reaction cannot block the on-call person's
   close_incident    a closing note, then state_event close
   watch_note        a note on the standing watch issue (the watch log, the countersign result)
-  start_dawn_flow   POST /ai/duo_workflows/workflows for the dawn flow, on the watch issue
+  start_dawn_flow   the same for the dawn flow, on the watch issue
 
 Sources, read on 2026-10-06 (GitLab docs from their source files, since docs.gitlab.com is blocked here):
   https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/api/issues.md
@@ -31,7 +33,10 @@ Sources, read on 2026-10-06 (GitLab docs from their source files, since docs.git
   https://gitlab.com/gitlab-org/gitlab/-/blob/master/app/models/concerns/has_environment_scope.rb (* is a wildcard)
   https://gitlab.com/gitlab-org/gitlab/-/blob/master/app/models/award_emoji.rb (thumbs-up is named thumbsup)
   https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/api/duo_agent_platform_flows.md
-  https://run.googleapis.com/$discovery/rest?version=v2 (services.patch, updateMask, TrafficTarget)
+  https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/duo_agent_platform/triggers/_index.md (Mention: the
+    flow receives the comment; read 2026-10-14)
+  https://run.googleapis.com/$discovery/rest?version=v2 (services.patch, updateMask, TrafficTarget; read again on
+    2026-10-14 for operations.get, reconciling, terminalCondition and trafficStatuses)
   https://github.com/binwiederhier/ntfy/blob/main/docs/publish.md (Title, Priority, Tags and Click headers)
 """
 
@@ -40,23 +45,29 @@ from __future__ import annotations
 import json
 import re
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any, Callable, Iterator
 from urllib.parse import quote
 
 import httpx
+import yaml
 
 from .model import Action, Change, describe_before, shipped_words
 
 TIMEOUT_SECONDS = 10.0
+CLOUD_RUN_POLL_SECONDS = 1.0   # a traffic change's operation is read this often until Cloud Run says it is done
+CLOUD_RUN_WAIT_SECONDS = 30.0  # and for this long at most, never past the tick's budget
 METADATA_TOKEN_URL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
 CLOUD_RUN_API = "https://run.googleapis.com/v2"
 STATE_FILE = "ops/state.yml"  # the morning countersign
 REQUEST_MARK = "```night-orders-request"
 REQUEST_MARKS = (REQUEST_MARK, "```json")  # a flow note labelled json is read too; notes.py still checks the keys
 # Agent privileges for the night watch flow: 2 read_only_gitlab, 3 read_write_gitlab. No files, commands,
-# git or MCP tools (Flows API, "List all agent privileges").
+# git or MCP tools (Flows API, "List all agent privileges"). They are still sent, but GitLab ignores them, and
+# allow_agent_to_request_user, for a catalog flow (ee/lib/api/ai/duo_workflows/workflows.rb, read 2026-10-14):
+# what limits a catalog flow is the toolset in its flows/*.yml.
 WATCH_FLOW_PRIVILEGES = (2, 3)
 # Fields of a Cloud Run v2 Service marked "Output only" in the discovery document. They are dropped before
 # the service is sent back with its new traffic.
@@ -69,6 +80,42 @@ CLOUD_RUN_OUTPUT_ONLY = frozenset({
 
 class RelayError(RuntimeError):
     """A call to the outside world failed. The message is safe to log and to page."""
+
+
+class NotSent(RelayError):
+    """The tick ran out of time before the call, so nothing went out and it is safe to make the call again."""
+
+    sent = False
+
+
+class Refused(RelayError):
+    """The service answered with an HTTP 4xx, so the request did not take effect. status is that HTTP status."""
+
+    def __init__(self, message: str, status: int):
+        super().__init__(message)
+        self.status = status
+
+
+class ApplyFailed(RelayError):
+    """A production change failed after the port read its target. before is that snapshot: the change may have
+    gone through all the same, so the night records it and the morning can put the target back."""
+
+    def __init__(self, message: str, before: dict):
+        super().__init__(message)
+        self.before = before
+
+
+@contextmanager
+def _keeps_before(before: dict, what: str) -> Iterator[None]:
+    """Errors from a production write carry the snapshot read before it. A call never sent changed nothing."""
+    try:
+        yield
+    except (NotSent, ApplyFailed):
+        raise
+    except RelayError as error:
+        raise ApplyFailed(str(error), before) from None
+    except (ValueError, TypeError, AttributeError, KeyError):  # an answer that is not the JSON expected
+        raise ApplyFailed(f"{what}: unexpected answer", before) from None
 
 
 def _detail(response: httpx.Response) -> str:
@@ -88,12 +135,14 @@ def _detail(response: httpx.Response) -> str:
 
 
 class Http:
-    """Outbound calls: a 10 second timeout each, and an optional budget for the whole tick."""
+    """Outbound calls: a 10 second timeout each, and an optional budget for the whole tick. sleep waits between
+    the reads of a change that is still running."""
 
     def __init__(self, client: httpx.Client, budget_seconds: float | None = None,
-                 clock: Callable[[], float] = time.monotonic):
+                 clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep):
         self.client = client
         self.clock = clock
+        self.sleep = sleep
         self.deadline = None if budget_seconds is None else clock() + budget_seconds
 
     def call(self, what: str, method: str, url: str, *, expect: tuple[int, ...] = (200,), detail: bool = True,
@@ -102,7 +151,7 @@ class Http:
         if self.deadline is not None:
             left = self.deadline - self.clock()
             if left <= 0:
-                raise RelayError(f"{what}: skipped, the tick ran out of time")
+                raise NotSent(f"{what}: skipped, the tick ran out of time")
             timeout = min(timeout, left)
         try:
             response = self.client.request(method, url, timeout=timeout, **kwargs)
@@ -192,6 +241,23 @@ def parse_time(text: Any) -> datetime | None:
     except ValueError:
         return None
     return moment if moment.tzinfo is not None else None
+
+
+def mention_note(account: str, goal: str) -> str:
+    """The note that starts a flow by its Mention trigger: the flow's service account, then the goal. The goal is
+    code's text, but it is defused all the same: a line that starts with / would run as a quick action with the
+    relay's token, and another @ mention could start another flow or notify a person."""
+    lines = goal.replace("@", "(at)").splitlines()
+    return f"@{account} " + "\n".join("'" + line.lstrip() if line.lstrip().startswith("/") else line for line in lines)
+
+
+def _names_night(text: str | None, night: str) -> bool:
+    """Whether a countersign file's text says night: "<night>" (quoted or not)."""
+    try:
+        data = yaml.safe_load(text or "")
+    except yaml.YAMLError:
+        return False
+    return isinstance(data, dict) and str(data.get("night")) == night
 
 
 def is_thumbs_up(name: Any) -> bool:
@@ -369,6 +435,13 @@ def traffic_all_on(traffic: list, revision: str) -> bool:
             and serving[0].get("revision") == revision and serving[0].get("percent") == 100)
 
 
+def _allocation(traffic: list) -> list[str]:
+    """Who gets the traffic, in a form a service's traffic and its trafficStatuses share. A target that sends traffic
+    to the latest revision may be reported with that revision's name, so the name counts only for a revision target."""
+    return sorted(json.dumps([t.get("type"), t.get("revision") if t.get("type") == REVISION_TARGET else None,
+                              t.get("percent"), t.get("tag") or None]) for t in _serving(traffic))
+
+
 def traffic_snapshot(service: str, current: dict) -> dict:
     return {"kind": "traffic", "service": service,
             "traffic": [dict(t) for t in current.get("traffic") or [] if isinstance(t, dict)]}
@@ -405,10 +478,13 @@ class GitLabPorts:
     def __init__(self, gitlab: GitLab, http: Http, *, flow_consumer_id: str, flow_service_account: str,
                  ntfy_url: str, gcp_project: str = "", gcp_region: str = "",
                  google_token: Callable[[], str] | None = None, memory: dict | None = None,
-                 dawn_consumer_id: str = "", watch_issue: int | None = None, errors_url: str = ""):
+                 dawn_consumer_id: str = "", watch_issue: int | None = None, errors_url: str = "",
+                 flow_start: str = "api", dawn_flow_service_account: str = ""):
         self.gitlab = gitlab
         self.errors_url = errors_url
+        self.flow_start = flow_start  # "api" (the Flows API) or "mention" (a note that mentions the flow's account)
         self.dawn_consumer_id = dawn_consumer_id
+        self.dawn_flow_service_account = dawn_flow_service_account
         self.watch_issue = watch_issue
         self.http = http
         self.flow_consumer_id = flow_consumer_id
@@ -449,21 +525,36 @@ class GitLabPorts:
 
     # The watch flow: the model's only way in is one note that code reads.
 
+    def _start_flow(self, what: str, consumer_id: str, account: str, goal: str, issue: int) -> None:
+        """Start a flow on an issue: through the Flows API, or with FLOW_START mention by a note on the issue that
+        mentions the flow's service account. Raises Refused on an HTTP 4xx (the flow did not start) and NotSent when
+        the tick had no time left for the call; any other failure may have started the flow all the same."""
+        if self.flow_start == "mention":
+            path, in_project, body = f"/issues/{issue}/notes", True, {"body": mention_note(account, goal)}
+        else:
+            path, in_project, body = "/ai/duo_workflows/workflows", False, {
+                "project_id": self.gitlab.project_id,
+                "ai_catalog_item_consumer_id": int(consumer_id),
+                "goal": goal,
+                "issue_id": issue,
+                "start_workflow": True,
+                "allow_agent_to_request_user": False,
+                "agent_privileges": list(WATCH_FLOW_PRIVILEGES),
+                "pre_approved_agent_privileges": list(WATCH_FLOW_PRIVILEGES),
+            }
+        response = self.gitlab.call(what, "POST", path, in_project=in_project, expect=(200, 201, *range(400, 500)),
+                                    json=body)
+        if response.status_code >= 400:
+            raise Refused(f"GitLab {what}: HTTP {response.status_code}{_detail(response)}", response.status_code)
+
     def start_watch_flow(self, incident: int, goal: str, at: datetime) -> None:
         # Recorded before the call: if the call times out after the flow started, its answer still counts.
         self.memory.asked[incident] = at
-        body = {
-            "project_id": self.gitlab.project_id,
-            "ai_catalog_item_consumer_id": int(self.flow_consumer_id),
-            "goal": goal,
-            "issue_id": incident,
-            "start_workflow": True,
-            "allow_agent_to_request_user": False,
-            "agent_privileges": list(WATCH_FLOW_PRIVILEGES),
-            "pre_approved_agent_privileges": list(WATCH_FLOW_PRIVILEGES),
-        }
-        self.gitlab.call("start the watch flow", "POST", "/ai/duo_workflows/workflows", in_project=False,
-                         expect=(200, 201), json=body)
+        try:
+            self._start_flow("start the watch flow", self.flow_consumer_id, self.flow_service_account, goal, incident)
+        except (NotSent, Refused):
+            del self.memory.asked[incident]  # no flow started, so no answer can come
+            raise
 
     def request_note(self, incident: int, at: datetime) -> str | None:
         asked = self.memory.asked.get(incident)
@@ -522,10 +613,15 @@ class GitLabPorts:
     # Kept changes (kept.py): is the target still as kept, and has the merge request that ends it shipped?
 
     def holds(self, action: Action) -> bool:
-        """Whether the target is still as the action left it: the flag at that value, all traffic on that revision."""
+        """Whether the target is still as the action left it: the flag at that value, all traffic on that revision.
+
+        The flag's state is read as it is, never through the change that would make it: a * scope or an inactive
+        flag makes some changes impossible, but it is still a plain answer here."""
         if action.kind == "flag_set" and action.flag and action.environment and action.to:
             flag = self.gitlab.json(f"read flag {action.flag}", "GET", self._flag_path(action.flag))
-            return flag_changes(flag, action.environment, action.to) is None
+            if action.to == "on":
+                return flag_on_for_all(flag, action.environment)
+            return not flag_reaches(flag, action.environment)
         if action.kind == "traffic_to_revision" and action.service and action.revision:
             _url, _headers, current = self._service(action.service)
             return traffic_all_on(current.get("traffic") or [], action.revision)
@@ -558,20 +654,31 @@ class GitLabPorts:
                                         deployed)
 
     def dawn_flow_ready(self) -> bool:
-        return self.watch_issue is not None and bool(self.dawn_consumer_id)
+        """Whether the dawn flow can be started: a watch issue, and the dawn flow's consumer ID, or its service account
+        when it is started by a mention."""
+        started_by = self.dawn_flow_service_account if self.flow_start == "mention" else self.dawn_consumer_id
+        return self.watch_issue is not None and bool(started_by)
 
-    def countersign_request_open(self) -> int | None:
-        """An open merge request into the default branch that changes ops/state.yml, by anyone, or None."""
+    def countersign_request_open(self, night: str) -> tuple[int | None, list[int]]:
+        """The open countersign merge requests into the default branch, by anyone: (the newest whose ops/state.yml,
+        read at its head, names this night, or None; every other one that changes ops/state.yml). Only the first
+        can countersign this night: the morning refuses a file that names another night."""
         branch = str(self._project()["default_branch"])
         requests = self.gitlab.json("list open merge requests", "GET", "/merge_requests",
                                     params={"state": "opened", "target_branch": branch, "order_by": "created_at",
                                             "sort": "desc", "per_page": 10})
+        found, others = None, []
         for request in requests[:10]:
             diffs = self.gitlab.json("read merge request changes", "GET", f"/merge_requests/{request['iid']}/diffs",
                                      params={"per_page": 100})
-            if any(STATE_FILE in (d.get("new_path"), d.get("old_path")) for d in diffs):
-                return int(request["iid"])
-        return None
+            if not any(STATE_FILE in (d.get("new_path"), d.get("old_path")) for d in diffs):
+                continue
+            head = request.get("sha")
+            if found is None and head and _names_night(self.gitlab.raw_file(STATE_FILE, str(head)), night):
+                found = int(request["iid"])
+            else:
+                others.append(int(request["iid"]))
+        return found, others
 
     def open_countersign_request(self, night: str, state_text: str, title: str, description: str) -> int:
         """Branch, commit and merge request for a countersign written by code. The commit creates its own branch
@@ -598,20 +705,10 @@ class GitLabPorts:
             self._post_note(self.watch_issue, text)
 
     def start_dawn_flow(self, goal: str, at: datetime) -> None:
-        if self.watch_issue is None or not self.dawn_consumer_id:
-            return
-        body = {
-            "project_id": self.gitlab.project_id,
-            "ai_catalog_item_consumer_id": int(self.dawn_consumer_id),
-            "goal": goal,
-            "issue_id": self.watch_issue,
-            "start_workflow": True,
-            "allow_agent_to_request_user": False,
-            "agent_privileges": list(WATCH_FLOW_PRIVILEGES),
-            "pre_approved_agent_privileges": list(WATCH_FLOW_PRIVILEGES),
-        }
-        self.gitlab.call("start the dawn flow", "POST", "/ai/duo_workflows/workflows", in_project=False,
-                         expect=(200, 201), json=body)
+        """Raises NotSent when nothing went out (safe to start again) and Refused on an HTTP 4xx."""
+        if self.watch_issue is not None and self.dawn_flow_ready():
+            self._start_flow("start the dawn flow", self.dawn_consumer_id, self.dawn_flow_service_account, goal,
+                             self.watch_issue)
 
     # Production changes. The action and its target come from the Watch, which takes them from the signed file.
     # Every change returns a snapshot of the target from before it, and restore puts that snapshot back.
@@ -655,10 +752,11 @@ class GitLabPorts:
         update = flag_changes(flag, environment, to)
         if update is None:
             return Change(changed=False, before=before, detail=f"already {to} in {environment}, nothing changed")
-        after = self.gitlab.json(f"set flag {name}", "PUT", path, json=update)
-        done = flag_on_for_all(after, environment) if to == "on" else not flag_reaches(after, environment)
-        if not done:
-            raise RelayError(f"flag {name}: GitLab did not report it {to} in {environment} after the change")
+        with _keeps_before(before, f"GitLab set flag {name}"):
+            after = self.gitlab.json(f"set flag {name}", "PUT", path, json=update)
+            done = flag_on_for_all(after, environment) if to == "on" else not flag_reaches(after, environment)
+            if not done:
+                raise RelayError(f"flag {name}: GitLab did not report it {to} in {environment} after the change")
         return Change(changed=True, before=before, detail=f"{name} was {describe_before(before)} in {environment}")
 
     def _restore_flag(self, name: str, environment: str, before: dict) -> Change:
@@ -694,16 +792,38 @@ class GitLabPorts:
         return response.status_code == 200
 
     def _patch_traffic(self, service: str, url: str, headers: dict, current: dict, traffic: list[dict]) -> None:
+        """Send the traffic, wait for Cloud Run's operation to finish and read the service back. The change is done
+        only when the service is not reconciling, its terminal condition succeeded and its trafficStatuses are the
+        traffic sent. A change still running when the time is up may land later, so that is an error too."""
+        what = f"Cloud Run send {service} traffic"
+        late = f"{what}: Cloud Run had not finished the change when the time ran out"
         # Send the whole service back with only the traffic changed, so nothing else can be reset even if the
         # update mask were ignored. The etag makes the update fail if someone changed the service meanwhile.
         body = {key: value for key, value in current.items() if key not in CLOUD_RUN_OUTPUT_ONLY}
         body["traffic"] = traffic
-        operation = self.http.call(f"Cloud Run send {service} traffic", "PATCH", url, headers=headers,
-                                   params={"updateMask": "traffic"}, json=body).json()
-        error = operation.get("error") if isinstance(operation, dict) else None
-        if error:
-            message = error.get("message", "failed") if isinstance(error, dict) else "failed"
-            raise RelayError(f"Cloud Run send {service} traffic: {' '.join(str(message).split())[:160]}")
+        operation = self.http.call(what, "PATCH", url, headers=headers, params={"updateMask": "traffic"},
+                                   json=body).json()
+        until = self.http.clock() + CLOUD_RUN_WAIT_SECONDS
+        if self.http.deadline is not None:
+            until = min(until, self.http.deadline)
+        try:
+            while not operation.get("done"):
+                if self.http.clock() + CLOUD_RUN_POLL_SECONDS >= until:
+                    raise RelayError(late)
+                self.http.sleep(CLOUD_RUN_POLL_SECONDS)
+                operation = self.http.call(f"{what}, read its progress", "GET", f"{CLOUD_RUN_API}/{operation['name']}",
+                                           headers=headers).json()
+            error = operation.get("error")
+            if error:
+                message = error.get("message", "failed") if isinstance(error, dict) else "failed"
+                raise RelayError(f"{what}: {' '.join(str(message).split())[:160]}")
+            after = self.http.call(f"Cloud Run read {service}", "GET", url, headers=headers).json()
+        except NotSent:  # the change went out; only the wait for it had no time left
+            raise RelayError(late) from None
+        condition = after.get("terminalCondition") or {}
+        if (after.get("reconciling") or condition.get("state") != "CONDITION_SUCCEEDED"
+                or _allocation(after.get("trafficStatuses") or []) != _allocation(traffic)):
+            raise RelayError(f"{what}: Cloud Run does not report the new traffic as serving")
 
     def _send_traffic(self, service: str, revision: str) -> Change:
         url, headers, current = self._service(service)
@@ -711,8 +831,9 @@ class GitLabPorts:
         if traffic_all_on(before["traffic"], revision):
             return Change(changed=False, before=before,
                           detail=f"{service} traffic already all on revision {revision}, nothing changed")
-        self._patch_traffic(service, url, headers, current,
-                            [{"type": REVISION_TARGET, "revision": revision, "percent": 100}])
+        with _keeps_before(before, f"Cloud Run send {service} traffic"):
+            self._patch_traffic(service, url, headers, current,
+                                [{"type": REVISION_TARGET, "revision": revision, "percent": 100}])
         return Change(changed=True, before=before, detail=f"{service} traffic was {describe_before(before)}")
 
     def _restore_traffic(self, service: str, before: dict) -> Change:
@@ -721,30 +842,32 @@ class GitLabPorts:
         words = describe_before(before)
         if _serving(now["traffic"]) == _serving(before.get("traffic") or []):
             return Change(changed=False, before=now, detail=f"{service} traffic already {words}, nothing changed")
-        self._patch_traffic(service, url, headers, current, [dict(t) for t in before.get("traffic") or []])
+        with _keeps_before(now, f"Cloud Run send {service} traffic"):
+            self._patch_traffic(service, url, headers, current, [dict(t) for t in before.get("traffic") or []])
         return Change(changed=True, before=now, detail=f"{service} traffic is {words} again")
 
     # Waking a person, and the one tap she can answer with.
 
     def page(self, incident: int, lines: tuple[str, ...], at: datetime) -> None:
+        """The push wakes her; the note is the thumbs-up target. A page tried again after its push failed posts its
+        note once (an incident is paged once). A push that went out counts as sent even if the note failed."""
         problems = []
-        # The note is posted inside a code block, so text the agent wrote cannot mention people or add links.
-        shown = "\n".join(line.replace("`", "'") for line in lines)
-        try:
-            note = self._post_note(incident, f"Page sent to the on-call person:\n\n```text\n{shown}\n```"
-                                   + timeline("Paged the on-call person", at))
-            self.memory.page_notes[incident] = int(note["id"])
-        except (RelayError, KeyError, TypeError, ValueError) as error:
-            problems.append(str(error) if isinstance(error, RelayError) else "GitLab post note: unexpected answer")
+        if incident not in self.memory.page_notes:
+            # The note is posted inside a code block, so text the agent wrote cannot mention people or add links.
+            shown = "\n".join(line.replace("`", "'") for line in lines)
+            try:
+                note = self._post_note(incident, f"Page sent to the on-call person:\n\n```text\n{shown}\n```"
+                                       + timeline("Paged the on-call person", at))
+                self.memory.page_notes[incident] = int(note["id"])
+            except (RelayError, KeyError, TypeError, ValueError) as error:
+                problems.append(str(error) if isinstance(error, RelayError) else "GitLab post note: unexpected answer")
         link = self.memory.links.get(incident)
         if link and incident in self.memory.page_notes:
             link = f"{link}#note_{self.memory.page_notes[incident]}"
         try:
             push(self.http, self._ntfy_url, f"Night Orders: incident #{incident}", lines, click=link)
         except RelayError as error:
-            problems.append(str(error))
-        if problems:
-            raise RelayError("; ".join(problems))
+            raise RelayError("; ".join(problems + [str(error)])) from None
 
     def thumbs_up(self, incident: int, at: datetime) -> list[tuple[str, datetime]]:
         note = self.memory.page_notes.get(incident)

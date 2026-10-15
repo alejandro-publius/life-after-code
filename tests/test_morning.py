@@ -41,6 +41,9 @@ class FakePorts:
         self.restored.append((action.describe(), before))
         return Change(changed=True, before=None, detail="")
 
+    def holds(self, action):
+        return True  # every target is still as the night left it
+
 
 @pytest.fixture
 def night():

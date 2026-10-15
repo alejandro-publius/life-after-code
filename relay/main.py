@@ -24,7 +24,7 @@ Settings come only from environment variables. The relay never prints, logs or r
   GITLAB_TOKEN          GitLab access token with the api scope (from Secret Manager). Sent only to GITLAB_URL,
                         only in the PRIVATE-TOKEN header.
   FLOW_CONSUMER_ID      numeric AI Catalog item consumer ID of the night watch flow, enabled for the project
-                        (Flows API: ai_catalog_item_consumer_id)
+                        (Flows API: ai_catalog_item_consumer_id). Not needed with FLOW_START=mention.
   FLOW_SERVICE_ACCOUNT  GitLab username of the watch flow's service account. Only its notes count as answers.
   SHOP_METRICS_URL      the shop's /metrics.json (per-minute buckets)
   NTFY_URL              ntfy topic URL for pages, for example https://ntfy.sh/<secret-topic>. The topic name is
@@ -39,6 +39,13 @@ Settings come only from environment variables. The relay never prints, logs or r
   WATCH_ISSUE_IID       optional: the standing "Tonight's watch" issue. At the watch end the relay posts the watch
                         log there, starts the dawn flow on it, and notes the countersign result on it.
   DAWN_FLOW_CONSUMER_ID optional: numeric AI Catalog item consumer ID of the dawn flow
+  FLOW_START            optional: "api" (default) starts the watch and dawn flows through the Flows API; "mention"
+                        starts them through their Mention trigger instead: a note on the incident (or the watch
+                        issue) that begins with @ and the flow's service account, then the goal. GitLab runs a
+                        trigger only for a person, so GITLAB_TOKEN must then be a person's token, not a bot's
+                        (doc/user/duo_agent_platform/triggers/_index.md).
+  DAWN_FLOW_SERVICE_ACCOUNT optional: GitLab username of the dawn flow's service account. With FLOW_START=mention
+                        the dawn flow starts only when it is set.
   SHOP_STAGING_URL      optional: the staging shop's base URL. The rehearsal of a drafted order applies it on
                         staging, checks this shop still serves a checkout, and restores the flag.
   SHOP_ERRORS_URL       optional: the shop's /errors.json. When an incident opens, its recent error lines are
@@ -92,12 +99,14 @@ log = logging.getLogger("nightorders.relay")
 DEMO_LABEL = "DEMO: planted faults, simulated shop"
 TICK_BUDGET_SECONDS = 15.0
 CHORES_BUDGET_SECONDS = 50.0  # the day sheet and the rehearsal, after the watch: well inside the 90 s lease
+COUNTERSIGN_READ_EVERY = timedelta(minutes=3)  # ops/state.yml is read this often at most while a countersign waits
 FAILURES_BEFORE_PAGE = 3
 PAGE_AGAIN_AFTER = timedelta(minutes=60)
 REQUIRED = ("GITLAB_URL", "GITLAB_PROJECT_ID", "GITLAB_TOKEN", "FLOW_CONSUMER_ID", "FLOW_SERVICE_ACCOUNT",
             "SHOP_METRICS_URL", "NTFY_URL", "RELAY_KEY", "GCP_PROJECT_ID", "GCP_REGION")
 OPTIONAL_NUMBERS = ("WATCH_ISSUE_IID", "DAWN_FLOW_CONSUMER_ID")
 WATCH_MODES = ("flow", "standing")
+FLOW_STARTS = ("api", "mention")
 FLOW_ONLY = ("FLOW_CONSUMER_ID", "FLOW_SERVICE_ACCOUNT")  # not needed under standing orders
 PAGE_HEADERS = {
     "Cache-Control": "no-store",
@@ -134,7 +143,7 @@ class Config:
     def from_env(cls, env: Any = None) -> "Config":
         env = os.environ if env is None else env
         names = REQUIRED + ("STATE_BUCKET", "STATE_OBJECT", "SHOP_STAGING_URL", "SHOP_ERRORS_URL",
-                            "WATCH_MODE") + OPTIONAL_NUMBERS
+                            "WATCH_MODE", "FLOW_START", "DAWN_FLOW_SERVICE_ACCOUNT") + OPTIONAL_NUMBERS
         return cls(values={name: str(env.get(name, "")).strip() for name in names},
                    on_cloud_run=bool(env.get("K_SERVICE")))
 
@@ -157,12 +166,20 @@ class Config:
         """Standing Orders: no model at night, code alone carries out the signed orders."""
         return self.values.get("WATCH_MODE", "") == "standing"
 
+    @property
+    def flow_start(self) -> str:
+        """How the relay starts a flow: "api" (the Flows API), or "mention" (a note that mentions the flow's
+        service account)."""
+        return self.values.get("FLOW_START", "") or "api"
+
     def problems(self) -> list[str]:
         mode = self.values.get("WATCH_MODE", "")
         problems = []
         if mode and mode not in WATCH_MODES:
             problems.append("WATCH_MODE must be one of " + ", ".join(WATCH_MODES))
-        skip = FLOW_ONLY if self.standing else ()
+        if self.flow_start not in FLOW_STARTS:
+            problems.append("FLOW_START must be one of " + ", ".join(FLOW_STARTS))
+        skip = FLOW_ONLY if self.standing else ("FLOW_CONSUMER_ID",) if self.flow_start == "mention" else ()
         problems += [f"{name} is not set" for name in REQUIRED if not self.values[name] and name not in skip]
         for name in ("FLOW_CONSUMER_ID",) + OPTIONAL_NUMBERS:
             if self.values.get(name) and not self.values[name].isdigit():
@@ -183,6 +200,7 @@ class Relay:
     rehearse: Callable[[dict, datetime, Inputs], list[str]] | None = None  # the rehearsal of drafted orders
     standing: bool = False              # Standing Orders: no model at night, code alone acts on signed orders
     kept_ports: Any = None              # ports for the kept list (kept.py), on the chores budget
+    chores_sources: Any = None          # .state_file(user) on the chores budget, for the countersign (else sources)
 
 
 @dataclass
@@ -240,7 +258,8 @@ def make_relay(config: Config, store: Any) -> Relay:
                            flow_service_account=config["FLOW_SERVICE_ACCOUNT"], ntfy_url=config["NTFY_URL"],
                            gcp_project=config["GCP_PROJECT_ID"], gcp_region=config["GCP_REGION"],
                            google_token=token, memory=saved, dawn_consumer_id=config["DAWN_FLOW_CONSUMER_ID"],
-                           watch_issue=watch_issue, errors_url=config.errors_url)
+                           watch_issue=watch_issue, errors_url=config.errors_url, flow_start=config.flow_start,
+                           dawn_flow_service_account=config["DAWN_FLOW_SERVICE_ACCOUNT"])
 
     # The day sheet and the rehearsal read and write a lot, so they get a budget of their own, large enough
     # for the rehearsal's wait on the staging shop and still inside the tick lease.
@@ -261,7 +280,8 @@ def make_relay(config: Config, store: Any) -> Relay:
                               google_token=token, watch_issue=watch_issue)
     return Relay(sources=GitLabSources(gitlab, budget, config["SHOP_METRICS_URL"]), store=store,
                  make_ports=make_ports, pager=make_pager(config), watch_issue=watch_issue, gitlab=gitlab_plain,
-                 rehearse=rehearse, standing=config.standing, kept_ports=kept_ports)
+                 rehearse=rehearse, standing=config.standing, kept_ports=kept_ports,
+                 chores_sources=GitLabSources(gitlab_plain, chores, config["SHOP_METRICS_URL"]))
 
 
 def readiness(config: Config, make_store: Callable[[Config], Any]) -> list[str]:
@@ -308,8 +328,10 @@ def status_of(inputs: Inputs, now: datetime) -> dict:
     if orders is None:
         return status
     _, end = watch_window(orders, oncall)
-    # Signed properly within the window, whether or not that window has ended yet.
-    status["problems"] = signature_problems(orders, signature, oncall, min(now, end - timedelta(microseconds=1)))
+    # Signed properly within the window, whether or not that window has ended yet. A reason the sources found (an
+    # approval given before the commit it would sign) comes first.
+    status["problems"] = list(inputs.orders_problems) + signature_problems(orders, signature, oncall,
+                                                                           min(now, end - timedelta(microseconds=1)))
     signer = None
     if signature is not None:
         signer = oncall.first_name if signature.user == oncall.user else signature.user
@@ -385,6 +407,25 @@ def _working_again(relay: Relay, health: Health, now: datetime, tz: Any) -> None
     health.failures, health.since, health.paged_at = 0, None, None
 
 
+def countersign_file(relay: Relay, relay_doc: dict, user: str, now: datetime) -> morning.StateFile | None:
+    """ops/state.yml as signed, while the morning waits for a countersign. It is read after the watch, on the chores
+    budget, and at most every COUNTERSIGN_READ_EVERY, so it never takes the night watch's time. A failure is logged
+    and the file is read again COUNTERSIGN_READ_EVERY later. While a signed plan is being carried out, the record
+    holds it and nothing is read."""
+    record = relay_doc.get("dawn")
+    if not record or record.get("countersign") is not None or record.get("applying"):
+        return None
+    last = relay_doc.get("countersign_read_at")
+    if last and now - datetime.fromisoformat(last) < COUNTERSIGN_READ_EVERY:
+        return None
+    relay_doc["countersign_read_at"] = now.isoformat()
+    try:
+        return (relay.chores_sources or relay.sources).state_file(user)
+    except Exception as error:
+        log.warning("could not read the countersign: %s", reason(error))
+        return None
+
+
 def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
     """One pass: load the state and tonight's inputs, run the Watch once, save. Returns (HTTP status, summary)."""
     try:
@@ -410,24 +451,29 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
     state.restore(watch, doc)
     seen = len(ledger.events)
     relay_doc = doc.setdefault("relay", {})
-    state_file = None
-    awaited = relay_doc.get("dawn")
-    if awaited and awaited.get("countersign") is None:
-        # Only the morning needs this, so a failure here never stops the night watch: try again next tick.
-        try:
-            state_file = relay.sources.state_file(inputs.oncall.user)
-        except Exception as error:
-            log.warning("could not read the countersign: %s", reason(error))
 
     problem = None
     done: list[str] = []
     try:
         watch.tick(inputs.metrics, now)
-        done = morning.step(relay_doc, night, watch.expired, state_file, ports, now, relay.watch_issue)
     except Exception as error:
         problem = f"stopped partway through a tick ({reason(error)})"
         if not isinstance(error, (RelayError, httpx.HTTPError)):
             log.error("unexpected error in a tick", exc_info=error)
+    if not problem:
+        # The morning comes after the watch and, like the chores below, never fails a tick or pages: a restore that
+        # keeps failing is logged, kept in the state and tried again (morning.py hands it to a person in the end).
+        # A night that ended with no good tick before noon gets its record first, from the ledger kept for it.
+        try:
+            for earlier in state.earlier_nights(doc, inputs.oncall, inputs.targets):
+                done += morning.step(relay_doc, earlier, True, None, ports, now, relay.watch_issue)
+            state_file = countersign_file(relay, relay_doc, inputs.oncall.user, now)
+            done += morning.step(relay_doc, night, watch.expired, state_file, ports, now, relay.watch_issue)
+            relay_doc.pop("morning_problem", None)
+        except Exception as error:
+            relay_doc["morning_problem"] = {"at": now.isoformat(), "reason": reason(error)}
+            log.warning("morning not finished: %s", reason(error))
+        state.forget_recorded(doc)
     if not problem and relay.gitlab is not None and relay.watch_issue is not None:
         # The day sheet is a convenience for the dusk flow, not the watch: a failure is logged, kept in the
         # state so the next tick tries again, and never counted as a failed tick or paged.
@@ -450,9 +496,9 @@ def run_tick(relay: Relay, health: Health, now: datetime) -> tuple[int, dict]:
             log.warning("rehearsal not done: %s", reason(error))
     if not problem and relay.kept_ports is not None and relay_doc.get("kept"):
         # The kept list: a lease that is due ends in daytime. The same way: never a failed tick, tried again.
+        # kept.step says itself which kept change could not be checked (kept_problem), and clears it when all could.
         try:
             done += kept.step(relay_doc, now, inputs.oncall, relay.kept_ports)
-            relay_doc.pop("kept_problem", None)
         except Exception as error:
             relay_doc["kept_problem"] = {"at": now.isoformat(), "reason": reason(error)}
             log.warning("kept list not checked: %s", reason(error))
@@ -506,8 +552,21 @@ def create_app(make_store: Callable[[Config], Any] = make_store,
     health = Health()
     one_at_a_time = threading.Lock()
     now = clock or (lambda: datetime.now(timezone.utc))
-    # The public page is cached briefly, so a burst of views cannot crowd out the tick.
-    cached: dict = {"until": 0.0, "page": ""}
+    # The public page and its JSON share one snapshot of the state, read at most every page_cache_seconds, so a
+    # burst of views cannot crowd out the tick.
+    cached: dict = {"until": 0.0, "page": "", "public": None}
+
+    def snapshot() -> dict:
+        if time.monotonic() >= cached["until"]:
+            moment = now()
+            try:
+                doc, _ = make_store(Config.from_env()).load()
+                page, public = render_status(doc, moment), {"available": True, **status_page.public(doc, moment)}
+            except Exception as error:
+                log.warning("status page: %s", reason(error))
+                page, public = render_status(None, moment, unavailable=True), {"available": False}
+            cached.update(until=time.monotonic() + page_cache_seconds, page=page, public=public)
+        return cached
     demo_files = Path(__file__).with_name("demo_web")
 
     @app.get("/demo", response_class=HTMLResponse)
@@ -577,25 +636,13 @@ def create_app(make_store: Callable[[Config], Any] = make_store,
 
     @app.get("/status.json")
     def status_json() -> JSONResponse:
-        try:
-            doc, _ = make_store(Config.from_env()).load()
-        except Exception as error:
-            log.warning("status json: %s", reason(error))
-            return JSONResponse({"available": False}, status_code=503, headers={"Cache-Control": "no-store"})
-        return JSONResponse({"available": True, **status_page.public(doc, now())}, headers={"Cache-Control": "no-store"})
+        public = snapshot()["public"]
+        return JSONResponse(public, status_code=200 if public["available"] else 503,
+                            headers={"Cache-Control": "no-store"})
 
     @app.get("/", response_class=HTMLResponse)
     def status_html() -> HTMLResponse:
-        if time.monotonic() < cached["until"]:
-            return HTMLResponse(cached["page"], headers=PAGE_HEADERS)
-        try:
-            doc, _ = make_store(Config.from_env()).load()
-            page = render_status(doc, now())
-        except Exception as error:
-            log.warning("status page: %s", reason(error))
-            page = render_status(None, now(), unavailable=True)
-        cached.update(until=time.monotonic() + page_cache_seconds, page=page)
-        return HTMLResponse(page, headers=PAGE_HEADERS)
+        return HTMLResponse(snapshot()["page"], headers=PAGE_HEADERS)
 
     return app
 

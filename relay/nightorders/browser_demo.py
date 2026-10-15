@@ -175,6 +175,7 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
     initial_flags = dict(ports.samples[0]["flags_before"])
     after_night = dict(ports.shop.flags)
     watch_log = render_watch_log(night)
+    handled = len(night.ledger.handled_asleep())  # the watch log and the 07:00 push count the same incidents
 
     def step(key: str, phase: str, kind: str, at: str, title: str, text: str, *,
              incident: int | None = None, order: int | None = None, data: dict | None = None,
@@ -247,7 +248,7 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
     }
     steps.append(step(
         "dawn-log", "dawn", "watch_log", ports.samples[-1]["at"], "The morning record comes from code",
-        f"Priya was woken {len(night.ledger.of('woke'))} time(s). {len(night.ledger.of('acted'))} incident(s) were handled automatically.",
+        f"Priya was woken {len(night.ledger.of('woke'))} time(s). {handled} incident(s) were handled automatically.",
         data={"watch_log": watch_log}, flags_before=after_night, flags_after=after_night,
     ))
     if ends:
@@ -316,7 +317,7 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
                    "expired": bool(night.ledger.of("expired")), "no_automatic_revert": True},
         "orders": source_orders["orders"], "changes": changes, "left_out": dusk["left_out"],
         "dusk_question": dusk["question"],
-        "counts": {"pages": len(night.ledger.of("woke")), "automatic_incidents_handled": len(night.ledger.of("acted")),
+        "counts": {"pages": len(night.ledger.of("woke")), "automatic_incidents_handled": handled,
                    "approved_actions": len(night.ledger.of("approved")), "incidents": len(night.ledger.of("alert")),
                    "model_requests": len(night.ledger.of("asked"))},
         "steps": steps, "timeline": timeline, "messages": messages, "metrics": ports.samples,

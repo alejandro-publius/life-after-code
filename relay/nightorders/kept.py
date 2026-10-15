@@ -95,8 +95,9 @@ def step(relay_doc: dict, now: datetime, oncall: OnCall, ports: Any) -> list[str
     """Called by the relay's tick, as a chore: check the kept list in daytime and end the leases that are due.
 
     Ports: holds(action), shipped(merge_request, environment) -> (state, words), restore(action, before, at),
-    watch_note(text, at) and quiet_push(title, lines, at). A failure stops the pass and the next check tries
-    again; restoring a target that is already as its snapshot changes nothing.
+    watch_note(text, at) and quiet_push(title, lines, at). A kept change whose check fails is said in
+    relay_doc["kept_problem"] and tried again at the next check; it never stops the others. Restoring a target
+    that is already as its snapshot changes nothing.
     """
     kept = relay_doc.get("kept") or []
     if not kept:
@@ -109,46 +110,62 @@ def step(relay_doc: dict, now: datetime, oncall: OnCall, ports: Any) -> list[str
     relay_doc["kept_checked_at"] = now.isoformat()
     waiting = _waiting(relay_doc)
     done: list[str] = []
+    problems: list[str] = []
     for item in list(kept):
         if target(item["action"]) in waiting:
             continue
-        action = action_from(item["action"])
-        if not ports.holds(action):
-            kept.remove(item)
-            text = (f"No longer kept: {what(item)} was changed after the countersign, so it is off the kept list. "
-                    "Code changed nothing.")
-            _ended(relay_doc, item, text, now)
-            ports.watch_note(text, now)
-            done.append(f"{what(item)} changed by hand, off the kept list")
+        try:
+            line = _check(relay_doc, kept, item, now, ports)
+        except Exception as error:
+            why = str(error) if isinstance(error, RuntimeError) else type(error).__name__
+            problems.append(f"{what(item)}: {' '.join(why.split())[:160]}")
             continue
-        number = item.get("until_deployed")
-        if not number:
-            continue
-        state, words = ports.shipped(int(number), str(item.get("environment") or ""))
-        item["lease"] = words
-        if state == "closed":
-            item["until_deployed"] = None  # nothing can ship now; say so once and stop asking
-            ports.watch_note(f"The lease on {what(item)} cannot end by itself: {words}. It stays kept until a "
-                             "person changes it.", now)
-            done.append(f"lease on {what(item)} has no merge request left to wait for")
-            continue
-        if state != "shipped":
-            continue
-        before = item.get("before")
-        if before is None:
-            kept.remove(item)
-            result = (f"There is no snapshot from before the night of {item.get('since')}, so a person restores "
-                      f"{what(item)}.")
-        else:
-            change = ports.restore(action, before, now)
-            kept.remove(item)
-            back = ALREADY_BACK if getattr(change, "changed", True) is False else ""
-            result = f"Restored {describe_restored(action, before)}{back}."
-        why = (f"It was kept since the night of {item.get('since')}"
-               + (f", until {item['until']}" if item.get("until") else "") + ".")
-        text = f"Lease ended: {words}. {result} {why}"
+        if line:
+            done.append(line)
+    if problems:
+        relay_doc["kept_problem"] = {"at": now.isoformat(), "reason": "; ".join(problems)}
+    else:
+        relay_doc.pop("kept_problem", None)
+    return done
+
+
+def _check(relay_doc: dict, kept: list[dict], item: dict, now: datetime, ports: Any) -> str | None:
+    """One kept change: off the list if a person changed it, ended if its merge request shipped. What happened, or
+    None when it stays as it is."""
+    action = action_from(item["action"])
+    if not ports.holds(action):
+        kept.remove(item)
+        text = (f"No longer kept: {what(item)} was changed after the countersign, so it is off the kept list. "
+                "Code changed nothing.")
         _ended(relay_doc, item, text, now)
         ports.watch_note(text, now)
-        ports.quiet_push("Night Orders: a kept change ended", (f"Lease ended: {words}.", result), now)
-        done.append(f"lease on {what(item)} ended")
-    return done
+        return f"{what(item)} changed by hand, off the kept list"
+    number = item.get("until_deployed")
+    if not number:
+        return None
+    state, words = ports.shipped(int(number), str(item.get("environment") or ""))
+    item["lease"] = words
+    if state == "closed":
+        item["until_deployed"] = None  # nothing can ship now; say so once and stop asking
+        ports.watch_note(f"The lease on {what(item)} cannot end by itself: {words}. It stays kept until a "
+                         "person changes it.", now)
+        return f"lease on {what(item)} has no merge request left to wait for"
+    if state != "shipped":
+        return None
+    before = item.get("before")
+    if before is None:
+        kept.remove(item)
+        result = (f"There is no snapshot from before the night of {item.get('since')}, so a person restores "
+                  f"{what(item)}.")
+    else:
+        change = ports.restore(action, before, now)
+        kept.remove(item)
+        back = ALREADY_BACK if getattr(change, "changed", True) is False else ""
+        result = f"Restored {describe_restored(action, before)}{back}."
+    why = (f"It was kept since the night of {item.get('since')}"
+           + (f", until {item['until']}" if item.get("until") else "") + ".")
+    text = f"Lease ended: {words}. {result} {why}"
+    _ended(relay_doc, item, text, now)
+    ports.watch_note(text, now)
+    ports.quiet_push("Night Orders: a kept change ended", (f"Lease ended: {words}.", result), now)
+    return f"lease on {what(item)} ended"

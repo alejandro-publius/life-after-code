@@ -32,6 +32,12 @@ class Kept:
     until_deployed: int | None = None  # the merge request whose deployment ends the keep (kept.py)
 
 
+def _one_line(value: object) -> str:
+    """Free text from the state file on one line: it is posted on the watch issue, where a line starting with /
+    would run as a GitLab quick action."""
+    return " ".join(str(value or "").split())
+
+
 def merge_request_number(value: object) -> int | None:
     """until_deployed as a merge request number: 38, "38" or "!38". None when it is not one."""
     if isinstance(value, bool):
@@ -60,7 +66,8 @@ class MorningPlan:
     by_hand: tuple[str, ...]  # what a person has to do, because code has nothing to restore from
 
 
-def _target_words(action: Action) -> str:
+def target_words(action: Action) -> str:
+    """The target in plain words: "new_checkout in production", "shop traffic"."""
     return f"{action.flag} in {action.environment}" if action.kind == "flag_set" else f"{action.service} traffic"
 
 
@@ -108,8 +115,7 @@ def parse_state(data: dict | None, targets: Targets) -> list[Kept]:
             continue
         action = Action(kind="flag_set", flag=str(entry["flag"]), environment=str(entry["environment"]), to=keep)
         problems.extend(f"{label}: {p}" for p in action_problems(action, targets))
-        kept.append(Kept(action=action, until=str(entry.get("until") or "").strip(),
-                         until_deployed=_lease(entry, label, problems)))
+        kept.append(Kept(action=action, until=_one_line(entry.get("until")), until_deployed=_lease(entry, label, problems)))
     for number, entry in enumerate(services, start=1):
         label = f"ops/state.yml services entry {number}"
         if not isinstance(entry, dict):
@@ -124,12 +130,11 @@ def parse_state(data: dict | None, targets: Targets) -> list[Kept]:
             continue
         action = Action(kind="traffic_to_revision", service=str(entry["service"]), revision=keep.strip())
         problems.extend(f"{label}: {p}" for p in action_problems(action, targets))
-        kept.append(Kept(action=action, until=str(entry.get("until") or "").strip(),
-                         until_deployed=_lease(entry, label, problems)))
+        kept.append(Kept(action=action, until=_one_line(entry.get("until")), until_deployed=_lease(entry, label, problems)))
     for index, first in enumerate(kept):
         for second in kept[index + 1:]:
             if first.action.same_target(second.action):
-                problems.append(f"ops/state.yml lists {_target_words(first.action)} twice")
+                problems.append(f"ops/state.yml lists {target_words(first.action)} twice")
     if problems:
         raise OrdersError(problems)
     return kept

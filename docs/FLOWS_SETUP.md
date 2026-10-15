@@ -27,10 +27,12 @@ Alex's laptop step, about 15 minutes, once the repository is pushed to the hacka
 
 | Flow | Trigger | Why |
 |---|---|---|
-| probe | **Assign** | so the day-one test can also start it by hand, by assigning the probe incident to it |
-| watch | **Mention** | the relay starts it through the Flows API; a mention trigger only gives a person a manual way in. If GitLab insists on no trigger or a different one, any is fine (unverified) |
+| probe | **Assign** and **Mention** | the day-one test starts it through the Flows API, then by a mention, to learn which way works on this account |
+| watch | **Mention** | the relay starts it through the Flows API; with `FLOW_START=mention` the relay starts it instead by a note on the incident that mentions the flow's service account ([GitLab: triggers](https://gitlab.com/gitlab-org/gitlab/-/blob/master/doc/user/duo_agent_platform/triggers/_index.md)) |
 | dusk | **Assign** | the on-call person assigns the "Tonight's watch" issue to it every evening |
-| dawn | **Mention** | the relay starts it through the Flows API at 07:00; a mention on the watch issue is the manual fallback |
+| dawn | **Mention** | the relay starts it through the Flows API at 07:00, or by a mention on the watch issue with `FLOW_START=mention` |
+
+GitLab's Mention trigger runs a flow "when the service account user is mentioned in a comment on an issue or merge request", and the flow receives that comment. So if the Flows API will not start a flow on this account, the relay can still keep the model's key: it posts the same goal as a note that begins with the flow's service account name (`FLOW_START=mention`). GitLab's triggers page says a bot or service account cannot set off a trigger, so with mention the relay's `GITLAB_TOKEN` must be a person's token, not a project or group access token (unverified on this account until the day-one `flow` step tries it). Standing Orders (no model at night) is the last fallback, not the first.
 
 ## 3. Record the IDs the relay needs
 
@@ -40,7 +42,9 @@ Run, with the token in the environment:
 GITLAB_TOKEN=... python scripts/day_one.py --project <project id or path> --step catalog
 ```
 
-It prints every enabled flow with its consumer ID. Put them in the public deploy config (`deploy/gcp.env`, see [deploy/README.md](../deploy/README.md)): `FLOW_CONSUMER_ID` for the watch flow, `DAWN_FLOW_CONSUMER_ID` for the dawn flow. Then run the `incident` and `flow` steps: the probe flow's first note shows the username the flows post as; that is `FLOW_SERVICE_ACCOUNT`. The `issue` step prints `WATCH_ISSUE_IID`.
+It prints every enabled flow with its consumer ID and its service account. Put them in the public deploy config (`deploy/gcp.env`, see [deploy/README.md](../deploy/README.md)): `FLOW_CONSUMER_ID` for the watch flow, `DAWN_FLOW_CONSUMER_ID` for the dawn flow.
+
+Each flow posts as **its own** service account: GitLab names it from the flow and the top-level group, `ai-<flow name>-<group>` (GitLab source: `ee/app/services/ai/catalog/item_consumers/create_service.rb`). `FLOW_SERVICE_ACCOUNT` must be the **watch** flow's account, for example `ai-night-orders-watch-<group>`, because the relay reads only that account's notes as answers. The probe's note comes from the probe's own account, so it only confirms the naming pattern; do not copy the probe's username into `FLOW_SERVICE_ACCOUNT`. `DAWN_FLOW_SERVICE_ACCOUNT` is the dawn flow's account, needed only with `FLOW_START=mention`. The `issue` step prints `WATCH_ISSUE_IID`.
 
 ## 4. If the API can do it instead
 
@@ -53,4 +57,6 @@ The script's `--create-probe` option tries the GraphQL mutations `aiCatalogFlowC
 | **New flow** is missing or greyed out | The role cannot create flows, or custom flows are off for the top-level group. Ask the organizers. |
 | The editor rejects the YAML | Paste again from the raw file view; check nothing was changed by autocorrect. |
 | **Enable** fails | The role cannot enable flows in the project. Ask the organizers; the day-one test records this. |
-| The probe flow starts but never posts | Read its session under **AI** > **Sessions**; the tool `create_issue_note` may need the write privilege, which the relay requests as privilege 3 |
+| The probe flow starts but never posts | Read its session under **AI** > **Sessions**. For catalog flows GitLab ignores the privilege fields in the Flows API request (`agent_privileges` and the others; GitLab source: `ee/lib/api/ai/duo_workflows/workflows.rb`), so what limits a flow is its toolset: the watch flow's writer has `create_issue_note` and nothing that changes flags, deployments or merge requests |
+| Every night ask times out with "The agent did not answer" | `FLOW_SERVICE_ACCOUNT` is not the watch flow's own account (see step 3) |
+| The Flows API answers 403 or 404 | Set `FLOW_START=mention` and check the watch flow's Mention trigger; if mentions do not start it either, `WATCH_MODE=standing` |

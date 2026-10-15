@@ -5,7 +5,9 @@ outlive the noon rollover of the ledger), posts the watch log on the watch issue
 The dawn flow proposes keep or undo in a countersign merge request that changes ops/state.yml. When the
 on-call person merges or approves it, the relay applies the plan from countersign.plan_morning once:
 every loose end that is not kept is restored, through the restore port, to the snapshot the night's
-apply took of it, and the result is noted on the watch issue.
+apply took of it, and the result is noted on the watch issue. A target a person changed after the night
+is left as it is. The plan is kept in the record until it is done, so a restore that fails is tried again
+on the next ticks (at most MAX_RESTORE_TRIES times, then it is left for a person) while the others are done.
 
 Nothing here decides what the night meant: the loose ends come from the ledger, the plan from
 countersign.py, and the person decides by signing the countersign.
@@ -20,7 +22,7 @@ from typing import Any, Protocol
 from datetime import timedelta
 
 from . import kept
-from .countersign import describe_restored, parse_state, plan_morning, undo
+from .countersign import describe_restored, parse_state, plan_morning, target_words, undo
 from .dawn import LooseEnd, action_from, dawn_goal, loose_ends, render_watch_log
 from .decide import Night
 from .model import Action, Change, Signature, describe_before
@@ -28,6 +30,8 @@ from .orders import OrdersError, watch_window
 ALREADY_BACK = " (already as before the night)"
 DAWN_GRACE = timedelta(minutes=20)  # after this, with no countersign request open, code opens one itself
 STATE_PATH = "ops/state.yml"
+MAX_RESTORE_TRIES = 5  # a restore that keeps failing is left for a person, and the countersign note says so
+FAILED = "failed and may be in place"  # what dawn.loose_ends adds to the why of a change that raised
 
 
 class MorningPorts(Protocol):
@@ -35,6 +39,13 @@ class MorningPorts(Protocol):
     def start_dawn_flow(self, goal: str, at: datetime) -> None: ...
     def apply(self, action: Action, at: datetime) -> Change: ...
     def restore(self, action: Action, before: dict, at: datetime) -> Change: ...
+    def holds(self, action: Action) -> bool: ...  # whether the target is still as the action left it
+
+
+def _one_line(text: object) -> str:
+    """Text on one line. Notes and merge request descriptions are read by GitLab, which runs a line starting with
+    / as a quick action with the relay's token, so nothing the relay did not write itself may start a line."""
+    return " ".join(str(text).split())
 
 
 @dataclass(frozen=True)
@@ -97,10 +108,12 @@ def push_lines(night: Night, loose: int) -> tuple[str, ...]:
     return first, second
 
 
-def countersign_request(record: dict) -> tuple[str, str, str]:
+def countersign_request(record: dict, replaces: list[int] | tuple[int, ...] = ()) -> tuple[str, str, str]:
     """The countersign merge request code opens when no model proposed one: (state file, title, description).
 
     The file keeps nothing, so merging it as it is restores every change; the description says how to keep one.
+    replaces lists the open countersign merge requests whose file does not name this night, so code did not count
+    them; the description says to close them.
     """
     night = record["night"]
     state_text = (f"# Countersign for the night of {night}, written by code: no model proposed anything this "
@@ -111,8 +124,12 @@ def countersign_request(record: dict) -> tuple[str, str, str]:
              "Changed overnight and still in place:", ""]
     for item in record["loose_ends"]:
         action = action_from(item["action"])
-        lines.append(f"- {action.describe()} ({item.get('why', '')}). Before the night: "
-                     f"{describe_before(item.get('before'))}.")
+        lines.append("- " + _one_line(f"{action.describe()} ({item.get('why', '')}). Before the night: "
+                                      f"{describe_before(item.get('before'))}."))
+    if replaces:
+        older = ", ".join(f"!{int(number)}" for number in replaces)
+        lines += ["", f"This replaces {older}: still open, but its ops/state.yml does not name the night of {night}. "
+                      "Close it, so that only this merge request countersigns the night."]
     lines += ["", "Merged as it is, this restores every change above to how it was before the night.",
               "To keep one, add it to ops/state.yml in this merge request before merging, for example:", "",
               "```yaml",
@@ -164,14 +181,17 @@ def step(relay_doc: dict, night: Night, watch_expired: bool, state_file: StateFi
         flow_ready = getattr(ports, "dawn_flow_ready", lambda: False)()
         ended = datetime.fromisoformat(record["ended_at"])
         if not flow_ready or now >= ended + DAWN_GRACE:
-            if ports.countersign_request_open() is None:
-                state_text, title, description = countersign_request(record)
+            # Only a request whose file names this night counts: one left open for an earlier night (a carried
+            # record's, say) would be refused when merged, so code opens a fresh one that says what it replaces.
+            found, others = ports.countersign_request_open(record["night"])
+            if found is None:
+                state_text, title, description = countersign_request(record, replaces=others)
                 record["code_request"] = ports.open_countersign_request(record["night"], state_text, title, description)
                 done.append(f"countersign merge request !{record['code_request']} opened by code")
             else:
                 record["code_request"] = -1  # the dawn flow opened one; nothing for code to do
 
-    if record["countersign"] is None and state_file is not None:
+    if record["countersign"] is None and (state_file is not None or record.get("applying")):
         result = countersign(record, state_file, night, ports, now)
         if result is not None:
             keep = result.pop("keep", [])
@@ -180,7 +200,7 @@ def step(relay_doc: dict, night: Night, watch_expired: bool, state_file: StateFi
                 kept.add(relay_doc, keep)  # kept changes go on the kept list, with their leases
             if result["problems"]:
                 # Refused once, said once. The countersign stays open: a corrected file, or the on-call person's
-                # own signature after someone else's, is a new signature and is read on the next tick.
+                # own signature after someone else's, is a new signature and is read the next time the file is.
                 record["refused"], record["refused_text"] = result, text
             else:
                 record["countersign"], record["countersign_text"] = result, text
@@ -195,8 +215,26 @@ def _same_signature(refused: dict | None, signature: Signature) -> bool:
         signature.commit, signature.user, signature.method)
 
 
-def countersign(record: dict, state_file: StateFile, night: Night, ports: Any, now: datetime) -> dict | None:
-    """Apply the countersign once, if the on-call person signed ops/state.yml after the night ended."""
+def countersign(record: dict, state_file: StateFile | None, night: Night, ports: Any, now: datetime) -> dict | None:
+    """Apply the countersign once, if the on-call person signed ops/state.yml after the night ended.
+
+    A signed file is checked and planned once. The plan waits in the record (applying) until every loose end is
+    done, so the next ticks carry on from it without reading the file again. Returns the result once there is
+    nothing left to do, or at once when the file is refused; None while nothing is signed. A restore that failed
+    and will be tried again raises its error after the others were done.
+    """
+    if record.get("applying") is None:
+        if state_file is None:
+            return None
+        refused = _accept(record, state_file, night)
+        if refused is not None or record.get("applying") is None:
+            return refused
+    return _carry_out(record, ports, now)
+
+
+def _accept(record: dict, state_file: StateFile, night: Night) -> dict | None:
+    """Check a signed ops/state.yml and plan the morning from it. Returns the refusal, or None: nothing signed
+    since the night ended (record unchanged), or the plan is now waiting in record["applying"]."""
     signature = state_file.signature
     ended = datetime.fromisoformat(record["ended_at"])
     if signature is None or signature.at < ended:
@@ -204,7 +242,7 @@ def countersign(record: dict, state_file: StateFile, night: Night, ports: Any, n
     if _same_signature(record.get("refused"), signature):
         return None  # already refused and said so; only a new signature is read again
     result: dict = {"commit": signature.commit, "user": signature.user, "at": signature.at.isoformat(),
-                    "method": signature.method, "restored": [], "undone": [], "kept": [], "by_hand": [],
+                    "method": signature.method, "restored": [], "undone": [], "left": [], "kept": [], "by_hand": [],
                     "problems": []}
     if signature.user != night.oncall.user:
         result["problems"] = [f"ops/state.yml was signed by {signature.user}, not by the on-call person "
@@ -229,23 +267,68 @@ def countersign(record: dict, state_file: StateFile, night: Night, ports: Any, n
                                   kept.environment_of(item.action, night.targets.services))
                       for item in plan.kept for end in loose if end.action.same_target(item.action)]
     result["by_hand"] = list(plan.by_hand)
-    # If a change fails, the error stops this pass and the whole countersign is tried again next tick.
-    # That is safe: restoring a target that is already as its snapshot says changes nothing.
-    for action, before, _why in plan.undo:
-        if before is not None:
-            change = ports.restore(action, before, now)
-            text = describe_restored(action, before)
-            if isinstance(change, Change) and not change.changed:
-                text += ALREADY_BACK
-            result["restored"].append(text)
-        else:
-            # A record from before snapshots existed: a flag is turned the other way (plan_morning sends
-            # a traffic change without a snapshot to a person instead).
-            reverse = undo(action)
-            assert reverse is not None
-            ports.apply(reverse, now)
-            result["undone"].append(reverse.describe())
+    record["applying"] = {"result": result, "undo": [{"action": action.as_dict(), "before": before, "why": why,
+                                                      "tries": 0} for action, before, why in plan.undo]}
+    return None
+
+
+def _carry_out(record: dict, ports: Any, now: datetime) -> dict:
+    """Put back every loose end of the plan that is not done yet. One that fails stays for the next tick, and after
+    MAX_RESTORE_TRIES it is handed to a person with the reason; the rest are done meanwhile, each once."""
+    applying = record["applying"]
+    result = applying["result"]
+    again: Exception | None = None
+    for item in list(applying["undo"]):
+        action = action_from(item["action"])
+        try:
+            _put_back(action, item["before"], item["why"], result, ports, now)
+        except Exception as error:
+            if getattr(error, "sent", True):  # a call the tick had no time left to send was not a try
+                item["tries"] = int(item.get("tries", 0)) + 1
+            if item["tries"] < MAX_RESTORE_TRIES:
+                again = again or error
+                continue
+            result["by_hand"].append(_given_up(action, item["before"], item["tries"], error))
+        applying["undo"].remove(item)
+    if again is not None:
+        raise again
+    del record["applying"]
     return result
+
+
+def _put_back(action: Action, before: dict | None, why: str, result: dict, ports: Any, now: datetime) -> None:
+    """Restore one loose end, unless its target is no longer as the night left it: then a person changed it after
+    the night (or a change that failed never took), and code leaves it as it is."""
+    if not ports.holds(action):
+        if FAILED in why:
+            result["left"].append(f"{action.describe()} did not take, or was changed after the night, so code left "
+                                  "it as it is")
+        else:
+            result["left"].append(f"{target_words(action)} was changed after the night, so code left it as it is")
+        return
+    if before is not None:
+        change = ports.restore(action, before, now)
+        text = describe_restored(action, before)
+        if isinstance(change, Change) and not change.changed:
+            text += ALREADY_BACK
+        result["restored"].append(text)
+        return
+    # A record from before snapshots existed: a flag is turned the other way (plan_morning sends a traffic change
+    # without a snapshot to a person instead).
+    reverse = undo(action)
+    assert reverse is not None
+    ports.apply(reverse, now)
+    result["undone"].append(reverse.describe())
+
+
+def _given_up(action: Action, before: dict | None, tries: int, error: Exception) -> str:
+    """What a person has to do about a restore code tried MAX_RESTORE_TRIES times."""
+    why = str(error) if isinstance(error, RuntimeError) else type(error).__name__
+    if before is not None:
+        what = f"restore {describe_restored(action, before)}"
+    else:
+        what = f"set {(undo(action) or action).describe()}"  # plan_morning gives a snapshot or a reverse
+    return f"Code could not {what} after {tries} tries ({_one_line(why)[:160]}). Do it by hand."
 
 
 def _kept_words(item: Any, night: Night) -> str:
@@ -256,15 +339,17 @@ def _kept_words(item: Any, night: Night) -> str:
     return words
 
 
+SECTIONS = (("Kept", "kept"), ("Restored", "restored"), ("Undone", "undone"), ("Not restored", "left"),
+            ("For a person", "by_hand"), ("Refused", "problems"))
+
+
 def render_countersign(result: dict, night: Night) -> str:
+    """The countersign note for the watch issue. Each item is one line: it can carry text from the state file."""
     at = datetime.fromisoformat(result["at"])
     who = night.oncall.first_name if result["user"] == night.oncall.user else result["user"]
     lines = [f"Countersign by {who} at {night.oncall.hhmm(at)} ({result['method']}), applied by code."]
-    lines += [f"- Kept: {text}" for text in result["kept"]]
-    lines += [f"- Restored: {text}" for text in result.get("restored") or []]
-    lines += [f"- Undone: {text}" for text in result["undone"]]
-    lines += [f"- For a person: {text}" for text in result["by_hand"]]
-    lines += [f"- Refused: {text}" for text in result["problems"]]
+    for label, key in SECTIONS:
+        lines += [f"- {label}: {_one_line(text)}" for text in result.get(key) or []]
     if len(lines) == 1:
         lines.append("- Nothing to change.")
     return "\n".join(lines)
