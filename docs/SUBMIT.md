@@ -1,6 +1,6 @@
 # Submit
 
-The runbook from today to a submitted entry, for Alex. Written Sun 11 Oct 2026. Deadline: **Tue 27 Oct, 13:00 UTC (6:00 AM Pacific)**. Our target: **Mon 26 Oct, 9:00 PM Pacific** ([PLAN.md](PLAN.md)).
+The runbook from today to a submitted entry, for Alex. Updated Thu 15 Oct 2026. Deadline: **Tue 27 Oct, 13:00 UTC (6:00 AM Pacific)**. Our target: **Mon 26 Oct, 9:00 PM Pacific** ([PLAN.md](PLAN.md)).
 
 Only Alex can do four things: create the GitLab token, create the Google Cloud project, film the video, and press Submit on Devpost (it needs his login, and Devpost cannot be reached from the build environment). Everything else is ready or runs from code once the token exists.
 
