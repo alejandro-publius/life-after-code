@@ -1,0 +1,5 @@
+id: heldout-15
+kind: barrier
+summary: "On the checkout page the Email and Card number labels sit above the right boxes but point at each other's field, so a screen reader announces Email on the card box and Card number on the email box and a blind shopper types the details into the wrong fields and the order fails."
+wcag: "1.3.1"
+author: blind-agent-2026-10-11

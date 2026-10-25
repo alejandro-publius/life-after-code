@@ -1,0 +1,5 @@
+id: heldout-12
+kind: barrier
+summary: "The product link on the home page is now a picture of the words Ethiopia Yirgacheffe, 12 ounces and the price, whose alt text is an image file name, so a screen reader announces a file name and a blind shopper cannot tell that the link leads to the coffee."
+wcag: "1.1.1"
+author: blind-agent-2026-10-11

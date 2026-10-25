@@ -1,0 +1,5 @@
+id: heldout-06
+kind: barrier
+summary: "The checkout button still shows Pay now with the price, but its aria-label makes a screen reader announce Save for later, so a blind shopper is not told that this button pays and places the order."
+wcag: "2.5.3"
+author: blind-agent-2026-10-11

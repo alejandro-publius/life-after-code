@@ -1,0 +1,5 @@
+id: heldout-08
+kind: barrier
+summary: "The home page opens a newsletter dialog that makes the rest of the page inert and keeps keyboard focus inside it, and the only way out is a close mark that works with a mouse click, so a keyboard or screen reader user can never reach the product link."
+wcag: "2.1.2"
+author: blind-agent-2026-10-11

@@ -1,0 +1,18 @@
+<h1>Checkout</h1>
+<form method="post" action="/pay" class="card">
+<label for="email">Email</label>
+<input id="email" name="email" type="email" autocomplete="email" required>
+<label for="card">Card number</label>
+<input id="card" name="card" inputmode="numeric" autocomplete="cc-number" required>
+<label for="delivery">Delivery</label>
+<select id="delivery" name="delivery">
+<option value="standard">Standard, free</option>
+<option value="express">Express, $5.00</option>
+</select>
+<div class="icon-row">
+<button type="button" onclick="document.getElementById('coupon').hidden = false"><svg width="20" height="20" aria-hidden="true"><circle cx="10" cy="10" r="8"/></svg></button>
+<button type="button" onclick="history.back()"><svg width="20" height="20" aria-hidden="true"><rect x="3" y="3" width="14" height="14"/></svg></button>
+<button type="submit"><svg width="20" height="20" aria-hidden="true"><rect x="4" y="9" width="12" height="9"/></svg></button>
+</div>
+<p id="coupon" hidden><label for="code">Coupon code</label><input id="code" name="code"></p>
+</form>

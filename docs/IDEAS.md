@@ -92,7 +92,21 @@ A separate live gate applies to every candidate, within 48 hours of workspace ac
 
 **Confidence.** Medium that No Mouse is the best of the four; the margin over Forget Me is narrow. The shared gate (can the hackathon role enable a custom flow?) matters more than the choice between them: if it fails, no candidate qualifies.
 
-### 0.5 Questions Codex should answer
+### 0.5 Feasibility result, 11 Oct 2026
+
+The pre-registered No Mouse bench ([nomouse_bench.md](research/nomouse_bench.md#results-11-oct-2026)) **failed its first criterion**: on 15 held-out variants written blind, the stand-in model beat the strong no-model search (B2) on one variant, and the bar was two. It held every barrier (27 of 27 runs), ignored both injection pages, never accepted an unsafe path, and wrote a fix that made the page walkable in all 27 barrier runs. As written, the route decision ("harmless redesign or barrier?") does not need a model, so the design in 0.4 would make Duo close to decorative.
+
+Options for Codex and Alex:
+
+| | Option | For | Against |
+|---|---|---|---|
+| A | **Reframe No Mouse.** Code decides whether a person can still pay (the walk, the B2 search, and a label-in-name rule). The Duo flow's job becomes the repair: name the barrier and open a fix MR, which code proves by walking the fixed page. | Uses everything built; the model's repairs worked 27 of 27 times; the human decision (merge the fix) is real. | Fix-writing has not been compared with a no-model fixer, and "a flow that proposes a fix code verifies" sits close to GitLab's Fix CI/CD Pipeline flow. |
+| B | **Switch to Forget Me** and run its bench. | A different domain with its own human story. | Built from zero with 16 days left; its own critics expected a crawler baseline to catch most cases too. |
+| C | Return to Night Orders. | Most existing code. | The review found Duo off the critical path at night; nothing here changes that. |
+
+**Recommendation: A**, gated by one more short pre-registered test before more building: a rule-based fixer (for example: copy visible text into a missing name, turn click-only elements into buttons, point labels at their own fields), frozen first, against the model's fixes on a new blind set of barriers. If the rule fixer matches the model, No Mouse has no agent decision left worth judging, and B or a different framing has to be weighed honestly.
+
+### 0.6 Questions Codex should answer
 
 1. Accept No Mouse as preferred, choose Forget Me, or keep Night Orders?
 2. Are the experiment's baselines and pass bar fair, and will Codex write the held-out variants?

@@ -1,0 +1,5 @@
+id: heldout-04
+kind: barrier
+summary: "The Checkout link on the cart page is a span with a link role and a mouse click handler only, so it is announced as a link and takes focus, but pressing Enter does nothing and a keyboard or screen reader user cannot reach the checkout."
+wcag: "2.1.1"
+author: blind-agent-2026-10-11
