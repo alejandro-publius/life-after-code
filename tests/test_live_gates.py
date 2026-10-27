@@ -49,3 +49,32 @@ def test_the_command_takes_only_https_links_and_writes_the_page(tmp_path, capsys
     assert main(["--day-one", str(saved), "--done", "video=https://youtu.be/abc", "--out", str(out)]) == 0
     text = out.read_text(encoding="utf-8")
     assert "**2 of 15 passed.**" in text and "[https://youtu.be/abc](https://youtu.be/abc)" in text
+
+
+def test_confirmed_live_evidence_does_not_need_a_reconstructed_day_one_run(tmp_path):
+    out = tmp_path / "LIVE_GATES.md"
+    project = "https://gitlab.example/group/project"
+    assert main(["--done", f"publish={project}", "--done", f"issue={project}/-/issues/2",
+                 "--out", str(out)]) == 0
+    text = out.read_text()
+    assert "**2 of 15 passed.**" in text
+    assert "day_one.py at" not in text
+    assert f"| passed | [{project}]({project}) |" in text
+
+
+def test_confirmation_links_do_not_hide_failed_checks(tmp_path):
+    saved = tmp_path / "day-one.json"
+    saved.write_text(json.dumps({"at": "2026-10-27T11:30", "results": [
+        {"step": "flow", "status": "FAIL", "reason": "flow timed out"}]}))
+    out = tmp_path / "LIVE_GATES.md"
+    assert main(["--day-one", str(saved), "--done", "flow=https://gitlab.example/old-session",
+                 "--out", str(out)]) == 0
+    text = out.read_text()
+    assert "**0 of 15 passed.**" in text
+    assert "| failed | flow timed out |" in text
+
+
+def test_confirmation_links_cannot_publish_credentials(capsys):
+    assert main(["--done", "publish=https://user:private-token@gitlab.example/project"]) == 2
+    assert main(["--done", "publish=https://"]) == 2
+    assert "private-token" not in capsys.readouterr().err

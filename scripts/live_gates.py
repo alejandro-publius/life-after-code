@@ -5,7 +5,9 @@
         --out docs/LIVE_GATES.md
 
 Inputs, all optional: the JSON that scripts/day_one.py --out writes, the relay's public base URL (its /healthz
-and /status.json; no token), and --done NAME=URL for the gates only a person can confirm. Anything without
+and /status.json; no token), and --done NAME=URL for independently confirmed evidence. A day-one gate can
+use a confirmation link when its original result file is unavailable, but never to replace a failed check.
+Links are supplied evidence, not fetched or verified by this command. Anything without
 evidence stays "pending", so the page never claims more than was run. It prints no setting and reads no token.
 """
 
@@ -90,6 +92,12 @@ def from_done(done: dict[str, str]) -> list[Gate]:
             for name, words in MANUAL]
 
 
+def confirm_day_one(gates: list[Gate], done: dict[str, str]) -> list[Gate]:
+    """Fill missing day-one evidence from explicit confirmations; preserve measured failures."""
+    return [Gate(g.name, g.words, "passed", done[g.name])
+            if g.state == "pending" and g.name in done else g for g in gates]
+
+
 def _cell(text: str) -> str:
     return " ".join(str(text).replace("|", "/").split())
 
@@ -122,14 +130,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--relay", help="the relay's public base URL (https)")
     parser.add_argument("--status", type=Path, help="a saved /status.json, instead of reading the relay's")
     parser.add_argument("--done", action="append", default=[], metavar="NAME=URL",
-                        help="a gate a person confirmed: " + ", ".join(name for name, _ in MANUAL))
+                        help="a gate independently confirmed (link required): "
+                        + ", ".join(name for name, _ in DAY_ONE + MANUAL))
     parser.add_argument("--out", type=Path, help="write the page here instead of printing it")
     args = parser.parse_args(argv)
     done = {}
     for item in args.done:
         name, _, url = item.partition("=")
-        if name not in dict(MANUAL) or not url.startswith("https://"):
-            print(f"--done {name}: needs one of {', '.join(dict(MANUAL))} and an https link", file=sys.stderr)
+        parts = urlsplit(url)
+        if name not in dict(DAY_ONE + MANUAL) or parts.scheme != "https" or not parts.hostname \
+                or parts.username or parts.password:
+            print(f"--done {name}: needs one of {', '.join(dict(DAY_ONE + MANUAL))} "
+                  "and an https link without credentials", file=sys.stderr)
             return 2
         done[name] = url
     base = None
@@ -141,7 +153,8 @@ def main(argv: list[str] | None = None) -> int:
         base = args.relay.rstrip("/")
     day_one = json.loads(args.day_one.read_text(encoding="utf-8")) if args.day_one else None
     status = fetch(str(args.status)) if args.status else (fetch(base) if base else None)
-    gates = from_day_one(day_one) + from_relay(base, status, healthz(base) if base else None) + from_done(done)
+    gates = confirm_day_one(from_day_one(day_one), done) \
+        + from_relay(base, status, healthz(base) if base else None) + from_done(done)
     text = render(gates, datetime.now(timezone.utc))
     if args.out:
         args.out.write_text(text, encoding="utf-8")
