@@ -44,7 +44,10 @@ def test_an_unsigned_night_says_so_with_the_problems():
     assert "Nothing happened." in text and "Not countersigned yet" in text
 
 
-def test_the_command_reads_a_saved_file_and_refuses_credentials_in_a_url(status, tmp_path, capsys):
+def test_the_command_reads_a_saved_file_and_refuses_credentials_in_a_url(status, tmp_path, capsys, monkeypatch):
+    # In a GitLab pipeline CI_PROJECT_URL and CI_PIPELINE_URL are set and add the links section; not here.
+    monkeypatch.delenv("CI_PROJECT_URL", raising=False)
+    monkeypatch.delenv("CI_PIPELINE_URL", raising=False)
     saved = tmp_path / "status.json"
     saved.write_text(json.dumps(status), encoding="utf-8")
     out = tmp_path / "report.md"

@@ -364,7 +364,8 @@ def test_without_ntfy_a_settings_problem_is_logged_and_still_counted(tmp_path, s
     assert any("could not page about the relay problem: NTFY_URL is not set" in r.message for r in caplog.records)
 
 
-def test_readyz_names_what_is_missing_and_says_ready_when_nothing_is(tmp_path, settings):
+def test_readyz_names_what_is_missing_and_says_ready_when_nothing_is(tmp_path, settings, monkeypatch):
+    monkeypatch.delenv("CI_COMMIT_SHORT_SHA", raising=False)  # GitLab CI sets it; /healthz would report it
     settings(GITLAB_TOKEN=FULL_SETTINGS["GITLAB_TOKEN"], FLOW_CONSUMER_ID="x7")
     client = TestClient(main.create_app(make_store=lambda config: FileStore(tmp_path / "state.json")))
     response = client.get("/readyz")
