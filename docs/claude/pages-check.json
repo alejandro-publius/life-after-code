@@ -1,0 +1,67 @@
+{
+  "checked_at": "2026-10-27T13:17:44.512128+00:00",
+  "url": "https://showcase-700ee4.gitlab.io",
+  "browser": "Chromium 151.0.7922.34, headless, through Playwright 1.62.0",
+  "source_commit_of_the_checks": "e167f1d3ceed",
+  "covers": [
+    "sign the orders (or leave them unsigned)",
+    "approve or decline the suggested action",
+    "the morning: watch log, countersign, lease",
+    "the permission boundary cases",
+    "incident memory",
+    "the shift handoff download (signed and approved path)",
+    "the execution explorer page"
+  ],
+  "checks": [
+    {
+      "check": "phone: signed and approved",
+      "result": "failed",
+      "error": "TimeoutError: Page.goto: Timeout 30000ms exceeded. Call log: - navigating to \"https://showcase-700ee4.gitlab.io/\", waiting until \"networkidle\"",
+      "cause": "the host redirected to GitLab sign-in (Pages access control), so the demo is not public for an anonymous visitor; not signed in"
+    },
+    {
+      "check": "phone: signed, approval declined",
+      "result": "failed",
+      "error": "TimeoutError: Page.goto: Timeout 30000ms exceeded. Call log: - navigating to \"https://showcase-700ee4.gitlab.io/\", waiting until \"networkidle\"",
+      "cause": "the host redirected to GitLab sign-in (Pages access control), so the demo is not public for an anonymous visitor; not signed in"
+    },
+    {
+      "check": "phone: unsigned",
+      "result": "failed",
+      "error": "TimeoutError: Page.goto: Timeout 30000ms exceeded. Call log: - navigating to \"https://showcase-700ee4.gitlab.io/\", waiting until \"networkidle\"",
+      "cause": "the host redirected to GitLab sign-in (Pages access control), so the demo is not public for an anonymous visitor; not signed in"
+    },
+    {
+      "check": "phone: execution explorer",
+      "result": "failed",
+      "error": "TimeoutError: Page.goto: Timeout 30000ms exceeded. Call log: - navigating to \"https://showcase-700ee4.gitlab.io/activity.html\", waiting until \"networkidle\"",
+      "cause": "the host redirected to GitLab sign-in (Pages access control), so the demo is not public for an anonymous visitor; not signed in"
+    },
+    {
+      "check": "laptop: signed and approved",
+      "result": "failed",
+      "error": "TimeoutError: Page.goto: Timeout 30000ms exceeded. Call log: - navigating to \"https://showcase-700ee4.gitlab.io/\", waiting until \"networkidle\"",
+      "cause": "the host redirected to GitLab sign-in (Pages access control), so the demo is not public for an anonymous visitor; not signed in"
+    },
+    {
+      "check": "laptop: signed, approval declined",
+      "result": "failed",
+      "error": "TimeoutError: Page.goto: Timeout 30000ms exceeded. Call log: - navigating to \"https://showcase-700ee4.gitlab.io/\", waiting until \"networkidle\"",
+      "cause": "the host redirected to GitLab sign-in (Pages access control), so the demo is not public for an anonymous visitor; not signed in"
+    },
+    {
+      "check": "laptop: unsigned",
+      "result": "failed",
+      "error": "TimeoutError: Page.goto: Timeout 30000ms exceeded. Call log: - navigating to \"https://showcase-700ee4.gitlab.io/\", waiting until \"networkidle\"",
+      "cause": "the host redirected to GitLab sign-in (Pages access control), so the demo is not public for an anonymous visitor; not signed in"
+    },
+    {
+      "check": "laptop: execution explorer",
+      "result": "failed",
+      "error": "TimeoutError: Page.goto: Timeout 30000ms exceeded. Call log: - navigating to \"https://showcase-700ee4.gitlab.io/activity.html\", waiting until \"networkidle\"",
+      "cause": "the host redirected to GitLab sign-in (Pages access control), so the demo is not public for an anonymous visitor; not signed in"
+    }
+  ],
+  "passed": false,
+  "blocked_before_the_demo": true
+}
