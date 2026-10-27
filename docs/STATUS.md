@@ -1,24 +1,27 @@
 # Status
 
-Updated **27 Oct 2026** during the Codex submission handoff.
+Updated **27 Oct 2026**, including development after the submission checkpoint.
 
 **Night Orders is on GitLab with persistent incident memory and a browser explorer of real Duo work.** Dusk created a validated orders merge request; watch posted a parsed refusal. Their recorded steps and artifacts are visible in the explorer. The guided shop night remains a labelled replay. The relay and shop have not been deployed to Google Cloud, and no real overnight flag change or morning countersign has run.
+
+**Later GitHub work:** a clearer first screen, interactive three-way comparison, minute-by-minute traffic inspection, a real keep/restore decision in the simulated morning, and a six-case operational verifier through the actual HTTP relay and persistent store. Both container images now require digest-bound scanning evidence before release. These later changes have not reached GitLab: project `88050495` is archived, and both authorized unarchive requests returned 403. See the single [nine-stage acceptance map](STAGE_EVIDENCE.md) for implementation, observed evidence and external blockers, and the [development record](codex/DEVELOPMENT_UPDATES.md) for the post-deadline boundary.
 
 ## Current evidence
 
 | Item | State and source |
 |---|---|
-| Source | [GitHub main](https://github.com/alejandro-publius/life-after-code/tree/main) at `6311445` was synced to [GitLab main](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/tree/main) through merge `45fb150`, preserving GitLab's starter history without a force push. It includes the permission explorer, flow installer, persistent incident memory and real-execution explorer. |
-| GitLab project | [Showcase](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase), project `88050495`. Its public API confirms public visibility and the MIT licence. |
-| Pipeline | [2994433358](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/pipelines/2994433358) passed all 18 jobs for `45fb150` on `main`, confirmed through the public API. It reports 663 application tests and 94% coverage. This covers the execution explorer and incident memory; later commits require their own pipeline result. |
+| Source | [GitLab main](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/tree/main) was last verified at `6f64ac1901e92554250c2857d1f7d78b20de9dc4`, preserving its starter history through normal merges. [GitHub main](https://github.com/alejandro-publius/life-after-code/tree/main) contains later interface, operational and packaging work. Claude's Dawn tools and blocked-run evidence were incorporated through `ea25e38`. |
+| GitLab project | [Showcase](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase), project `88050495`. Authenticated reads confirm `archived: true` and inherited Developer access (30). Unarchive returned 403 for both supplied credentials. An authorized administrator must restore writes; another token or replacement project is not the plan. |
+| Pipeline | [2994456180](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/pipelines/2994456180) passed all 18 jobs for `6f64ac1` on `main`, with 663 application tests and 94% coverage. It does not validate the later GitHub changes or new image gates. |
 | Release | [v0.1.18](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/releases/v0.1.18) contains the execution explorer sync, confirmed through the public API. |
 | Standing watch | [Issue #2](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/issues/2), titled "Tonight's watch", confirmed through the public API. |
 | Duo | Codex independently read the saved GitLab checkpoints and linked artifacts for [watch session 10120703](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/automate/agent-sessions/10120703) and dusk session 10124688. Watch's posted refusal passes the relay's real request parser. The [execution explorer](https://showcase-700ee4.gitlab.io/activity.html) displays both runs, 24 captured steps and their original artifact links. [Capture provenance](EXECUTION_EXPLORER.md). |
 | Incident memory | Observed incident history persists across nightly resets and informs the next dusk briefing. The browser exposes decision chains and a downloadable shift handoff. Approval and measured recovery remain separate outcomes. [Implementation and winner research](INCIDENT_MEMORY.md). |
 | Flow installation | The new [setup command](FLOWS_SETUP.md) installed dusk and dawn and verified all three application flows against their released GitLab definitions and actual service accounts. A repeated apply made zero changes. [Read-back evidence](codex/FLOW_SETUP.md). Installation does not establish execution. |
 | Dusk execution | [Session 10124688](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/automate/agent-sessions/10124688) completed its scout, critic, commit and MR sequence. [MR !1](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/merge_requests/1) contains only a valid zero-order `ops/night-orders.yml`: no merged change or deployment justified an action. It remains a draft, unapproved and unmerged. [Execution evidence and review adjustment](codex/FLOW_SETUP.md#live-dusk-execution). |
-| Pages | The Pages build and deployment passed in pipeline `2994433358`. [Published demo URL](https://showcase-700ee4.gitlab.io). Public playback remains unverified here: the environment proxy returned HTTP 403 on CONNECT to this host. Local phone and laptop browser checks, the static build and all four HTTP replay outcomes pass. |
-| Checks | GitLab CI reports **663 application tests with 94% coverage**, all 18 jobs passed. Local static phone and laptop walkthroughs cover the permission explorer, incident histories and execution explorer. The running preview also passed the actual-session, artifact-link and readable-control checks on both viewports. The generated live dusk file passed the actual orders parser. [Installer and execution checks](codex/FLOW_SETUP.md). |
+| Dawn | Claude's bounded runner and 25 tests are merged. Its [recorded attempt](claude/dawn-run.json) stopped when GitLab refused the first write with 403. No session, note or countersign MR was created. The archive diagnosis supersedes speculation that a different token would fix it. |
+| Pages | The old build and deployment passed in `2994456180`. Claude's [independent Chromium check](claude/pages-check.json) found the [Pages URL](https://showcase-700ee4.gitlab.io) redirects anonymous visitors to GitLab sign-in. The public journey is blocked before the demo loads. The current runtime and static demo pass local phone/laptop walks, including keep/restore; they are not deployed to that URL. |
+| Checks | The integrated GitHub working tree passed **754 application tests with 94% coverage** and Ruff, including Claude's tests. Runtime and static browser checks cover signing, approving or declining, morning keep/restore, comparison, permission checks, incident histories and the execution explorer. The operational verifier passes six bounded simulated nights through HTTP/FileStore, including lost-response recovery and an idempotent morning after restart. [Operational boundary](OPERATIONAL_VERIFICATION.md). |
 
 ## Submission fixes
 
@@ -28,11 +31,10 @@ The live-gates generator now accepts explicit evidence links for day-one gates w
 
 ## What still needs to happen
 
-- Continue syncing new GitHub commits through normal merges that preserve GitLab's history. The repositories are separate, with no automatic mirror configured. The `6311445` execution explorer sync is complete and its pipeline passed; never force-push GitLab `main`.
-- Claude's independent task is the live Dawn demonstration, with flow fixes and evidence in its assigned paths. [Self-contained parallel handoff](CLAUDE_PARALLEL_HANDOFF.md). Codex remains the GitLab main writer.
-- Open the Pages demo in a browser and play sign, approve and morning. Its local build passes; the public URL has not been verified here.
-- Alex must complete the [Devpost submission](https://devpost.com/submit-to/31503-life-after-code/manage/submissions/1220111/edit) using [DEVPOST.md](DEVPOST.md). The recorded deadline is **27 Oct, 13:00 UTC (6:00 AM Pacific)**, from [the rules check](codex/RULES_CHECK.md).
-- Alex will handle the video before submission. Upload a public English YouTube video under 3:00 and add its link to the form, as required by the [rules check](codex/RULES_CHECK.md). A finished upload has not been verified, so the submission is not claimed complete.
+- After an authorized administrator restores the existing GitLab project, sync the later GitHub commits through normal merges and verify the new pipeline at its exact commit. Never force-push. Image publication, both actual analyzer reports and the new release gate still need that live run.
+- Resume the prepared Dawn demonstration only after writes are restored. [Updated parallel handoff](CLAUDE_PARALLEL_HANDOFF.md). Codex remains the GitLab main writer; the blocked attempt is not a successful execution.
+- An authorized project administrator must resolve anonymous Pages access. Then repeat the public browser check against the newly deployed revision. No project permissions were changed here.
+- Alex retains the video and Devpost lane. Codex has not edited either. Development after **27 Oct, 13:00 UTC** is explicitly recorded and must not be represented as the submitted state.
 - No Google Cloud deployment, live overnight action or morning countersign has been demonstrated. No Cloud bonus is claimed. Dawn has not run live. Demo impact counts are from an invented night.
 
 ## Earlier work

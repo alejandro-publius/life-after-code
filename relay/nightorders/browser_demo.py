@@ -163,14 +163,14 @@ def gitlab_objects(night, ports: RecordingPorts, objects: dict, signed: bool, mo
             "dusk": dusk, "night": night_rows, "dawn": dawn_rows}
 
 
-def replay(*, signed: bool = True, approved: bool = True) -> dict:
-    """Run the single bundled night with two explicit demo human choices.
+def replay(*, signed: bool = True, approved: bool = True, keep_checkout: bool = True) -> dict:
+    """Run the single bundled night with explicit bedtime, fallback and morning choices.
 
     Selectors must be booleans. There is no path, action, target or credential
     input. Error rates are ratios. Each sample is the last complete minute;
     at is the decision tick and sampled_at is that minute's timestamp.
     """
-    for name, value in (("signed", signed), ("approved", approved)):
+    for name, value in (("signed", signed), ("approved", approved), ("keep_checkout", keep_checkout)):
         if type(value) is not bool:
             raise TypeError(f"{name} must be a boolean")
 
@@ -257,6 +257,7 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
     morning = {
         "at": morning_at, "time": night.oncall.hhmm(datetime.fromisoformat(morning_at)),
         "status": "not_needed", "lines": [], "kept": [], "undone": [], "by_hand": [],
+        "choice": "keep_checkout" if keep_checkout else "restore_all",
     }
     steps.append(step(
         "dawn-log", "dawn", "watch_log", ports.samples[-1]["at"], "The morning record comes from code",
@@ -265,9 +266,10 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
     ))
     if ends:
         # Use the same morning validator and executor used by the CLI demo.
-        plan = plan_morning(ends, parse_state(morning_source["state"], night.targets))
+        state_data = morning_source["state"] if keep_checkout else {"flags": [], "services": []}
+        plan = plan_morning(ends, parse_state(state_data, night.targets))
         action_start = len(ports.actions)
-        morning["lines"] = countersign(FIXTURE, ports, night)
+        morning["lines"] = countersign(FIXTURE, ports, night, state_data=state_data)
         morning["status"] = "merged"
         morning["kept"] = [{"action": item.action.as_dict(), "until": item.until,
                             "until_deployed": item.until_deployed} for item in plan.kept]
@@ -287,16 +289,17 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
             if kind == "undone":
                 operation = next(undos)
                 state = dict(operation["flags_after"])
+                restored_target = operation["action"].get("flag") or operation["action"].get("service") or "target"
             steps.append(step(
                 f"morning-{number}", "dawn", kind, morning_at,
                 "Keep the new checkout off" if kind == "kept"
-                else "Restore the cache flag to how it was before the night" if kind == "undone"
+                else f"Restore {restored_target.replace('_', ' ')} to how it was before the night" if kind == "undone"
                 else "Priya merges the demo countersign", text,
                 data={"source": "actual countersign result, demo merge"}, flags_before=before, flags_after=state,
             ))
         # Later that day the fix ships, and the real kept-list check ends the keep (demo data says when).
         after_morning = dict(ports.shop.flags)
-        later = lease_end(FIXTURE, ports, night)
+        later = lease_end(FIXTURE, ports, night) if plan.kept else []
         if later:
             note = next(line.split("note on the watch issue: ", 1)[1] for line in later if "note on the watch issue: " in line)
             fix = load_yaml(FIXTURE / "gitlab.yml")

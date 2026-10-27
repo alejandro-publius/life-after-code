@@ -28,6 +28,10 @@ def test_the_static_site_has_the_page_its_assets_and_the_four_replays(tmp_path):
         assert data["choices"] == {"signed": signed, "approved": approved}
         assert data["repo_url"] == "https://gitlab.com/group/night-orders"
         assert data["counts"] == expected["counts"] and data["timeline"] == expected["timeline"]
+        restored = json.loads((out / name(signed, approved, False)).read_text())
+        assert restored["morning"]["choice"] == "restore_all"
+        assert restored["flags"]["after_morning"] == restored["flags"]["initial"]
+        assert restored["morning"]["kept"] == []
     assert sorted(p.name for p in (out / "gallery").glob("*.png"))[:1] == ["01-dusk.png"]
 
 

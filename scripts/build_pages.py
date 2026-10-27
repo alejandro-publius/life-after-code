@@ -2,7 +2,7 @@
 
     python scripts/build_pages.py --out public
 
-The demo's four fixed combinations (signed or not, fallback approved or declined) are computed here by the same
+The demo's eight combinations (signed or not, fallback approved or declined, morning keep or restore) use the same
 code the relay runs (nightorders.browser_demo.replay) and written as JSON next to the page, which reads them
 instead of asking a server. Everything else is the demo's own HTML, script and stylesheet, with paths made
 relative so the site works under the project's Pages address. In CI, CI_PROJECT_URL points the demo's code
@@ -25,12 +25,13 @@ from nightorders import browser_demo, execution  # noqa: E402
 
 WEB = ROOT / "relay" / "demo_web"
 COMBINATIONS = [(True, True), (True, False), (False, True), (False, False)]
-ASSETS = ("app.js", "style.css", "og.png", "activity.js", "activity.css", "hero.css", "compare.css", "inspect.css")
+ASSETS = ("app.js", "style.css", "og.png", "activity.js", "activity.css", "hero.css", "compare.css", "inspect.css", "morning.css")
 GALLERY = ROOT / "docs" / "images" / "gallery"
 
 
-def name(signed: bool, approved: bool) -> str:
-    return f"replay-{'signed' if signed else 'unsigned'}-{'approved' if approved else 'declined'}.json"
+def name(signed: bool, approved: bool, keep_checkout: bool = True) -> str:
+    ending = "" if keep_checkout else "-restore"
+    return f"replay-{'signed' if signed else 'unsigned'}-{'approved' if approved else 'declined'}{ending}.json"
 
 
 def page() -> str:
@@ -62,12 +63,13 @@ def build(out: Path, project_url: str | None) -> list[Path]:
         shutil.copyfile(WEB / asset, out / "assets" / asset)
         written.append(out / "assets" / asset)
     for signed, approved in COMBINATIONS:
-        data = browser_demo.replay(signed=signed, approved=approved)
-        if project_url and project_url.startswith("https://"):
-            data["repo_url"] = project_url  # the demo's code links open the GitLab project
-        target = out / name(signed, approved)
-        target.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
-        written.append(target)
+        for keep_checkout in (True, False):
+            data = browser_demo.replay(signed=signed, approved=approved, keep_checkout=keep_checkout)
+            if project_url and project_url.startswith("https://"):
+                data["repo_url"] = project_url  # the demo's code links open the GitLab project
+            target = out / name(signed, approved, keep_checkout)
+            target.write_text(json.dumps(data, separators=(",", ":")), encoding="utf-8")
+            written.append(target)
     if GALLERY.exists():
         (out / "gallery").mkdir()
         for image in sorted(GALLERY.glob("*.png")):

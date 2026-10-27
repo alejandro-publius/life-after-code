@@ -303,6 +303,29 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
         capture(page, screenshots, f"demo-{screen}.png")
     page.locator("#next-step").click()
     ready(page, "dawn")
+    if signed:
+        expect(page.locator(".morning-awaiting")).to_be_visible()
+        expect(page.locator(".morning-list")).to_have_count(0)
+        restore_route = "**/*-restore.json" if DEMO_PATH == "/" else "**/demo/replay?*keep_checkout=false"
+        if approved:
+            page.route(restore_route, lambda route: route.fulfill(status=503, body="Unavailable"))
+        page.locator("#restore-morning").click()
+        if approved:
+            expect(page.locator(".inline-error")).to_be_visible()
+            expect(page.locator(".morning-list")).to_have_count(0)
+            page.unroute(restore_route)
+            page.get_by_role("button", name="Retry this choice").click()
+        ready(page, "dawn")
+        expect(page.locator('[data-flag="new_checkout"] dd > strong')).to_have_text("on")
+        expect(page.locator('[data-flag="stock_from_cache"] dd > strong')).to_have_text("off")
+        expect(page.locator(".lease-line")).to_have_count(0)
+        expect(page.locator(".morning-list > li")).to_have_count(2 if approved else 1)
+        page.locator("#keep-morning").click()
+        ready(page, "dawn")
+        expect(page.locator('[data-flag="new_checkout"] dd > strong')).to_have_text("off")
+        expect(page.locator('[data-flag="stock_from_cache"] dd > strong')).to_have_text("off")
+    else:
+        expect(page.locator(".morning-decision")).to_have_count(0)
     expected = ["1" if signed else "2", "1" if signed else "0", "1" if signed and approved else "0"]
     assert page.locator(".stat-value").all_text_contents() == expected
     expect(page.locator(".three-ways tbody tr")).to_have_count(3)

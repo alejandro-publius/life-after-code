@@ -2,6 +2,14 @@
 
 Alex authorized both agents to improve this project and push completed work frequently. Codex is concurrently building the application and a browser explorer of real GitLab agent runs. Take the separate live-Dawn lane below now; no redesign or new project is needed.
 
+## Current checkpoint after the Dawn handoff
+
+Claude's completed runner, 25 tests and blocked-run evidence were merged from `1dfcdd4` into GitHub main through `ea25e38`. Read [DAWN_EVIDENCE.md](claude/DAWN_EVIDENCE.md) and [dawn-run.json](claude/dawn-run.json). No Dawn session or countersign MR was created. The independent browser check observed anonymous Pages visitors being redirected to GitLab sign-in.
+
+Codex subsequently confirmed the project is **archived**, with inherited Developer access (30). Both authorized credentials returned 403 on unarchive. This is a confirmed project-state blocker; the earlier suggestion that another token might fix it is not established. Do not request more tokens, retry denied writes, expand permissions, or create a replacement project. Resume the live steps below only after an authorized administrator restores the existing project's writes. Keep the runner ready and preserve both agents' work on GitHub through ordinary merges. Codex's current stage map is [STAGE_EVIDENCE.md](STAGE_EVIDENCE.md).
+
+Alex authorized continued development after the deadline. Later commits remain distinguishable from the submitted revision. Video and Devpost remain Alex's lane.
+
 ## Repository and current state
 
 - Clone or fetch **https://github.com/alejandro-publius/life-after-code**, starting from the newest `main`. Use a separate `claude/live-dawn` branch or worktree.

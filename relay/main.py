@@ -125,11 +125,11 @@ DEMO_PAGE_HEADERS = {
 }
 
 
-@lru_cache(maxsize=4)
-def demo_replay(signed: bool, approved: bool) -> dict:
+@lru_cache(maxsize=8)
+def demo_replay(signed: bool, approved: bool, keep_checkout: bool = True) -> dict:
     from nightorders.browser_demo import replay
 
-    return replay(signed=signed, approved=approved)
+    return replay(signed=signed, approved=approved, keep_checkout=keep_checkout)
 
 
 @dataclass(frozen=True)
@@ -556,11 +556,13 @@ def _key_ok(given: str | None, expected: str) -> bool:
 def create_app(make_store: Callable[[Config], Any] = make_store,
                make_relay: Callable[[Config, Any], Relay] = make_relay,
                clock: Callable[[], datetime] | None = None, page_cache_seconds: float = 15.0,
-               make_pager: Callable[[Config], Callable[..., None]] = make_pager) -> FastAPI:
+               make_pager: Callable[[Config], Callable[..., None]] = make_pager,
+               config_factory: Callable[[], Config] | None = None) -> FastAPI:
     app = FastAPI(title="Night Orders relay", docs_url=None, redoc_url=None, openapi_url=None)
     health = Health()
     one_at_a_time = threading.Lock()
     now = clock or (lambda: datetime.now(timezone.utc))
+    configured = config_factory or Config.from_env
     # The public page and its JSON share one snapshot of the state, read at most every page_cache_seconds, so a
     # burst of views cannot crowd out the tick.
     cached: dict = {"until": 0.0, "page": "", "public": None}
@@ -569,7 +571,7 @@ def create_app(make_store: Callable[[Config], Any] = make_store,
         if time.monotonic() >= cached["until"]:
             moment = now()
             try:
-                doc, _ = make_store(Config.from_env()).load()
+                doc, _ = make_store(configured()).load()
                 page, public = render_status(doc, moment), {"available": True, **status_page.public(doc, moment)}
             except Exception as error:
                 log.warning("status page: %s", reason(error))
@@ -584,10 +586,10 @@ def create_app(make_store: Callable[[Config], Any] = make_store,
         return FileResponse(demo_files / "index.html", media_type="text/html", headers=DEMO_PAGE_HEADERS)
 
     @app.get("/demo/replay")
-    def replay_night(signed: bool = True, approved: bool = True) -> JSONResponse:
+    def replay_night(signed: bool = True, approved: bool = True, keep_checkout: bool = True) -> JSONResponse:
         # Fixed fixture selectors only. This route never reads runtime credentials,
         # GitLab, a production state store or the tick's action ports.
-        return JSONResponse(demo_replay(signed, approved), headers=DEMO_PAGE_HEADERS)
+        return JSONResponse(demo_replay(signed, approved, keep_checkout), headers=DEMO_PAGE_HEADERS)
 
     @app.get("/activity", response_class=HTMLResponse)
     @app.get("/activity/", response_class=HTMLResponse, include_in_schema=False)
@@ -620,14 +622,14 @@ def create_app(make_store: Callable[[Config], Any] = make_store,
 
     @app.get("/readyz")
     def readyz() -> JSONResponse:
-        problems = readiness(Config.from_env(), make_store)
+        problems = readiness(configured(), make_store)
         if problems:
             return JSONResponse({"ready": False, "problems": problems}, status_code=503)
         return JSONResponse({"ready": True, "store": "ok"})
 
     @app.post("/tick")
     def tick(x_relay_key: str | None = Header(default=None)) -> JSONResponse:
-        config = Config.from_env()
+        config = configured()
         if not _key_ok(x_relay_key, config["RELAY_KEY"]):
             if not config["RELAY_KEY"]:
                 log.error("RELAY_KEY is not set, so every tick is refused")

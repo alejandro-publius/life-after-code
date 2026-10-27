@@ -211,15 +211,21 @@ def _local(text: str, tz) -> datetime:
 
 
 def run(folder: Path | str, ops: Path | str | None = None, *, signed: bool = True,
-        approved: bool = True, collect_samples: bool = False, standing: bool = False) -> tuple[RecordingPorts, Night]:
+        approved: bool = True, collect_samples: bool = False, standing: bool = False,
+        watch_factory=None, ports_factory=None, max_seconds: float = MAX_DEMO_SECONDS) -> tuple[RecordingPorts, Night]:
     """Replay files with optional human choices. All side effects stay in memory.
 
     standing=True replays the night under Standing Orders: no recorded agent reply is used, code alone acts.
+    Optional factories let the operational verifier drive the HTTP relay with the same bounded fixture.
+    Defaults resolve the module globals at call time, preserving existing callers and test substitutions.
+    HTTP and file-store verification may select a larger time budget, still capped at 30 seconds.
     """
     for name, value in (("signed", signed), ("approved", approved), ("collect_samples", collect_samples),
                         ("standing", standing)):
         if type(value) is not bool:
             raise TypeError(f"{name} must be a boolean")
+    if isinstance(max_seconds, bool) or not isinstance(max_seconds, (int, float)) or not 0 < max_seconds <= 30:
+        raise ValueError("max_seconds must be greater than zero and at most 30")
     folder = Path(folder)
     ops = Path(ops) if ops else REPO / "ops"
     oncall = parse_oncall(load_yaml(ops / "oncall.yml"))
@@ -259,19 +265,19 @@ def run(folder: Path | str, ops: Path | str | None = None, *, signed: bool = Tru
     raw_reactions = json.loads((folder / "reactions.json").read_text())["incidents"] if approved else {}
     reactions = {int(k): (v["user"], datetime.fromisoformat(v["at"])) for k, v in raw_reactions.items()}
 
-    ports = RecordingPorts(oncall_tz=tz, shop=shop, notes=notes, reactions=reactions,
+    ports = (ports_factory or RecordingPorts)(oncall_tz=tz, shop=shop, notes=notes, reactions=reactions,
                            log_lines=[(_local(line["at"], tz), str(line["text"])) for line in scenario.get("log_lines", [])])
-    watch = Watch(night, ports, rules, standing=standing)
+    watch = (watch_factory or Watch)(night, ports, rules, standing=standing)
     metrics = Metrics()
     now = _local(scenario["start"], tz)
     end = _local(scenario["end"], tz)
     steps = int((end - now).total_seconds() // 60) + 1
     if not 1 <= steps <= MAX_DEMO_STEPS:
         raise ValueError(f"A demo night must contain between 1 and {MAX_DEMO_STEPS} minute steps")
-    deadline = monotonic() + MAX_DEMO_SECONDS
+    deadline = monotonic() + max_seconds
     for minute in range(steps):
         if monotonic() >= deadline:
-            raise TimeoutError(f"Demo replay exceeded {MAX_DEMO_SECONDS} seconds")
+            raise TimeoutError(f"Demo replay exceeded {max_seconds} seconds")
         # The minute that just ended, as the shop experienced it with the flags of that minute.
         sampled_at = now - timedelta(minutes=1)
         values = shop.minute_metrics(sampled_at)
@@ -291,14 +297,14 @@ def run(folder: Path | str, ops: Path | str | None = None, *, signed: bool = Tru
     return ports, night
 
 
-def countersign(folder: Path | str, ports: RecordingPorts, night: Night) -> list[str]:
+def countersign(folder: Path | str, ports: RecordingPorts, night: Night, *, state_data: dict | None = None) -> list[str]:
     """The morning: apply the merged countersign (countersign.yml in the demo folder) the way the relay does."""
     path = Path(folder) / "countersign.yml"
     if not path.exists():
         return []
     data = load_yaml(path)
     at = _local(data["merged_at"], night.oncall.timezone)
-    plan = plan_morning(loose_ends(night), parse_state(data.get("state"), night.targets))
+    plan = plan_morning(loose_ends(night), parse_state(data.get("state") if state_data is None else state_data, night.targets))
     lines = [f"{ports._t(at)}  countersign merged by {night.oncall.first_name} ({data['merged_by']})"]
     for item in plan.kept:
         lease = f" (code restores it when !{item.until_deployed} is in production)" if item.until_deployed else ""

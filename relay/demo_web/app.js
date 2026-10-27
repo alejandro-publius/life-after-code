@@ -20,6 +20,7 @@
     memoryIncident: null,
     comparisonWay: "signed",
     chartTime: null,
+    morningChoice: null,
   };
 
   const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -31,11 +32,13 @@
   const firstEvent = (kind, incident) => events(kind, incident)[0];
   const disabled = () => state.busy ? " disabled" : "";
 
-  // On GitLab Pages there is no server, so the four fixed combinations are files computed by the same code.
+  // GitLab Pages reads each bedtime, fallback and morning choice from files computed by the same code.
   const STATIC = document.body.dataset.static === "1";
-  const replayUrl = (signed, approved) => STATIC
-    ? `replay-${signed ? "signed" : "unsigned"}-${approved ? "approved" : "declined"}.json`
-    : `/demo/replay?signed=${signed}&approved=${approved}`;
+  const replayUrl = (signed, approved, keepCheckout = true) => {
+    const filename = `replay-${signed ? "signed" : "unsigned"}-${approved ? "approved" : "declined"}.json`;
+    return STATIC ? (keepCheckout ? filename : filename.replace(".json", "-restore.json"))
+      : `/demo/replay?signed=${signed}&approved=${approved}&keep_checkout=${keepCheckout}`;
+  };
 
   function button(id, text, action, type = "primary") {
     return `<button id="${id}" class="button ${type}" type="button" data-action="${action}"${disabled()}>${escape(text)}</button>`;
@@ -178,11 +181,14 @@
     const replay = state.replay;
     const morning = replay.morning;
     const hasChanges = morning.kept.length || morning.undone.length || morning.by_hand.length;
+    const reviewing = Boolean(hasChanges) && state.morningChoice === null;
     const leaseLine = (item) => item.until_deployed ? `<p class="lease-line"><strong>A lease, not forever.</strong> When !${escape(item.until_deployed)} is in production, code puts it back by itself, in daytime, and says so.</p>${morning.lease ? `<p class="lease-line">Later that day, !${escape(morning.lease.merge_request)} reached production. At ${escape(morning.lease.time)} code put it back as it was before the night (${escape(morning.lease.before)}) and noted it on the watch issue.</p>` : ""}` : "";
     const kept = morning.kept.map((item) => `<li class="morning-item"><span class="status-tag">Kept</span><div><strong>${escape(actionName(item.action))}</strong><p>${item.until ? `Until ${escape(item.until)}.` : "Kept with no end condition."}</p>${leaseLine(item)}</div></li>`).join("");
     const undone = morning.undone.map((item) => `<li class="morning-item"><span class="status-tag neutral">Restored</span><div><strong>${escape(actionName(item.action))}</strong><p>Not kept in the morning decision, so code put it back to how it was before the night.</p></div></li>`).join("");
     const byHand = morning.by_hand.map((item) => `<li class="morning-item"><span class="status-tag neutral">For Priya</span><div><p>${escape(item)}</p></div></li>`).join("");
     const intro = !hasChanges ? "Priya sees every wake-up. Watch made no changes on her behalf, so there is nothing to keep or restore in the morning."
+      : reviewing ? "The night is over. Priya now chooses what stays: keep the checkout change until its fix ships, or restore every change to its saved state."
+      : state.morningChoice === false ? "Priya chose to restore the saved configuration. Putting it back does not establish that the underlying fault is fixed."
       : morning.undone.length ? "Priya sees every wake-up and every change. The recorded morning decision keeps what still helps, and code restores the temporary fallback to how it was before the night."
       : "Priya sees every wake-up and every change. The recorded morning decision keeps the new checkout off until its fix ships, and code ends that keep when the fix is deployed. Nothing else changed overnight, so nothing needs restoring.";
     return `${chapter(morning.time || "07:42", "Coffee, and a clear account of the night.", intro)}
@@ -190,11 +196,19 @@
       ${replay.morning_push ? `<div class="quiet-push"><p class="quiet-push-head">Priya's phone at ${escape(replay.morning_push.time)} · one quiet push, no alarm</p>${replay.morning_push.lines.map((line) => `<p>${escape(line)}</p>`).join("")}</div>` : ""}
       <div class="stat-grid" aria-label="Actual replay counts"><div class="stat"><span class="stat-value">${escape(replay.counts.pages)}</span><span class="stat-label">${replay.counts.pages === 1 ? "wake-up" : "wake-ups"}</span></div><div class="stat"><span class="stat-value">${escape(replay.counts.automatic_incidents_handled)}</span><span class="stat-label">handled while she slept</span></div><div class="stat"><span class="stat-value">${escape(replay.counts.approved_actions)}</span><span class="stat-label">${replay.counts.approved_actions === 1 ? "human-approved action" : "human-approved actions"}</span></div></div>
       ${replay.signature.signed ? `<div class="event-card expiry-card"><span class="event-time">07:00</span><div class="event-body"><strong>Tonight's permission expires.</strong><p>Expiry stops further automatic action. It does not automatically undo a change.</p></div></div>` : `<div class="event-card expiry-card"><span class="event-time">07:00</span><div class="event-body"><strong>Nothing was signed tonight.</strong><p>There was no permission to expire. Every alert woke Priya.</p></div></div>`}
-      <h3 class="section-title">${hasChanges ? "The recorded morning countersign" : "No overnight changes to keep or restore"}</h3>
-      ${hasChanges ? `<ul class="morning-list">${kept}${undone}${byHand}</ul>` : "<p class=\"small-copy\">Watch made no changes, so this path needs no morning countersign.</p>"}
-      <p class="small-copy">A countersign is Priya's morning decision about what stays. This one is recorded demo data, not a live merge.</p>
+      ${hasChanges ? morningDecision() : '<h3 class="section-title">No overnight changes to keep or restore</h3><p class="small-copy">Watch made no changes, so this path needs no morning countersign.</p>'}
+      ${hasChanges && !reviewing ? `<ul class="morning-list">${kept}${undone}${byHand}</ul>` : ""}
+      <p class="small-copy">These choices change only this simulated night. Each restoration uses the snapshot recorded before its action. No live merge or service change is made.</p>
       ${threeWays()}
-      ${gitlabRows("dawn")}`;
+      ${!reviewing ? gitlabRows("dawn") : ""}`;
+  }
+
+  function morningDecision() {
+    const chosen = state.morningChoice !== null;
+    const names = {new_checkout: "New checkout", stock_from_cache: "Cached stock"};
+    const heading = !chosen ? "You decide what stays." : state.morningChoice ? "The checkout change stays until its fix ships." : "The saved configuration is restored.";
+    const flags = Object.entries(state.replay.flags.after_morning).map(([key, value]) => `<div data-flag="${escape(key)}"><dt>${escape(names[key] || key)}</dt><dd><strong>${escape(value)}</strong><span>Before the night: ${escape(state.replay.flags.initial[key])}</span></dd></div>`).join("");
+    return `<section class="morning-decision" aria-labelledby="morning-decision-title"><p class="eyebrow">Morning review · your demo choice</p><h3 id="morning-decision-title">${heading}</h3><p>${chosen ? "Try the other decision to compare the resulting configuration." : "Keeping the new checkout off avoids exposing its unfixed bug. Restoring everything returns the saved settings, including switching the new checkout back on."}</p><div class="morning-decision-actions">${button("keep-morning", "Keep checkout off until the fix ships", "morning-keep", state.morningChoice === false ? "secondary" : "primary")}${button("restore-morning", "Restore every overnight change", "morning-restore", state.morningChoice === false ? "primary" : "secondary")}</div>${chosen ? `<div class="morning-result" role="status"><p>Configuration immediately after your morning decision</p><dl class="morning-flags">${flags}</dl></div>` : '<p class="morning-awaiting">Choose above to apply the demo countersign.</p>'}</section>`;
   }
 
   function threeWays() {
@@ -369,6 +383,10 @@
     const memory = state.replay.incident_memory;
     if (!memory) return;
     const lines = ["# Night Orders shift handoff", "", state.replay.label, "", `Night: ${state.replay.night}`, "", memory.authority, ""];
+    lines.push("## Morning review", "", state.replay.morning.status === "not_needed" ? "No overnight changes need a countersign."
+      : state.morningChoice === null ? "The viewer has not selected a morning decision."
+      : state.morningChoice ? "The viewer kept the checkout change until its fix ships." : "The viewer restored every overnight change from its saved snapshot.", "");
+    if (state.morningChoice !== null) lines.push(...state.replay.morning.lines, "");
     for (const episode of memory.episodes) {
       lines.push(`## Incident #${episode.incident}: ${episode.outcome_label}`, "", episode.title, "", episode.lesson, "");
       for (const step of episode.steps) lines.push(`- ${timeOf(step.at)} [${step.kind}] ${step.text}`);
@@ -412,6 +430,7 @@
   }
 
   function morningProof(morning) {
+    if (state.morningChoice === null && morning.status !== "not_needed") return "Choose keep or restore over coffee to compute your morning decision. The viewer has not selected a countersign yet.";
     const later = morning.lease ? ["", "Later that day (demo data: the fix is deployed):", ...morning.lease.lines] : [];
     return morning.lines.length ? morning.lines.concat(later).join("\n") : "No morning changes were needed in this replay.";
   }
@@ -466,29 +485,30 @@
     return data;
   }
 
-  async function load(signed, approved, success) {
+  async function load(signed, approved, success, keepCheckout = true) {
     state.controller?.abort();
     const request = ++state.request;
     const controller = new AbortController();
     state.controller = controller;
     state.busy = true;
     state.error = null;
-    state.retry = () => load(signed, approved, success);
+    state.retry = () => load(signed, approved, success, keepCheckout);
     live.textContent = "Checking your demo choice.";
     render();
     let timedOut = false;
     const timeout = setTimeout(() => { timedOut = true; controller.abort(); }, 12000);
     try {
-      const key = `${signed}/${approved}`;
+      const key = `${signed}/${approved}/${keepCheckout}`;
       let replay = cache.get(key);
       if (!replay) {
-        const response = await fetch(replayUrl(signed, approved), {signal: controller.signal, headers: {Accept: "application/json"}, cache: "no-store"});
+        const response = await fetch(replayUrl(signed, approved, keepCheckout), {signal: controller.signal, headers: {Accept: "application/json"}, cache: "no-store"});
         if (!response.ok) throw new Error("The replay is temporarily unavailable. Please retry.");
         replay = validateReplay(await response.json());
         cache.set(key, replay);
       }
       if (request !== state.request) return;
       if (replay.choices.signed !== signed || replay.choices.approved !== approved) throw new Error("The replay returned a different choice. Please retry.");
+      if (replay.morning.choice !== (keepCheckout ? "keep_checkout" : "restore_all")) throw new Error("The replay returned a different morning choice. Please retry.");
       const hadReplay = Boolean(state.replay);
       state.replay = replay;
       state.busy = false;
@@ -511,9 +531,9 @@
   const cache = new Map();
 
   async function prefetch() {
-    // The four demo combinations are fixed, so they are fetched once and every later choice is instant.
+    // Prefetch the bedtime and fallback alternatives. Morning restore is fetched when selected.
     for (const [signed, approved] of [[true, false], [false, true], [false, false]]) {
-      const key = `${signed}/${approved}`;
+      const key = `${signed}/${approved}/true`;
       if (cache.has(key)) continue;
       try {
         const response = await fetch(replayUrl(signed, approved), {headers: {Accept: "application/json"}, cache: "no-store"});
@@ -549,6 +569,16 @@
       return;
     }
     const action = target.dataset.action;
+    if (action === "morning-keep" || action === "morning-restore") {
+      const keep = action === "morning-keep";
+      load(state.replay.choices.signed, state.replay.choices.approved, () => {
+        state.morningChoice = keep;
+        state.view = "dawn";
+        live.textContent = keep ? "Demo morning decision applied. Checkout stays off until its fix ships."
+          : "Demo morning decision applied. Every overnight change was restored from its saved snapshot.";
+      }, keep);
+      return;
+    }
     if (action === "sample-earlier" || action === "sample-later") {
       const current = Number(document.getElementById("chart-minute")?.value);
       inspectSample(current + (action === "sample-earlier" ? -1 : 1));
@@ -582,6 +612,7 @@
       load(signed, true, () => {
         state.signedChoice = signed;
         state.approvedChoice = null;
+        state.morningChoice = null;
         state.view = "night";
         state.nightScene = "inventory";
         live.textContent = signed ? "Demo orders signed. The next event needs Priya's approval." : "Demo orders left unsigned. Watch cannot act alone.";
@@ -590,6 +621,7 @@
       const approved = action === "approve";
       load(state.signedChoice, approved, () => {
         state.approvedChoice = approved;
+        state.morningChoice = null;
         state.view = "night";
         state.nightScene = "inventory";
         live.textContent = approved ? "Demo fallback approved by Priya. Both checkout paths recover." : "Demo fallback declined. The suggestion makes no change.";
@@ -605,6 +637,7 @@
         state.nightScene = "inventory";
         state.comparisonWay = "signed";
         state.chartTime = null;
+        state.morningChoice = null;
         live.textContent = "Replay reset. Choose whether to sign the demo orders.";
       });
     }
