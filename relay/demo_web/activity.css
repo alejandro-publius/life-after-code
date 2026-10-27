@@ -1,5 +1,6 @@
 @charset "UTF-8";
 
+.activity-page .eyebrow, .activity-page .brand-name > span { font-size: 12px; }
 .activity-back { font-size: 13px; font-weight: 700; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; gap: 10px; }
 .activity-back span { font-size: 19px; }
 .activity-shell { padding-top: 52px; }
