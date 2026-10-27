@@ -251,6 +251,23 @@ def test_flag_updates_fix_an_existing_flag_and_leave_a_right_one_alone():
 
 # catalog.
 
+@pytest.mark.parametrize("prefix", ["", "/gitlab"])
+def test_catalog_uses_graphql_endpoint_with_authentication_and_timeout(prefix):
+    """The real REST endpoint returns 404 for GraphQL; never route it through /api/v4."""
+    server = Server({
+        ("GET", prefix + API): PROJECT,
+        ("POST", prefix + "/api/graphql"): {"data": {"aiCatalogConfiguredItems": {"nodes": []}}},
+    })
+    code, text, _ = run(server, "--base-url", "https://gitlab.example" + prefix,
+                        "--step", "catalog", "--yes")
+    assert code == 0, text
+    [request] = server.sent("POST", prefix + "/api/graphql")
+    assert request.headers["PRIVATE-TOKEN"] == TOKEN
+    assert TOKEN not in str(request.url) and TOKEN not in text
+    assert request.extensions["timeout"]["read"] == day_one.TIMEOUT_SECONDS
+    assert not server.sent("POST", prefix + "/api/v4/graphql")
+
+
 def graphql_router(answers: dict[str, dict]):
     """Answers a GraphQL request by the first operation name found in its query text."""
     calls: list[dict] = []
@@ -272,7 +289,7 @@ def test_catalog_lists_the_enabled_flows_and_prints_the_clicks_without_the_probe
               "item": {"id": "gid://gitlab/Ai::Catalog::Item/3", "name": "night-watch"},
               "serviceAccount": {"username": "ai-night-watch-g"}}]
     route = graphql_router({"aiCatalogConfiguredItems": {"aiCatalogConfiguredItems": {"nodes": nodes}}})
-    server = Server({("GET", API): PROJECT, ("POST", "/api/v4/graphql"): route})
+    server = Server({("GET", API): PROJECT, ("POST", "/api/graphql"): route})
     code, text, data = run(server, "--step", "catalog", "--yes", out_json=tmp_path / "r.json")
     assert code == 0 and "flow night-watch: consumer id 12, service account ai-night-watch-g" in text
     assert "AI > Flows, then New flow" in text and "--create-probe" in text
@@ -300,7 +317,7 @@ def test_catalog_takes_the_relay_settings_from_the_watch_and_dawn_flows_own_acco
          "parentItemConsumer": None},
     ]
     route = graphql_router({"aiCatalogConfiguredItems": {"aiCatalogConfiguredItems": {"nodes": nodes}}})
-    server = Server({("GET", API): PROJECT, ("POST", "/api/v4/graphql"): route})
+    server = Server({("GET", API): PROJECT, ("POST", "/api/graphql"): route})
     code, text, data = run(server, "--step", "catalog", "--yes", out_json=tmp_path / "r.json")
     assert code == 0, text
     values = data["values"]
@@ -323,7 +340,7 @@ def test_create_probe_sends_the_flow_yaml_then_enables_it_and_reports_a_permissi
             "itemConsumer": {"id": "gid://gitlab/Ai::Catalog::ItemConsumer/44", "serviceAccount": {"username": "ai-night-orders-probe-g"}},
             "errors": [], "warnings": ["trigger created without a goal"]}},
     })
-    server = Server({("GET", API): PROJECT, ("POST", "/api/v4/graphql"): route})
+    server = Server({("GET", API): PROJECT, ("POST", "/api/graphql"): route})
     code, text, _ = run(server, "--step", "catalog", "--create-probe", "--yes")
     assert code == 0, text
     assert "project { id }" in next(c for c in route.calls if "aiCatalogItems(" in c["query"])["query"]
@@ -341,7 +358,7 @@ def test_create_probe_sends_the_flow_yaml_then_enables_it_and_reports_a_permissi
         "aiCatalogItems": {"aiCatalogItems": {"nodes": []}},
         "aiCatalogFlowCreate": {"aiCatalogFlowCreate": {"item": None, "errors": ["You don't have permission to create flows"]}},
     })
-    code, text, _ = run(Server({("GET", API): PROJECT, ("POST", "/api/v4/graphql"): refused}), "--step", "catalog", "--create-probe", "--yes")
+    code, text, _ = run(Server({("GET", API): PROJECT, ("POST", "/api/graphql"): refused}), "--step", "catalog", "--create-probe", "--yes")
     assert code == 1 and "catalog: FAIL (aiCatalogFlowCreate refused: You don't have permission to create flows)" in text
 
 
@@ -370,7 +387,7 @@ def test_flow_sends_the_flows_api_body_and_waits_for_the_probe_note():
         {"id": "gid://gitlab/Ai::DuoWorkflows::Workflow/42", "status": "FINISHED", "humanStatus": "finished"}]}}})
     server = Server({("GET", API): PROJECT, ("GET", f"{API}/issues"): [{"iid": 9, "title": "Day-one probe incident"}],
                      ("GET", f"{API}/issues/9/notes"): notes, ("POST", "/api/v4/ai/duo_workflows/workflows"): start,
-                     ("POST", "/api/v4/graphql"): graphql})
+                     ("POST", "/api/graphql"): graphql})
     clock = Clock()
     code, text, _ = run(server, "--step", "flow", "--consumer-id", "77", "--flow-account", "other-account", "--yes", clock=clock)
     assert code == 0, text
@@ -401,7 +418,7 @@ def test_flow_skips_without_a_consumer_id_and_fails_when_no_note_comes():
     assert code == 0 and "flow: SKIP (no consumer id for the probe flow" in text
     server = Server({("GET", API): PROJECT, ("GET", f"{API}/issues"): [{"iid": 9, "title": "Day-one probe incident"}],
                      ("GET", f"{API}/issues/9/notes"): [], ("POST", "/api/v4/ai/duo_workflows/workflows"): (201, {"id": 42, "status": "running"}),
-                     ("POST", "/api/v4/graphql"): (500, {"message": "boom"})})
+                     ("POST", "/api/graphql"): (500, {"message": "boom"})})
     clock = Clock()
     code, text, _ = run(server, "--step", "flow", "--consumer-id", "77", "--yes", clock=clock)
     assert code == 1 and "flow: FAIL (no note with 'probe ok' on incident #9 within 360 s (workflow 42, status not readable" in text

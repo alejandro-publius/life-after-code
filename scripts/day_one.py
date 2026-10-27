@@ -438,8 +438,12 @@ class DayOne:
         return str(self.project().get("default_branch") or "main")
 
     def graphql(self, what: str, query: str, variables: dict | None = None) -> dict:
-        data = self.gitlab.json(what, "POST", "/graphql", in_project=False,
-                                json={"query": query, "variables": variables or {}})
+        # GraphQL lives at /api/graphql, outside the versioned REST API.
+        # Keep any self-managed GitLab URL prefix and the same authenticated, timed transport.
+        url = self.gitlab.api.removesuffix("/v4") + "/graphql"
+        data = self.gitlab.http.call(f"GitLab {what}", "POST", url,
+                                     headers={"PRIVATE-TOKEN": self._token},
+                                     json={"query": query, "variables": variables or {}}).json()
         if not isinstance(data, dict):
             raise RelayError(f"GitLab {what}: GraphQL answered with no object")
         errors = data.get("errors")
