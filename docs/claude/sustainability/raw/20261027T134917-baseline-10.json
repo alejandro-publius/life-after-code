@@ -1,0 +1,21 @@
+{
+  "variant": "baseline",
+  "pid": 35708,
+  "import_seconds": 0.049022,
+  "cold": {
+    "wall_seconds": 0.034776,
+    "cpu_seconds": 0.034755,
+    "user_seconds": 0.033784,
+    "system_seconds": 0.000978
+  },
+  "fingerprint": "237c46c3f8ffc7c0445d2fa7d31c82f4e0ddabcc06dd07085e223bcf5ee70232",
+  "warm": {
+    "wall_seconds": 0.033747,
+    "cpu_seconds": 0.033672,
+    "user_seconds": 0.033106,
+    "system_seconds": 0.000573
+  },
+  "python_peak_bytes_warm": 679012,
+  "process_peak_rss_bytes": 33619968,
+  "run": 10
+}

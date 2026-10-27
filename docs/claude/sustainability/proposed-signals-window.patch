@@ -1,0 +1,19 @@
+diff --git a/relay/nightorders/signals.py b/relay/nightorders/signals.py
+index b25ef58..5ca3521 100644
+--- a/relay/nightorders/signals.py
++++ b/relay/nightorders/signals.py
+@@ -35,8 +35,13 @@ class Metrics:
+         return self.get(key, minute(now) - timedelta(minutes=1))
+ 
+     def window(self, key: str, now: datetime, minutes: int) -> list[float | None]:
++        """One dict lookup per minute of the window. The minutes are whole already, so get() would only
++        normalise them again (a datetime.replace each); the series is read once instead."""
+         end = minute(now)
+-        return [self.get(key, end - timedelta(minutes=i)) for i in range(minutes, 0, -1)]
++        series = self._series.get(key)
++        if not series:
++            return [None] * minutes
++        return [series.get(end - timedelta(minutes=i)) for i in range(minutes, 0, -1)]
+ 
+     def keys(self) -> list[str]:
+         return sorted(self._series)
