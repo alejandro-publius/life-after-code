@@ -1,0 +1,398 @@
+{
+  "schema": 1,
+  "label": "DEMO DATA: local simulated adapters; no live external service or model calls.",
+  "passed": true,
+  "source": {
+    "commit": "bfa7b6d8fbd03e884ff0db6b22db46a41d1f623c",
+    "content_sha256": "2e8a6921863660258b6e01c11071688cc6a205add3e903c3f2c4604dc13f34ef",
+    "content_files": [
+      "demo/night-2026-10-20/countersign.yml",
+      "demo/night-2026-10-20/dusk_recorded.json",
+      "demo/night-2026-10-20/gitlab.yml",
+      "demo/night-2026-10-20/notes.json",
+      "demo/night-2026-10-20/orders.yml",
+      "demo/night-2026-10-20/reactions.json",
+      "demo/night-2026-10-20/scenario.yml",
+      "demo/night-2026-10-20/signature.json",
+      "demo/night-2026-10-20/today.json",
+      "ops/alerts.yml",
+      "ops/night-orders.yml",
+      "ops/oncall.yml",
+      "ops/state.yml",
+      "ops/targets.yml",
+      "pyproject.toml",
+      "relay/main.py",
+      "relay/nightorders/__init__.py",
+      "relay/nightorders/browser_demo.py",
+      "relay/nightorders/cli.py",
+      "relay/nightorders/compare.py",
+      "relay/nightorders/countersign.py",
+      "relay/nightorders/dawn.py",
+      "relay/nightorders/daysheet.py",
+      "relay/nightorders/decide.py",
+      "relay/nightorders/demo_night.py",
+      "relay/nightorders/demo_story_data/night-2026-10-20/countersign.yml",
+      "relay/nightorders/demo_story_data/night-2026-10-20/dusk_recorded.json",
+      "relay/nightorders/demo_story_data/night-2026-10-20/gitlab.yml",
+      "relay/nightorders/demo_story_data/night-2026-10-20/notes.json",
+      "relay/nightorders/demo_story_data/night-2026-10-20/orders.yml",
+      "relay/nightorders/demo_story_data/night-2026-10-20/reactions.json",
+      "relay/nightorders/demo_story_data/night-2026-10-20/scenario.yml",
+      "relay/nightorders/demo_story_data/night-2026-10-20/signature.json",
+      "relay/nightorders/demo_story_data/night-2026-10-20/today.json",
+      "relay/nightorders/demo_story_data/ops/alerts.yml",
+      "relay/nightorders/demo_story_data/ops/oncall.yml",
+      "relay/nightorders/demo_story_data/ops/targets.yml",
+      "relay/nightorders/execution.py",
+      "relay/nightorders/gitlab_ports.py",
+      "relay/nightorders/kept.py",
+      "relay/nightorders/ledger.py",
+      "relay/nightorders/memory.py",
+      "relay/nightorders/model.py",
+      "relay/nightorders/morning.py",
+      "relay/nightorders/notes.py",
+      "relay/nightorders/operational.py",
+      "relay/nightorders/orders.py",
+      "relay/nightorders/refusals.py",
+      "relay/nightorders/rehearsal.py",
+      "relay/nightorders/signals.py",
+      "relay/nightorders/sources.py",
+      "relay/nightorders/state.py",
+      "relay/nightorders/status_page.py",
+      "relay/nightorders/watch.py",
+      "scripts/benchmark_resources.py",
+      "uv.lock"
+    ],
+    "includes_uncommitted_content": true
+  },
+  "environment": {
+    "python": "3.12.14",
+    "implementation": "CPython",
+    "platform": "Linux-6.18.55-x86_64-with-glibc2.41",
+    "machine": "x86_64",
+    "executable": "/workspace/life-after-code-design/.venv/bin/python",
+    "logical_cpus": 5,
+    "affinity_cpus": 5,
+    "packages": {
+      "fastapi": "0.142.2",
+      "starlette": "1.7.0",
+      "httpx": "0.28.1",
+      "pyyaml": "6.0.3"
+    }
+  },
+  "functional_unit": "One serialized, completed and outcome-verified signed/approved demo-night response, with keep_checkout=true. Warm samples deliver the previously computed night.",
+  "boundary": "Actual relay demo_replay LRU call plus JSONResponse serialization. Validation, imports, subprocess startup, HTTP, browser rendering, network and compression are outside timing.",
+  "cold_definition": "Fresh Python process per pair; all three application replay caches cleared. OS page caches are not cleared. Fixed comparisons and permission checks are included.",
+  "ordering": "Sequential pairs: cold then warm, no parallel workers or discarded samples.",
+  "limits": {
+    "repetitions": 3,
+    "max_repetitions": 8,
+    "max_seconds": 60,
+    "worker_timeout_seconds": 30
+  },
+  "units": {
+    "wall_ns": "nanoseconds",
+    "process_cpu_ns": "nanoseconds",
+    "response_bytes": "bytes",
+    "rss": "bytes after conversion; native ru_maxrss units are also recorded per sample"
+  },
+  "carbon": {
+    "status": "not_measured",
+    "energy_kwh": null,
+    "carbon_gco2e": null,
+    "sci": null,
+    "reason": "No measured energy, grid intensity or embodied emissions with provenance."
+  },
+  "samples": [
+    {
+      "mode": "cold",
+      "wall_ns": 397483300,
+      "process_cpu_ns": 390030114,
+      "rss_before": {
+        "current_rss_bytes": 49811456,
+        "peak_rss_bytes": 49721344,
+        "peak_rss_native": 48556,
+        "peak_rss_native_unit": "KiB"
+      },
+      "rss_after": {
+        "current_rss_bytes": 50892800,
+        "peak_rss_bytes": 50769920,
+        "peak_rss_native": 49580,
+        "peak_rss_native_unit": "KiB"
+      },
+      "response_bytes": 208925,
+      "response_sha256": "d1138d187eab5ddb638950825961cf4a16332bc86e70daafe2b28840be2a604d",
+      "cache_hits": 0,
+      "cache_misses": 1,
+      "verified_outcome": {
+        "counts": {
+          "pages": 1,
+          "automatic_incidents_handled": 1,
+          "approved_actions": 1,
+          "incidents": 2
+        },
+        "authority_expired": true,
+        "morning_choice": "keep_checkout",
+        "completed_demo_nights": 1
+      },
+      "pair": 1,
+      "sequence": 1
+    },
+    {
+      "mode": "warm",
+      "wall_ns": 2288667,
+      "process_cpu_ns": 2285664,
+      "rss_before": {
+        "current_rss_bytes": 51372032,
+        "peak_rss_bytes": 51163136,
+        "peak_rss_native": 49964,
+        "peak_rss_native_unit": "KiB"
+      },
+      "rss_after": {
+        "current_rss_bytes": 51585024,
+        "peak_rss_bytes": 51425280,
+        "peak_rss_native": 50220,
+        "peak_rss_native_unit": "KiB"
+      },
+      "response_bytes": 208925,
+      "response_sha256": "d1138d187eab5ddb638950825961cf4a16332bc86e70daafe2b28840be2a604d",
+      "cache_hits": 1,
+      "cache_misses": 0,
+      "verified_outcome": {
+        "counts": {
+          "pages": 1,
+          "automatic_incidents_handled": 1,
+          "approved_actions": 1,
+          "incidents": 2
+        },
+        "authority_expired": true,
+        "morning_choice": "keep_checkout",
+        "completed_demo_nights": 1
+      },
+      "pair": 1,
+      "sequence": 2
+    },
+    {
+      "mode": "cold",
+      "wall_ns": 319736592,
+      "process_cpu_ns": 319688768,
+      "rss_before": {
+        "current_rss_bytes": 49475584,
+        "peak_rss_bytes": 49258496,
+        "peak_rss_native": 48104,
+        "peak_rss_native_unit": "KiB"
+      },
+      "rss_after": {
+        "current_rss_bytes": 50507776,
+        "peak_rss_bytes": 50307072,
+        "peak_rss_native": 49128,
+        "peak_rss_native_unit": "KiB"
+      },
+      "response_bytes": 208925,
+      "response_sha256": "d1138d187eab5ddb638950825961cf4a16332bc86e70daafe2b28840be2a604d",
+      "cache_hits": 0,
+      "cache_misses": 1,
+      "verified_outcome": {
+        "counts": {
+          "pages": 1,
+          "automatic_incidents_handled": 1,
+          "approved_actions": 1,
+          "incidents": 2
+        },
+        "authority_expired": true,
+        "morning_choice": "keep_checkout",
+        "completed_demo_nights": 1
+      },
+      "pair": 2,
+      "sequence": 3
+    },
+    {
+      "mode": "warm",
+      "wall_ns": 1777512,
+      "process_cpu_ns": 1775237,
+      "rss_before": {
+        "current_rss_bytes": 50987008,
+        "peak_rss_bytes": 50831360,
+        "peak_rss_native": 49640,
+        "peak_rss_native_unit": "KiB"
+      },
+      "rss_after": {
+        "current_rss_bytes": 51200000,
+        "peak_rss_bytes": 50962432,
+        "peak_rss_native": 49768,
+        "peak_rss_native_unit": "KiB"
+      },
+      "response_bytes": 208925,
+      "response_sha256": "d1138d187eab5ddb638950825961cf4a16332bc86e70daafe2b28840be2a604d",
+      "cache_hits": 1,
+      "cache_misses": 0,
+      "verified_outcome": {
+        "counts": {
+          "pages": 1,
+          "automatic_incidents_handled": 1,
+          "approved_actions": 1,
+          "incidents": 2
+        },
+        "authority_expired": true,
+        "morning_choice": "keep_checkout",
+        "completed_demo_nights": 1
+      },
+      "pair": 2,
+      "sequence": 4
+    },
+    {
+      "mode": "cold",
+      "wall_ns": 364690677,
+      "process_cpu_ns": 364685979,
+      "rss_before": {
+        "current_rss_bytes": 49913856,
+        "peak_rss_bytes": 49590272,
+        "peak_rss_native": 48428,
+        "peak_rss_native_unit": "KiB"
+      },
+      "rss_after": {
+        "current_rss_bytes": 51003392,
+        "peak_rss_bytes": 50638848,
+        "peak_rss_native": 49452,
+        "peak_rss_native_unit": "KiB"
+      },
+      "response_bytes": 208925,
+      "response_sha256": "d1138d187eab5ddb638950825961cf4a16332bc86e70daafe2b28840be2a604d",
+      "cache_hits": 0,
+      "cache_misses": 1,
+      "verified_outcome": {
+        "counts": {
+          "pages": 1,
+          "automatic_incidents_handled": 1,
+          "approved_actions": 1,
+          "incidents": 2
+        },
+        "authority_expired": true,
+        "morning_choice": "keep_checkout",
+        "completed_demo_nights": 1
+      },
+      "pair": 3,
+      "sequence": 5
+    },
+    {
+      "mode": "warm",
+      "wall_ns": 2195520,
+      "process_cpu_ns": 2193017,
+      "rss_before": {
+        "current_rss_bytes": 51482624,
+        "peak_rss_bytes": 51163136,
+        "peak_rss_native": 49964,
+        "peak_rss_native_unit": "KiB"
+      },
+      "rss_after": {
+        "current_rss_bytes": 51695616,
+        "peak_rss_bytes": 51294208,
+        "peak_rss_native": 50092,
+        "peak_rss_native_unit": "KiB"
+      },
+      "response_bytes": 208925,
+      "response_sha256": "d1138d187eab5ddb638950825961cf4a16332bc86e70daafe2b28840be2a604d",
+      "cache_hits": 1,
+      "cache_misses": 0,
+      "verified_outcome": {
+        "counts": {
+          "pages": 1,
+          "automatic_incidents_handled": 1,
+          "approved_actions": 1,
+          "incidents": 2
+        },
+        "authority_expired": true,
+        "morning_choice": "keep_checkout",
+        "completed_demo_nights": 1
+      },
+      "pair": 3,
+      "sequence": 6
+    }
+  ],
+  "limitations": [
+    "Cached delivery is not a new independent night or a live agent run.",
+    "Cold includes fixed comparison replays and permission checks needed by the response.",
+    "Warm follows cold in each process; order, filesystem cache and host load can affect timings.",
+    "Peak RSS is the process lifetime high-water mark, includes imports and cannot be subtracted to infer a warm-request allocation. Current RSS is available only where supported.",
+    "Few local samples establish no production, energy, carbon or live model-token saving."
+  ],
+  "source_after": {
+    "commit": "bfa7b6d8fbd03e884ff0db6b22db46a41d1f623c",
+    "content_sha256": "2e8a6921863660258b6e01c11071688cc6a205add3e903c3f2c4604dc13f34ef",
+    "content_files": [
+      "demo/night-2026-10-20/countersign.yml",
+      "demo/night-2026-10-20/dusk_recorded.json",
+      "demo/night-2026-10-20/gitlab.yml",
+      "demo/night-2026-10-20/notes.json",
+      "demo/night-2026-10-20/orders.yml",
+      "demo/night-2026-10-20/reactions.json",
+      "demo/night-2026-10-20/scenario.yml",
+      "demo/night-2026-10-20/signature.json",
+      "demo/night-2026-10-20/today.json",
+      "ops/alerts.yml",
+      "ops/night-orders.yml",
+      "ops/oncall.yml",
+      "ops/state.yml",
+      "ops/targets.yml",
+      "pyproject.toml",
+      "relay/main.py",
+      "relay/nightorders/__init__.py",
+      "relay/nightorders/browser_demo.py",
+      "relay/nightorders/cli.py",
+      "relay/nightorders/compare.py",
+      "relay/nightorders/countersign.py",
+      "relay/nightorders/dawn.py",
+      "relay/nightorders/daysheet.py",
+      "relay/nightorders/decide.py",
+      "relay/nightorders/demo_night.py",
+      "relay/nightorders/demo_story_data/night-2026-10-20/countersign.yml",
+      "relay/nightorders/demo_story_data/night-2026-10-20/dusk_recorded.json",
+      "relay/nightorders/demo_story_data/night-2026-10-20/gitlab.yml",
+      "relay/nightorders/demo_story_data/night-2026-10-20/notes.json",
+      "relay/nightorders/demo_story_data/night-2026-10-20/orders.yml",
+      "relay/nightorders/demo_story_data/night-2026-10-20/reactions.json",
+      "relay/nightorders/demo_story_data/night-2026-10-20/scenario.yml",
+      "relay/nightorders/demo_story_data/night-2026-10-20/signature.json",
+      "relay/nightorders/demo_story_data/night-2026-10-20/today.json",
+      "relay/nightorders/demo_story_data/ops/alerts.yml",
+      "relay/nightorders/demo_story_data/ops/oncall.yml",
+      "relay/nightorders/demo_story_data/ops/targets.yml",
+      "relay/nightorders/execution.py",
+      "relay/nightorders/gitlab_ports.py",
+      "relay/nightorders/kept.py",
+      "relay/nightorders/ledger.py",
+      "relay/nightorders/memory.py",
+      "relay/nightorders/model.py",
+      "relay/nightorders/morning.py",
+      "relay/nightorders/notes.py",
+      "relay/nightorders/operational.py",
+      "relay/nightorders/orders.py",
+      "relay/nightorders/refusals.py",
+      "relay/nightorders/rehearsal.py",
+      "relay/nightorders/signals.py",
+      "relay/nightorders/sources.py",
+      "relay/nightorders/state.py",
+      "relay/nightorders/status_page.py",
+      "relay/nightorders/watch.py",
+      "scripts/benchmark_resources.py",
+      "uv.lock"
+    ],
+    "includes_uncommitted_content": true
+  },
+  "outcomes_equal": true,
+  "summary": {
+    "cold": {
+      "samples": 3,
+      "median_wall_ns": 364690677,
+      "median_process_cpu_ns": 364685979,
+      "median_response_bytes": 208925
+    },
+    "warm": {
+      "samples": 3,
+      "median_wall_ns": 2195520,
+      "median_process_cpu_ns": 2193017,
+      "median_response_bytes": 208925
+    }
+  },
+  "elapsed_seconds": 4.658429
+}
