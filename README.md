@@ -67,6 +67,8 @@ The model chooses where to look. Code decides what is true. A human decides when
 
 **23 attempts, 0 production changes.** [docs/REFUSALS.md](docs/REFUSALS.md) tries every way we found for the night to go wrong against the real decision code: a reply that adds its own action, a suggestion off the menu, a teammate's merge or thumbs-up, the clock after 07:00, payment errors, two checkouts a minute, a switched-off path that reads 0%, a fourth order, a countersign that keeps a change nobody made. Each answer in the table is code's own text, and a test keeps the page equal to what the code prints. The first row is the control: with everything in order, the same harness does act.
 
+**Inspect the checks in the browser.** Below the replay, **Check the permission boundary** lets you choose any of those 23 attempts and read the decision code's exact answer. Select **Valid control** to see the same code permit an action when its checks hold. These simulated results are computed during replay or the static build, and selecting a case only reads its result.
+
 ![One night, dusk to dawn: the person signs, Duo flows draft and judge, code checks and acts, GitLab and Cloud Run hold the record](docs/images/night-orders-loop.svg)
 
 - **Before bed:** the dusk Duo flow proposes at most three orders from the day's changes. Each names a condition and one reversible action: set a feature flag, or move a Cloud Run service's traffic to a named earlier revision. A database migration gets no order.

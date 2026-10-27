@@ -117,6 +117,23 @@ def capture(page, directory: Path | None, name: str):
         page.evaluate(STILL, False)
 
 
+def permission_boundary(page):
+    """The browser exposes real refusal verdicts and a control that can permit an action."""
+    case = page.locator("#permission-case")
+    expect(case.locator("option")).to_have_count(24)
+    expect(page.locator("#permission-summary")).to_contain_text("23")
+    for index, reason in (("2", "unexpected keys: do"), ("10", "orders expired"), ("12", "needs 10")):
+        case.select_option(index)
+        expect(page.locator("#permission-verdict")).to_contain_text(reason)
+        expect(page.locator("#permission-action")).to_have_attribute("data-permitted", "false")
+    case.focus()
+    page.keyboard.press("Home")
+    expect(case).to_have_value("0")
+    expect(case).to_be_focused()
+    expect(page.locator("#permission-verdict")).to_contain_text("Acts: order 1")
+    expect(page.locator("#permission-action")).to_have_attribute("data-permitted", "true")
+
+
 def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | None, screen: str):
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -200,8 +217,13 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
     page.locator("#evidence-details > summary").click()
     if signed and approved:
         capture(page, screenshots, f"demo-{screen}-morning.png")
+    permission_boundary(page)
+    fits_screen(page)
+    if screen == "phone":
+        readable(page)
     page.locator("#restart-demo").click()
     ready(page, "dusk")
+    expect(page.locator("#permission-case")).to_have_value("0")
     expect(page.locator("#sign-orders")).to_be_enabled()
     assert errors == [], errors
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import itertools
 import json
+from dataclasses import asdict
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
@@ -25,6 +26,7 @@ from .model import OnCall, Targets, describe_before
 from .orders import load_yaml, watch_window
 from .morning import push_lines
 from .rehearsal import rehearse
+from .refusals import Row, rows as refusal_rows
 
 DATA = Path(__file__).with_name("demo_story_data")
 FIXTURE = DATA / "night-2026-10-20"
@@ -54,6 +56,15 @@ def three_ways() -> tuple[dict, ...]:
     """The same night signed, under standing orders and unsigned, counted by the real Watch. It does not depend
     on the browser's choices, so it is computed once per process."""
     return tuple(compare(FIXTURE, OPS))
+
+
+@lru_cache(maxsize=1)
+def permission_checks() -> tuple[Row, ...]:
+    """Fixed simulated attempts evaluated by the real permission code, including a valid control.
+
+    Frozen rows can be shared between replays; each JSON response gets its own dictionaries.
+    """
+    return tuple(refusal_rows())
 
 
 class _OrdersFile:
@@ -308,6 +319,7 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
         "rehearsal": rehearsed,
         "objects": gitlab_objects(night, ports, objects, signed, morning, rehearsed),
         "three_ways": list(three_ways()),
+        "permission_checks": [asdict(row) for row in permission_checks()],
         "persona": {"name": night.oncall.first_name, "display_name": night.oncall.display_name, "user": night.oncall.user},
         "night": night.orders.night.isoformat(), "timezone": str(night.oncall.timezone),
         "signature": {"signed": sig is not None, "method": sig.method if sig else None,

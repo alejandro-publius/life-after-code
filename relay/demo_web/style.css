@@ -36,7 +36,7 @@ button, input, select, textarea { font: inherit; }
 button, a, summary { -webkit-tap-highlight-color: transparent; }
 button { cursor: pointer; }
 a { color: inherit; text-underline-offset: 4px; }
-button:focus-visible, a:focus-visible, summary:focus-visible {
+button:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visible {
   outline: 3px solid #a26915;
   outline-offset: 4px;
 }
@@ -387,6 +387,33 @@ details > summary::-webkit-details-marker { display: none; }
 .evidence-sources > strong { flex-basis: 100%; color: #46594f; font-size: 12px; font-weight: 700; }
 .evidence-sources > a { display: inline-flex; align-items: center; min-height: 44px; color: #3b5d6a; font-size: 12px; font-weight: 600; }
 .evidence-sources .small-copy { flex-basis: 100%; margin: 0; }
+
+.permission-panel { margin-top: 22px; padding: 24px; border: 1px solid #b8cbbd; border-radius: 16px; background: var(--surface); }
+.permission-head { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+.permission-head > div { max-width: 680px; min-width: 0; }
+.permission-label { margin: 0 0 7px; color: var(--green); font-size: 12px; font-weight: 700; }
+.permission-panel h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: 27px; font-weight: 400; line-height: 1.2; letter-spacing: -.5px; }
+.permission-head > div > p:last-child { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+.permission-summary { flex: 0 1 260px; margin: 0; padding: 12px 14px; border-radius: 10px; font-size: 13px; font-weight: 650; }
+.permission-summary.passed, .permission-outcome.passed { color: #24523e; background: var(--green-light); }
+.permission-summary.failed, .permission-outcome.failed { color: #8a2c23; background: #ffe8de; }
+.permission-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 22px; align-items: start; margin-top: 22px; }
+.permission-picker { min-width: 0; }
+.permission-picker label { display: block; margin-bottom: 7px; font-size: 13px; font-weight: 700; }
+.permission-picker select { display: block; width: 100%; min-width: 0; max-width: 100%; min-height: 48px; padding: 11px 12px; border: 1px solid #8fa79b; border-radius: 9px; color: var(--ink); background: #fffdf7; font-size: 14px; text-overflow: ellipsis; }
+.permission-code { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; color: #3b5d6a; font-size: 12px; font-weight: 650; }
+.permission-result { min-width: 0; padding: 17px; border: 1px solid var(--line); border-radius: 10px; background: #fafbf5; }
+.permission-result h3 { margin: 15px 0 5px; color: #46594f; font-size: 12px; font-weight: 750; }
+.permission-result p { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.permission-result .permission-outcome { display: inline-block; padding: 6px 9px; border-radius: 6px; font-size: 12px; font-weight: 750; }
+.permission-result .small-copy { margin-top: 12px; font-size: 12px; }
+@media (max-width: 700px) {
+  .permission-panel { padding: 18px; }
+  .permission-head { display: block; }
+  .permission-summary { margin-top: 14px; }
+  .permission-panel h2 { font-size: 24px; }
+  .permission-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 18px; }
+}
 .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .91em; overflow-wrap: anywhere; }
 .proof-log { max-height: 265px; margin: 8px 0 0; padding: 12px; overflow: auto; border: 1px solid #d9e0d5; border-radius: 7px; color: #4f5f55; background: #eff3eb; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
 

@@ -94,6 +94,38 @@ def test_first_incident_needs_a_person_despite_an_eligible_signed_order():
     assert messages[0]["approval"] == "approved"
 
 
+def test_permission_checks_show_real_refusals_and_an_acting_control_for_every_choice():
+    from dataclasses import asdict
+
+    from nightorders.refusals import rows
+
+    expected = [asdict(row) for row in rows()]
+    for signed, approved in [(True, True), (True, False), (False, True), (False, False)]:
+        checks = browser_demo.replay(signed=signed, approved=approved)["permission_checks"]
+        assert checks == expected
+        assert all(set(row) == {"who", "tried", "answer", "changed"} for row in checks)
+        assert checks[0]["who"] == "Control" and checks[0]["changed"] is True
+        assert checks[0]["answer"].startswith("Acts: order 1")
+        assert checks[1:] and all(row["changed"] is False for row in checks[1:])
+        injected = next(row for row in checks if "adds its own action" in row["tried"])
+        assert "unexpected keys: do" in injected["answer"]
+        expired = next(row for row in checks if "07:05" in row["tried"])
+        assert "expired at 07:00" in expired["answer"]
+        thin = next(row for row in checks if "2 checkouts a minute" in row["tried"])
+        assert "needs 10" in thin["answer"]
+
+
+def test_changing_a_permission_check_response_cannot_change_later_replays():
+    first = browser_demo.replay()["permission_checks"]
+    expected = copy.deepcopy(first)
+    first[0]["changed"] = False
+    first[1]["answer"] = "A caller changed this response."
+    first.pop()
+
+    later = browser_demo.replay(signed=False, approved=False)["permission_checks"]
+    assert later == expected
+
+
 def test_second_incident_acts_only_with_code_checks_and_a_recorded_request():
     result = browser_demo.replay()
     automatic = _events(result, "acted")

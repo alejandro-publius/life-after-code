@@ -16,6 +16,7 @@
     request: 0,
     controller: null,
     retry: null,
+    permissionCase: 2,
   };
 
   const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -287,6 +288,26 @@
     return `<details class="evidence" id="evidence-details"><summary><span>Read the decision evidence</span><span class="small-copy">Signature, checks and the code's record</span></summary><div class="evidence-grid"><section class="evidence-section"><h3>Demo signature and expiry</h3><dl class="evidence-list"><dt>Signature</dt><dd>${signature.signed ? `Priya (demo persona, GitLab user ${escape(signature.user)}) by ${escape(signature.method)} at ${escape(timeOf(signature.at))}` : "Unsigned. Watch has no permission to act alone."}</dd><dt>Ends</dt><dd>${escape(replay.expiry.time)} in ${escape(replay.timezone)}</dd><dt>When expiry happens</dt><dd>Permission ends. Existing changes are not automatically reverted.</dd>${signature.signed ? `<dt>Signed commit</dt><dd>Demo placeholder. On a live night this is the merge commit code read the orders from.</dd>` : ""}</dl><h3>What was checked</h3>${checks ? `<ul class="evidence-list">${checks}</ul>` : "<p>No signed order was carried out in this replay.</p>"}</section><section class="evidence-section"><h3>The actual wake-up messages</h3><ul class="evidence-list">${pageItems}</ul></section>${packHtml}<section class="evidence-section evidence-wide"><h3>Ledger written by Watch</h3><ol class="evidence-list ledger-list">${replay.timeline.map((event) => `<li><span class="mono">${escape(event.time)} · ${escape(event.kind)}</span><p>${escape(event.text)}</p></li>`).join("")}</ol><details><summary>Read the recorded port log</summary><pre class="proof-log">${escape(replay.logs.join("\n"))}</pre></details><details><summary>Read the demo order structure</summary><pre class="proof-log">${escape(JSON.stringify(replay.orders, null, 2))}</pre></details><details><summary>Read the morning record</summary><pre class="proof-log">${escape(morningProof(replay.morning))}</pre></details></section></div><div class="evidence-sources"><strong>Inspect the code and labelled files</strong><a href="${escape(code("blob/main/relay/nightorders/watch.py"))}">Watch decision code</a><a href="${escape(code("blob/main/relay/nightorders/decide.py"))}">The two keys</a><a href="${escape(code("blob/main/relay/nightorders/demo_night.py"))}">In-memory replay</a><a href="${escape(code("tree/main/demo/night-2026-10-20"))}">Labelled demo inputs</a><p class="small-copy">The same existing Watch code makes these verdicts. Shop faults and agent replies are recorded demo data. This page does not run a live model, make GitLab writes, send phone push notifications or call production services.</p></div></details>`;
   }
 
+  function permissionResult(row, index) {
+    const control = index === 0;
+    const passed = control ? row.changed : !row.changed;
+    const outcome = !passed ? "Check failed" : control ? "Valid control" : "Refused";
+    const action = row.changed ? "Simulated action allowed" : "No simulated action";
+    return `<p class="permission-outcome ${passed ? "passed" : "failed"}" id="permission-action" data-result="${passed ? (control ? "allowed" : "refused") : "failed"}" data-permitted="${row.changed}">${outcome}: ${action}</p><h3>What was tried</h3><p class="permission-attempt"><strong>${escape(row.who)}:</strong> ${escape(row.tried)}.</p><h3>The decision code's answer</h3><p id="permission-verdict">${escape(row.answer)}</p>${control ? "<p class=\"small-copy\">The valid control matters: this same code can allow an action when every required check passes.</p>" : ""}`;
+  }
+
+  function permissionChecks() {
+    const rows = state.replay.permission_checks;
+    if (!Array.isArray(rows) || !rows.length) return "";
+    const attempts = rows.slice(1);
+    const refused = attempts.filter((row) => !row.changed).length;
+    const passed = rows[0].changed && refused === attempts.length;
+    const summary = `${refused} of ${attempts.length} attempts refused. ${rows[0].changed ? "Valid control allows an action." : "Check failed: valid control was refused."}${refused < attempts.length ? " Check failed: an outside-boundary attempt allowed an action." : ""}`;
+    const index = Math.min(state.permissionCase, rows.length - 1);
+    const source = STATIC ? "These results were computed when this static demo was built." : "These results were computed for this demo by the same decision functions the relay uses.";
+    return `<section class="permission-panel" aria-labelledby="permission-title"><div class="permission-head"><div><p class="permission-label">Simulated checks, computed by the decision code</p><h2 id="permission-title">Check the permission boundary</h2><p>What if the model invents an action, the orders expire, or there are too few checkouts? Inspect the actual verdict, then try the valid control.</p></div><p id="permission-summary" class="permission-summary ${passed ? "passed" : "failed"}">${escape(summary)}</p></div><div class="permission-grid"><div class="permission-picker"><label for="permission-case">Choose a case to inspect</label><select id="permission-case" aria-describedby="permission-source">${rows.map((row, number) => `<option value="${number}"${number === index ? " selected" : ""}>${number === 0 ? "Valid control" : `Attempt ${number}`} · ${escape(row.tried)}</option>`).join("")}</select><p id="permission-source" class="small-copy">${source} Selecting a case reads its computed result. It does not call a live model or change a service.</p><a class="permission-code" href="${escape(code("blob/main/relay/nightorders/refusals.py"))}">Inspect the executable checks</a></div><div class="permission-result" id="permission-result" aria-live="polite" aria-atomic="true">${permissionResult(rows[index], index)}</div></div></section>`;
+  }
+
   function code(path) {
     // GitHub reads /blob/<ref>/<path>; GitLab reads /-/blob/<ref>/<path> (its project pages live under /-/).
     const base = /^https:\/\//.test(state.replay?.repo_url || "") ? state.replay.repo_url.replace(/\/$/, "") : "https://github.com/alejandro-publius/life-after-code";
@@ -323,7 +344,7 @@
     const wasOpen = {evidence: document.getElementById("evidence-details")?.open, table: document.querySelector("details.chart-table")?.open};
     const content = state.view === "dusk" ? dusk() : state.view === "dawn" ? dawn() : state.nightScene === "inventory" ? inventory() : checkout();
     const failure = state.error ? `<div class="inline-error" role="alert"><p>${escape(state.error)}</p>${button("retry-replay", "Retry this choice", "retry", "secondary")}</div>` : "";
-    root.innerHTML = `<div class="journey-layout"><main class="journey-panel" id="journey-content">${failure}${state.busy ? "<p class=\"loading-note\">Checking your demo choice...</p>" : ""}${content}</main>${context()}</div>${evidence()}`;
+    root.innerHTML = `<div class="journey-layout"><main class="journey-panel" id="journey-content">${failure}${state.busy ? "<p class=\"loading-note\">Checking your demo choice...</p>" : ""}${content}</main>${context()}</div>${evidence()}${permissionChecks()}`;
     if (wasOpen.evidence) document.getElementById("evidence-details")?.setAttribute("open", "");
     if (wasOpen.table) document.querySelector("details.chart-table")?.setAttribute("open", "");
     document.body.classList.toggle("compact-intro", state.signedChoice !== null);
@@ -342,6 +363,7 @@
     if (data.metrics.some((sample) => !Number.isFinite(sample.old_rate) || !Number.isFinite(sample.new_rate) || sample.old_rate < 0 || sample.new_rate < 0 || sample.old_rate > 1 || sample.new_rate > 1)) throw new Error("The replay metrics could not be read. Please retry.");
     for (const key of ["lines", "kept", "undone", "by_hand"]) if (!Array.isArray(data.morning[key])) throw new Error("The morning record could not be read. Please retry.");
     if (data.messages.some((message) => !Array.isArray(message.lines))) throw new Error("The wake-up record could not be read. Please retry.");
+    if (data.permission_checks !== undefined && (!Array.isArray(data.permission_checks) || data.permission_checks.some((row) => !row || typeof row.who !== "string" || typeof row.tried !== "string" || typeof row.answer !== "string" || typeof row.changed !== "boolean"))) throw new Error("The permission checks could not be read. Please retry.");
     return data;
   }
 
@@ -410,6 +432,15 @@
     live.textContent = view === "dusk" ? "Before bed. Review the two demo orders." : view === "dawn" ? "Over coffee. The actual replay counts and morning decisions." : scene === "inventory" ? "During the night. The inventory wake-up needs Priya." : "During the night. The checkout alert and permission checks.";
     render({focus: true});
   }
+
+  document.addEventListener("change", (event) => {
+    if (event.target.id !== "permission-case") return;
+    const index = Number(event.target.value);
+    const rows = state.replay?.permission_checks;
+    if (!Number.isInteger(index) || index < 0 || !rows?.[index]) return;
+    state.permissionCase = index;
+    document.getElementById("permission-result").innerHTML = permissionResult(rows[index], index);
+  });
 
   document.addEventListener("click", (event) => {
     const target = event.target.closest("[data-action], [data-step]");
