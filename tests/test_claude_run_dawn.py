@@ -11,7 +11,7 @@ from urllib.parse import unquote
 import pytest
 
 from conftest import REPO
-from scripts import claude_dawn_demo as demo
+from scripts import claude_run_dawn as demo
 from test_day_one import API, PROJECT, TOKEN, Clock, Server, body
 
 NOW = datetime(2026, 10, 27, 12, 59, 0, tzinfo=timezone.utc)

@@ -44,12 +44,38 @@ def one_line(text: object, limit: int = 600) -> str:
     return " ".join(str(text).split())[:limit]
 
 
-def attempt(name: str, action: Callable[[], None]) -> dict:
+CHALLENGE_MARKS = ("challenges.cloudflare.com", "cf-chl", "Just a moment")
+SIGN_IN_MARKS = ("projects.gitlab.io/auth", "/users/sign_in", "/oauth/authorize")
+
+
+def cause(page) -> str:
+    """What the browser was looking at when a check failed, when it is not the demo: a sign-in page or a bot-check
+    page, say. Nothing here signs in or answers a challenge; the cause is only named, so the record says why
+    playback could not be checked."""
+    try:
+        url = str(page.url or "")
+        text = str(page.content() or "")[:200_000]
+        title = str(page.title() or "")
+    except Exception:  # noqa: BLE001  (a page that is gone has no cause to read)
+        return ""
+    if any(mark in url for mark in SIGN_IN_MARKS):
+        return ("the host redirected to GitLab sign-in (Pages access control), so the demo is not public for an "
+                "anonymous visitor; not signed in")
+    if any(mark in text or mark in title for mark in CHALLENGE_MARKS):
+        return "the host answered with a Cloudflare challenge page (a bot check) instead of the demo; not bypassed"
+    return ""
+
+
+def attempt(name: str, action: Callable[[], None], page=None) -> dict:
     try:
         action()
         return {"check": name, "result": "passed"}
     except Exception as error:  # noqa: BLE001  (every failure is evidence; the name says what failed)
-        return {"check": name, "result": "failed", "error": one_line(f"{type(error).__name__}: {error}")}
+        result = {"check": name, "result": "failed", "error": one_line(f"{type(error).__name__}: {error}")}
+        why = cause(page) if page is not None else ""
+        if why:
+            result["cause"] = why
+        return result
 
 
 def run_checks(base: str, browser, walk: Callable, explorer: Callable) -> list[dict]:
@@ -61,10 +87,10 @@ def run_checks(base: str, browser, walk: Callable, explorer: Callable) -> list[d
             for signed, approved, label in PATHS:
                 page = context.new_page()
                 results.append(attempt(f"{screen}: {label}", partial(walk, page, base, signed=signed, approved=approved,
-                                                                     screenshots=None, screen=screen)))
+                                                                     screenshots=None, screen=screen), page))
                 page.close()
             page = context.new_page()
-            results.append(attempt(f"{screen}: execution explorer", partial(explorer, page, base, static=True)))
+            results.append(attempt(f"{screen}: execution explorer", partial(explorer, page, base, static=True), page))
             page.close()
         finally:
             context.close()
@@ -89,13 +115,15 @@ def main(argv=None) -> int:
                       "browser": f"Chromium {browser.version}, headless, through Playwright "
                                  f"{metadata.version('playwright')}",
                       "source_commit_of_the_checks": browser_smoke_commit(), "covers": list(COVERS), "checks": checks,
-                      "passed": all(check["result"] == "passed" for check in checks)}
+                      "passed": all(check["result"] == "passed" for check in checks),
+                      "blocked_before_the_demo": any(check.get("cause") for check in checks)}
         finally:
             browser.close()
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     for check in checks:
-        print(f"{check['result']:6} {check['check']}" + (f": {check['error']}" if check.get("error") else ""))
+        print(f"{check['result']:6} {check['check']}" + (f": {check['error']}" if check.get("error") else "")
+              + (f" [{check['cause']}]" if check.get("cause") else ""))
     print(f"{'all passed' if report['passed'] else 'some failed'}; wrote {args.out}")
     return 0 if report["passed"] else 1
 

@@ -8,9 +8,17 @@ from scripts import claude_pages_check as check
 
 
 class Page:
-    def __init__(self, context):
+    def __init__(self, context, html="<h1>Priya wants to sleep.</h1>", url="https://demo.example/"):
         self.context = context
+        self.html = html
+        self.url = url
         self.closed = False
+
+    def content(self):
+        return self.html
+
+    def title(self):
+        return "Night Orders"
 
     def close(self):
         self.closed = True
@@ -24,7 +32,7 @@ class Context:
         self.closed = False
 
     def new_page(self):
-        page = Page(self)
+        page = Page(self, self.browser.html, self.browser.url)
         self.pages.append(page)
         return page
 
@@ -33,7 +41,9 @@ class Context:
 
 
 class Browser:
-    def __init__(self):
+    def __init__(self, html="<h1>Priya wants to sleep.</h1>", url="https://demo.example/"):
+        self.html = html
+        self.url = url
         self.contexts: list[Context] = []
 
     def new_context(self, **options):
@@ -81,3 +91,33 @@ def test_only_a_clean_public_https_url_is_opened(url):
     with pytest.raises(ValueError):
         check.public_url(url)
     assert check.public_url("https://demo.example/") == "https://demo.example"
+
+
+def test_a_bot_check_page_is_named_as_the_cause_and_never_answered():
+    html = '<title>Just a moment...</title><script src="https://challenges.cloudflare.com/turnstile/v0/api.js">'
+    browser = Browser(html)
+
+    def walk(page, base, **kwargs):
+        raise TimeoutError("Page.goto: Timeout 30000ms exceeded")
+
+    results = check.run_checks("https://demo.example", browser, walk, lambda *a, **k: None)
+    failed = [r for r in results if r["result"] == "failed"]
+    assert len(failed) == 6
+    assert all(r["cause"].startswith("the host answered with a Cloudflare challenge page") for r in failed)
+    assert all("not bypassed" in r["cause"] for r in failed)
+    assert "cause" not in results[3]  # the explorer check passed on that page: no cause to record
+    plain = check.run_checks("https://demo.example", Browser(), walk, lambda *a, **k: None)
+    assert all("cause" not in r for r in plain)  # an ordinary timeout names no challenge
+
+
+def test_a_redirect_to_gitlab_sign_in_is_named_as_pages_access_control_and_nobody_signs_in():
+    browser = Browser("<h1>gitlab.com</h1>", url="https://gitlab.com/users/sign_in?redirect_to_referer=yes")
+
+    def walk(page, base, **kwargs):
+        raise TimeoutError("Page.goto: Timeout 30000ms exceeded")
+
+    results = check.run_checks("https://demo.example", browser, walk, lambda *a, **k: None)
+    failed = [r for r in results if r["result"] == "failed"]
+    assert len(failed) == 6
+    assert all(r["cause"].startswith("the host redirected to GitLab sign-in (Pages access control)") for r in failed)
+    assert all(r["cause"].endswith("not signed in") for r in failed)
