@@ -118,20 +118,26 @@ def counting_ports(base: type) -> type:
 
 def counts() -> dict:
     """What one night does, counted: ticks, samples, condition evaluations, model calls, polls, port calls."""
-    from nightorders import demo_night, signals
+    from nightorders import decide, demo_night, watch
     from nightorders.orders import load_yaml
-    original_ports, original_holds = demo_night.RecordingPorts, signals.condition_holds
+    # watch.py and decide.py bind condition_holds by name at import, so the counter goes where they look.
+    original_ports, original_holds = demo_night.RecordingPorts, watch.condition_holds
     evaluations = Counter()
 
     def counted_holds(condition, metrics, now):
         evaluations["condition_holds"] += 1
         return original_holds(condition, metrics, now)
     demo_night.RecordingPorts = counting_ports(original_ports)
-    signals.condition_holds = counted_holds
+    watch.condition_holds = counted_holds
+    decide_original = getattr(decide, "condition_holds", None)
+    if decide_original is not None:
+        decide.condition_holds = counted_holds
     try:
         outcome = night_once()
     finally:
-        demo_night.RecordingPorts, signals.condition_holds = original_ports, original_holds
+        demo_night.RecordingPorts, watch.condition_holds = original_ports, original_holds
+        if decide_original is not None:
+            decide.condition_holds = decide_original
     ports, night = outcome["ports"], outcome["night"]
     scenario = load_yaml(DEMO / "scenario.yml")
     start, end = datetime.fromisoformat(scenario["start"]), datetime.fromisoformat(scenario["end"])
@@ -163,10 +169,10 @@ def counts() -> dict:
 # One child measurement.
 
 def child(variant: str) -> dict:
-    apply_variant(variant)
     import_wall = time.perf_counter()
     from nightorders import demo_night  # noqa: F401  (imports and YAML parsers are part of the cold cost)
     import_wall = time.perf_counter() - import_wall
+    apply_variant(variant)  # after the imports are timed, so both variants pay the same import cost
     record: dict[str, Any] = {"variant": variant, "pid": os.getpid(), "import_seconds": round(import_wall, 6)}
     for label in ("cold", "warm"):
         ru0 = resource.getrusage(resource.RUSAGE_SELF)

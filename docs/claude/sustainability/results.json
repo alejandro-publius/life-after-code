@@ -1,0 +1,353 @@
+{
+  "version": 1,
+  "functional_unit": "one standard completed test night: demo/night-2026-10-20, signed, fallback approved, replayed through nightorders.demo_night.run, then countersign and lease_end (546 minute ticks, 22:00 to 07:05)",
+  "source_commit": "0d24b7d03e6a88aae26530fa5b7f1fe611caa3f0",
+  "measured_at": "2026-10-27T13:49:17.018430+00:00",
+  "machine": {
+    "platform": "macOS-15.1.1-arm64-arm-64bit-Mach-O",
+    "python": "3.13.14",
+    "cpu": "Apple M1",
+    "cores": 8,
+    "memory_bytes": 17179869184,
+    "power_source": "Now drawing from 'AC Power'",
+    "battery": "2%; charging;"
+  },
+  "runs_per_variant": 12,
+  "variants": [
+    "baseline",
+    "optimized"
+  ],
+  "outcomes_identical": true,
+  "fingerprints": {
+    "baseline": [
+      "237c46c3f8ffc7c0445d2fa7d31c82f4e0ddabcc06dd07085e223bcf5ee70232"
+    ],
+    "optimized": [
+      "237c46c3f8ffc7c0445d2fa7d31c82f4e0ddabcc06dd07085e223bcf5ee70232"
+    ]
+  },
+  "results": {
+    "baseline": {
+      "cold_wall_seconds": {
+        "n": 12,
+        "mean": 0.033424166666666665,
+        "stdev": 0.0012374015908223558,
+        "median": 0.0332625,
+        "min": 0.032062,
+        "max": 0.035211,
+        "ci95_low": 0.03263795390388323,
+        "ci95_high": 0.0342103794294501,
+        "ci95_method": "t, df 11"
+      },
+      "cold_cpu_seconds": {
+        "n": 12,
+        "mean": 0.033383166666666665,
+        "stdev": 0.0012102100368668793,
+        "median": 0.033229999999999996,
+        "min": 0.032023,
+        "max": 0.035047,
+        "ci95_low": 0.0326142307095042,
+        "ci95_high": 0.03415210262382913,
+        "ci95_method": "t, df 11"
+      },
+      "cold_user_seconds": {
+        "n": 12,
+        "mean": 0.032626416666666665,
+        "stdev": 0.0011529284814477151,
+        "median": 0.0324025,
+        "min": 0.031263,
+        "max": 0.034197,
+        "ci95_low": 0.03189387591884986,
+        "ci95_high": 0.03335895741448347,
+        "ci95_method": "t, df 11"
+      },
+      "cold_system_seconds": {
+        "n": 12,
+        "mean": 0.00076275,
+        "stdev": 0.00015749350635964183,
+        "median": 0.0007575,
+        "min": 0.000478,
+        "max": 0.000978,
+        "ci95_low": 0.0006626827254192608,
+        "ci95_high": 0.0008628172745807391,
+        "ci95_method": "t, df 11"
+      },
+      "warm_wall_seconds": {
+        "n": 12,
+        "mean": 0.0325165,
+        "stdev": 0.0012881309574869963,
+        "median": 0.0325315,
+        "min": 0.030729,
+        "max": 0.034736,
+        "ci95_low": 0.0316980551180602,
+        "ci95_high": 0.03333494488193979,
+        "ci95_method": "t, df 11"
+      },
+      "warm_cpu_seconds": {
+        "n": 12,
+        "mean": 0.032412416666666666,
+        "stdev": 0.0011895598466608894,
+        "median": 0.032364000000000004,
+        "min": 0.030729,
+        "max": 0.034149,
+        "ci95_low": 0.031656601302862304,
+        "ci95_high": 0.03316823203047103,
+        "ci95_method": "t, df 11"
+      },
+      "warm_user_seconds": {
+        "n": 12,
+        "mean": 0.03186608333333333,
+        "stdev": 0.0011861238214018678,
+        "median": 0.031664,
+        "min": 0.030324,
+        "max": 0.033584,
+        "ci95_low": 0.031112451130543086,
+        "ci95_high": 0.03261971553612358,
+        "ci95_method": "t, df 11"
+      },
+      "warm_system_seconds": {
+        "n": 12,
+        "mean": 0.0005514166666666667,
+        "stdev": 0.00016588027354545552,
+        "median": 0.0005715,
+        "min": 0.00027,
+        "max": 0.000912,
+        "ci95_low": 0.00044602065851318516,
+        "ci95_high": 0.0006568126748201483,
+        "ci95_method": "t, df 11"
+      },
+      "import_seconds": {
+        "n": 12,
+        "mean": 0.050225,
+        "stdev": 0.006095902304752832,
+        "median": 0.048975500000000005,
+        "min": 0.046055,
+        "max": 0.069057,
+        "ci95_low": 0.04635182234431872,
+        "ci95_high": 0.05409817765568128,
+        "ci95_method": "t, df 11"
+      },
+      "python_peak_bytes_warm": {
+        "n": 12,
+        "mean": 677322.4166666666,
+        "stdev": 1365.3205723021663,
+        "median": 677697.0,
+        "min": 674888.0,
+        "max": 679012.0,
+        "ci95_low": 676454.927512623,
+        "ci95_high": 678189.9058207102,
+        "ci95_method": "t, df 11"
+      },
+      "process_peak_rss_bytes": {
+        "n": 12,
+        "mean": 34033664.0,
+        "stdev": 425073.6005882874,
+        "median": 34160640.0,
+        "min": 33292288.0,
+        "max": 34816000.0,
+        "ci95_low": 33763583.29832358,
+        "ci95_high": 34303744.70167642,
+        "ci95_method": "t, df 11"
+      },
+      "fingerprints": [
+        "237c46c3f8ffc7c0445d2fa7d31c82f4e0ddabcc06dd07085e223bcf5ee70232"
+      ]
+    },
+    "optimized": {
+      "cold_wall_seconds": {
+        "n": 12,
+        "mean": 0.03109416666666667,
+        "stdev": 0.0009172094866628031,
+        "median": 0.030803499999999998,
+        "min": 0.030164,
+        "max": 0.03266,
+        "ci95_low": 0.030511395632663803,
+        "ci95_high": 0.03167693770066954,
+        "ci95_method": "t, df 11"
+      },
+      "cold_cpu_seconds": {
+        "n": 12,
+        "mean": 0.0310855,
+        "stdev": 0.0009049375166777581,
+        "median": 0.030803999999999998,
+        "min": 0.030163,
+        "max": 0.032607,
+        "ci95_low": 0.030510526256301507,
+        "ci95_high": 0.03166047374369849,
+        "ci95_method": "t, df 11"
+      },
+      "cold_user_seconds": {
+        "n": 12,
+        "mean": 0.03039625,
+        "stdev": 0.0009321133490378445,
+        "median": 0.0299995,
+        "min": 0.029507,
+        "max": 0.031943,
+        "ci95_low": 0.02980400943977304,
+        "ci95_high": 0.03098849056022696,
+        "ci95_method": "t, df 11"
+      },
+      "cold_system_seconds": {
+        "n": 12,
+        "mean": 0.000695,
+        "stdev": 0.00010397814455670263,
+        "median": 0.0007125,
+        "min": 0.000493,
+        "max": 0.000817,
+        "ci95_low": 0.00062893499337051,
+        "ci95_high": 0.0007610650066294899,
+        "ci95_method": "t, df 11"
+      },
+      "warm_wall_seconds": {
+        "n": 12,
+        "mean": 0.030325416666666664,
+        "stdev": 0.0012371185331856904,
+        "median": 0.030112,
+        "min": 0.029182,
+        "max": 0.03322,
+        "ci95_low": 0.02953938375133793,
+        "ci95_high": 0.0311114495819954,
+        "ci95_method": "t, df 11"
+      },
+      "warm_cpu_seconds": {
+        "n": 12,
+        "mean": 0.0302735,
+        "stdev": 0.0011473110460392315,
+        "median": 0.030091,
+        "min": 0.029183,
+        "max": 0.032801,
+        "ci95_low": 0.029544528424426883,
+        "ci95_high": 0.031002471575573114,
+        "ci95_method": "t, df 11"
+      },
+      "warm_user_seconds": {
+        "n": 12,
+        "mean": 0.02973366666666667,
+        "stdev": 0.001111145873193593,
+        "median": 0.029568999999999998,
+        "min": 0.028676,
+        "max": 0.032189,
+        "ci95_low": 0.02902767350058518,
+        "ci95_high": 0.030439659832748156,
+        "ci95_method": "t, df 11"
+      },
+      "warm_system_seconds": {
+        "n": 12,
+        "mean": 0.0005438333333333333,
+        "stdev": 7.199221338366246e-05,
+        "median": 0.000566,
+        "min": 0.000408,
+        "max": 0.000621,
+        "ci95_low": 0.0004980913548171691,
+        "ci95_high": 0.0005895753118494976,
+        "ci95_method": "t, df 11"
+      },
+      "import_seconds": {
+        "n": 12,
+        "mean": 0.048124499999999994,
+        "stdev": 0.001141750689232828,
+        "median": 0.047909,
+        "min": 0.046865,
+        "max": 0.050495,
+        "ci95_low": 0.04739906133041249,
+        "ci95_high": 0.0488499386695875,
+        "ci95_method": "t, df 11"
+      },
+      "python_peak_bytes_warm": {
+        "n": 12,
+        "mean": 677200.75,
+        "stdev": 820.4906652840006,
+        "median": 677018.0,
+        "min": 676260.0,
+        "max": 678709.0,
+        "ci95_low": 676679.4315876305,
+        "ci95_high": 677722.0684123695,
+        "ci95_method": "t, df 11"
+      },
+      "process_peak_rss_bytes": {
+        "n": 12,
+        "mean": 33619968.0,
+        "stdev": 453992.9776565432,
+        "median": 33734656.0,
+        "min": 32833536.0,
+        "max": 34275328.0,
+        "ci95_low": 33331512.678869843,
+        "ci95_high": 33908423.32113016,
+        "ci95_method": "t, df 11"
+      },
+      "fingerprints": [
+        "237c46c3f8ffc7c0445d2fa7d31c82f4e0ddabcc06dd07085e223bcf5ee70232"
+      ]
+    }
+  },
+  "comparison": {
+    "cold_cpu_seconds": {
+      "baseline_mean": 0.033383166666666665,
+      "optimized_mean": 0.0310855,
+      "saved_mean": 0.0022976666666666666,
+      "saved_percent_of_mean": 6.882710348029695,
+      "ci_overlap": false
+    },
+    "warm_cpu_seconds": {
+      "baseline_mean": 0.032412416666666666,
+      "optimized_mean": 0.0302735,
+      "saved_mean": 0.0021389166666666674,
+      "saved_percent_of_mean": 6.599065687275198,
+      "ci_overlap": false
+    },
+    "cold_wall_seconds": {
+      "baseline_mean": 0.033424166666666665,
+      "optimized_mean": 0.03109416666666667,
+      "saved_mean": 0.0023299999999999953,
+      "saved_percent_of_mean": 6.971004014061669,
+      "ci_overlap": false
+    },
+    "warm_wall_seconds": {
+      "baseline_mean": 0.0325165,
+      "optimized_mean": 0.030325416666666664,
+      "saved_mean": 0.002191083333333333,
+      "saved_percent_of_mean": 6.7383738512242495,
+      "ci_overlap": false
+    }
+  },
+  "labels": [
+    "demo data: simulated shop, planted faults, recorded model replies; real decision code",
+    "no energy or carbon is measured here; CPU and wall seconds, memory and counts only",
+    "post-submission measurement: these numbers did not exist before the 27 Oct 2026 deadline"
+  ],
+  "counts": {
+    "ticks": 546,
+    "minutes_of_shop_metrics": 546,
+    "metrics_samples_stored": 6006,
+    "condition_evaluations": 2743,
+    "model_calls": 2,
+    "model_calls_budget_per_night": 3,
+    "model_calls_recorded_replies": true,
+    "goal_chars_sent": 1051,
+    "reply_chars_received": 777,
+    "answer_polls": 3,
+    "thumbs_up_polls": 2,
+    "incidents_opened": 2,
+    "actions_applied": 2,
+    "restores": 2,
+    "port_calls": {
+      "recent_log_lines": 2,
+      "open_incident": 2,
+      "start_watch_flow": 2,
+      "request_note": 3,
+      "page": 1,
+      "thumbs_up": 2,
+      "apply": 2,
+      "note": 3,
+      "close_incident": 2,
+      "restore": 2,
+      "holds": 1,
+      "shipped": 1,
+      "watch_note": 1,
+      "quiet_push": 1
+    },
+    "ledger_events": 10,
+    "retries": 0,
+    "http_requests": 0
+  }
+}
