@@ -1,0 +1,49 @@
+{
+  "project": "88050495",
+  "at": "2026-10-27T12:02:50.733138+00:00",
+  "ready": true,
+  "flows": [
+    {
+      "flow": "dusk",
+      "name": "night-orders-dusk",
+      "status": "ready",
+      "execution": "not_run",
+      "definition_sha256": "ca639b90ba18115654fc799bbd725c151ae2bf63b6463531d58c5608844d1d07",
+      "consumer_id": 13304391,
+      "service_account": "ai-night-orders-dusk-gitlab-ai-hackathon",
+      "version_id": "gid://gitlab/Ai::Catalog::ItemVersion/1038818",
+      "item_id": "gid://gitlab/Ai::Catalog::Item/1020164"
+    },
+    {
+      "flow": "watch",
+      "name": "night-orders-watch",
+      "status": "ready",
+      "execution": "not_run",
+      "definition_sha256": "f794e6d164a4c998db65c32d573bee8dd3002bfaa73b2f54bae5b9d8857841c9",
+      "consumer_id": 13303670,
+      "service_account": "ai-night-orders-watch-gitlab-ai-hackathon",
+      "version_id": "gid://gitlab/Ai::Catalog::ItemVersion/1038791",
+      "item_id": "gid://gitlab/Ai::Catalog::Item/1020147"
+    },
+    {
+      "flow": "dawn",
+      "name": "night-orders-dawn",
+      "status": "ready",
+      "execution": "not_run",
+      "definition_sha256": "f1c0b656eff70528dfde9ed8939a3f0e6f8ea532c1239e83b538d3eae2fb2a8c",
+      "consumer_id": 13304393,
+      "service_account": "ai-night-orders-dawn-gitlab-ai-hackathon",
+      "version_id": "gid://gitlab/Ai::Catalog::ItemVersion/1038819",
+      "item_id": "gid://gitlab/Ai::Catalog::Item/1020165"
+    }
+  ],
+  "values": {
+    "DUSK_FLOW_CONSUMER_ID": 13304391,
+    "DUSK_FLOW_SERVICE_ACCOUNT": "ai-night-orders-dusk-gitlab-ai-hackathon",
+    "FLOW_CONSUMER_ID": 13303670,
+    "FLOW_SERVICE_ACCOUNT": "ai-night-orders-watch-gitlab-ai-hackathon",
+    "DAWN_FLOW_CONSUMER_ID": 13304393,
+    "DAWN_FLOW_SERVICE_ACCOUNT": "ai-night-orders-dawn-gitlab-ai-hackathon"
+  },
+  "operations": []
+}
