@@ -39,10 +39,10 @@ curl -s localhost:8080/metrics.json
 
 This folder follows the contract in [deploy/README.md](../deploy/README.md): `main.py` exposes the FastAPI object `app`, `requirements.txt` is fully hash-locked for `pip install --require-hashes`, and `GET /healthz` answers `{"ok": true, "commit": <CI_COMMIT_SHORT_SHA or "local">}`. The deploy jobs build it with `APP_DIR=shop` ([deploy/gitlab-ci-deploy.yml](../deploy/gitlab-ci-deploy.yml), jobs `deploy_shop` and `deploy_shop_staging`; Codex owns `deploy/`).
 
-`requirements.txt` is generated from `requirements.in`, which pins the versions in `uv.lock`. From the repository root:
+`requirements.in` lists the shop's three runtime roots. Generate `requirements.txt` directly from the tested `uv.lock`, pruning the relay's YAML and schema dependencies. This preserves the lock's exact artifact hashes without resolving a second dependency set. From the repository root:
 
 ```bash
-uv pip compile shop/requirements.in --python-version 3.12 --generate-hashes --output-file shop/requirements.txt
+uv export --locked --no-dev --no-emit-project --prune pyyaml --prune jsonschema --format requirements-txt -o shop/requirements.txt
 ```
 
 On 2026-10-06 `pip install --no-cache-dir --require-hashes -r shop/requirements.txt` succeeded on Python 3.12, and the app started from a copy of this folder with `python -m uvicorn main:app`, the image's start command.
