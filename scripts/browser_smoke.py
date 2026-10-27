@@ -184,6 +184,38 @@ def comparison_lab(page, base: str):
     fits_screen(page)
 
 
+def chart_inspection(page, base: str, *, signed: bool, approved: bool):
+    """The minute after switching a path off must show no traffic, not an invented recovery."""
+    source = (f"/replay-{'signed' if signed else 'unsigned'}-{'approved' if approved else 'declined'}.json"
+              if DEMO_PATH == "/" else f"/demo/replay?signed={str(signed).lower()}&approved={str(approved).lower()}")
+    response = page.request.get(base + source)
+    assert response.ok
+    samples = [sample for sample in response.json()["metrics"] if "03:00" <= sample["sampled_at"][11:16] <= "03:30"]
+    before = next(index for index, sample in enumerate(samples) if sample["sampled_at"][11:16] == "03:12")
+    slider = page.locator("#chart-minute")
+    slider.focus()
+    slider.press("Home")
+    for _ in range(before):
+        slider.press("ArrowRight")
+    for index in (before, before + 1):
+        sample = samples[index]
+        expect(page.locator("#chart-minute-time")).to_have_text(sample["sampled_at"][11:16])
+        expected_rate = f"{sample['new_rate'] * 100:.1f}%" if sample["new_checkouts"] else "No traffic"
+        expect(page.locator(".sample-path.new > strong")).to_have_text(expected_rate)
+        expect(page.locator(".sample-path.new small")).to_have_text(f"{sample['new_checkouts']} checkouts in this minute")
+        expect(page.locator(".sample-whole strong")).to_have_text(f"{sample['all_rate'] * 100:.1f}% errors")
+        expect(slider).to_be_focused()
+        expect(page.locator("#replay-root")).to_have_attribute("data-scene", "checkout")
+        if index == before:
+            slider.press("ArrowRight")
+    expect(page.locator(".sample-no-traffic")).to_have_count(1 if signed else 0)
+    page.get_by_role("button", name="Earlier minute", exact=True).click()
+    expect(page.locator("#chart-minute-time")).to_have_text("03:12")
+    page.get_by_role("button", name="Later minute", exact=True).click()
+    expect(page.locator("#chart-minute-time")).to_have_text("03:13")
+    fits_screen(page)
+
+
 def execution_explorer(page, base: str, *, static: bool = False):
     """The visible run and artifact are the captured GitLab record, not a canned success screen."""
     recorded = json.loads((ROOT / "relay" / "nightorders" / "agent_runs.json").read_text())
@@ -260,6 +292,7 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
         "This time, Priya stays asleep." if signed else "Without a signature, Priya is needed again."
     )
     expect(page.locator("#metrics-chart")).to_be_visible()
+    chart_inspection(page, base, signed=signed, approved=approved)
     expect(page.get_by_text("Dashed line: 5% limit for signed new checkout order." if signed
                             else "Dashed line: the 5% limit order 1 would have had, if signed.", exact=True)).to_be_visible()
     if signed:

@@ -19,6 +19,7 @@
     permissionCase: 2,
     memoryIncident: null,
     comparisonWay: "signed",
+    chartTime: null,
   };
 
   const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -244,6 +245,47 @@
     return picked.map((event) => ({at: event.at, text: `${event.time} ${event.kind === "acted" && event.order ? `order ${event.order} ran` : label[event.kind]}`, kind: event.kind}));
   }
 
+  function sampleIndex(samples) {
+    const index = samples.findIndex((sample) => sample.sampled_at === state.chartTime);
+    return index < 0 ? samples.length - 1 : index;
+  }
+
+  function sampleDescription(sample) {
+    return `${timeOf(sample.sampled_at)}, whole shop ${percent(sample.all_rate)} errors across ${sample.checkouts} checkouts; new checkout ${sample.new_checkouts ? percent(sample.new_rate) + " errors" : "has no traffic"}.`;
+  }
+
+  function sampleReading(sample) {
+    const oldTraffic = sample.checkouts - sample.new_checkouts;
+    const path = (label, rate, traffic, kind) => `<div class="sample-path ${kind}"><span>${label}</span><strong>${traffic ? percent(rate) : "No traffic"}</strong><small>${traffic} checkouts in this minute</small></div>`;
+    const changed = Object.keys(sample.flags_after || {}).filter((key) => sample.flags_after[key] !== sample.flags_before?.[key]);
+    const change = changed.length ? `<p class="sample-action">After this sample, at ${escape(sample.time)}: ${changed.map((key) => `${escape(key)} switched ${escape(sample.flags_after[key])}`).join("; ")}.</p>` : "";
+    return `<div class="sample-paths">${path("Old checkout", sample.old_rate, oldTraffic, "old")}${path("New checkout", sample.new_rate, sample.new_checkouts, "new")}</div><div class="sample-whole"><span>Whole shop</span><strong>${percent(sample.all_rate)} errors</strong><span>${sample.checkouts} checkouts</span></div>${!sample.new_checkouts || !oldTraffic ? '<p class="sample-no-traffic">A path with no traffic cannot establish recovery. The whole-shop measurement still matters.</p>' : ""}${change}`;
+  }
+
+  function sampleInspector(samples) {
+    const index = sampleIndex(samples), sample = samples[index];
+    return `<section class="sample-inspector" aria-label="Inspect the chart samples"><div class="sample-picker-heading"><label for="chart-minute">Inspect one minute</label><output for="chart-minute" id="chart-minute-time">${escape(timeOf(sample.sampled_at))}</output></div><input type="range" id="chart-minute" min="0" max="${samples.length - 1}" step="1" value="${index}" aria-valuetext="${escape(sampleDescription(sample))}" aria-describedby="sample-time-note"><div class="sample-controls"><button type="button" data-action="sample-earlier"${index === 0 ? " disabled" : ""}>Earlier minute</button><button type="button" data-action="sample-later"${index === samples.length - 1 ? " disabled" : ""}>Later minute</button></div><div id="sample-reading">${sampleReading(sample)}</div><p id="sample-time-note" class="sample-note">Complete one-minute samples in Priya's local time. Drag the control or use its arrow keys. Inspection changes no replay choices.</p></section>`;
+  }
+
+  function inspectSample(index) {
+    const samples = samplesForChart();
+    if (!Number.isInteger(index) || index < 0 || index >= samples.length) return;
+    const sample = samples[index], range = document.getElementById("chart-minute");
+    if (!range) return;
+    state.chartTime = sample.sampled_at;
+    range.value = index;
+    range.setAttribute("aria-valuetext", sampleDescription(sample));
+    document.getElementById("chart-minute-time").textContent = timeOf(sample.sampled_at);
+    document.getElementById("sample-reading").innerHTML = sampleReading(sample);
+    document.querySelector('[data-action="sample-earlier"]').disabled = index === 0;
+    document.querySelector('[data-action="sample-later"]').disabled = index === samples.length - 1;
+    const first = Date.parse(samples[0].sampled_at), last = Date.parse(samples[samples.length - 1].sampled_at);
+    const position = 64 + (last === first ? 0 : (Date.parse(sample.sampled_at) - first) / (last - first) * 522);
+    const cursor = document.getElementById("chart-sample-cursor");
+    cursor?.setAttribute("x1", position);
+    cursor?.setAttribute("x2", position);
+  }
+
   function metricChart() {
     const samples = samplesForChart();
     if (!samples.length) return "<p class=\"small-copy\">No metric samples were returned for this part of the replay.</p>";
@@ -262,6 +304,8 @@
     const grids = ticks.map((rate) => `<line x1="${left}" y1="${y(rate)}" x2="${left + plotWidth}" y2="${y(rate)}" class="chart-grid"/><text x="${left - 10}" y="${y(rate) + 7}" text-anchor="end" class="chart-label">${Math.round(rate * 100)}%</text>`).join("");
     const indices = [...new Set([0, Math.floor((samples.length - 1) / 2), samples.length - 1])];
     const labels = indices.map((index) => `<text x="${index === 0 ? left : index === samples.length - 1 ? left + plotWidth : x(ms(samples[index].sampled_at))}" y="${top + plotHeight + 28}" text-anchor="${index === 0 ? "start" : index === samples.length - 1 ? "end" : "middle"}" class="chart-label">${escape(timeOf(samples[index].sampled_at))}</text>`).join("");
+    const selectedX = x(ms(samples[sampleIndex(samples)].sampled_at));
+    const sampleCursor = `<line id="chart-sample-cursor" x1="${selectedX}" x2="${selectedX}" y1="${top}" y2="${top + plotHeight}" aria-hidden="true"/>`;
     // The limit's label is drawn after the lines, so a line near 5% never runs through the words.
     const limitLine = `<line x1="${left}" y1="${y(0.05)}" x2="${left + plotWidth}" y2="${y(0.05)}" class="chart-threshold"/>`;
     const limitText = `<text x="${left + plotWidth}" y="${y(0.05) - 7}" text-anchor="end" class="chart-label limit-label">5% limit</text>`;
@@ -284,7 +328,7 @@
     const description = whole ? `The whole demo night. Both checkout paths fail together from 01:45 ${firstFault}; only the new path fails from 03:07 ${secondFault}. All points come from the backend replay.` : inventoryView ? "Both old and new checkout error rates rise together when inventory is slow. The displayed points are the actual simulated shop samples returned by Watch's replay." : state.signedChoice ? "The old checkout stays near 0.3 percent errors. The new checkout rises to 7.9 percent. When signed order 1 switches it off, that path carries no checkouts. All points come from the backend replay." : "The old checkout stays near 0.3 percent errors. The new checkout rises to 7.9 percent and stays there, because nothing was signed. All points come from the backend replay.";
     const caption = whole ? (state.signedChoice ? "Each line is a decision the code recorded. Expiry at 07:00 ends the orders; it changes nothing by itself." : "Each line is a decision the code recorded. Nothing was signed, so every alert woke Priya.") : inventoryView ? (state.approvedChoice === true ? "The approval at 01:53 turns cached stock on. Both paths recover in the following complete minute." : state.signedChoice ? "Both paths are affected. The 5% line belongs to the signed new checkout order; it does not authorize an inventory fallback." : "Both paths are affected. Nothing is signed tonight, so no line on this chart permits any change.") : (state.signedChoice ? "Once the new checkout is switched off it carries no checkouts, so its 0% proves nothing. The re-check reads the whole shop instead. The rounding bug still needs a fix." : "With no signed permission, the new checkout stays on and its error rate remains above the limit.");
     const title = whole ? "The whole night" : inventoryView ? "Both checkout paths fail" : "One checkout path fails";
-    return `<section class="metric-card" aria-labelledby="metric-title"><div class="metric-title"><p class="eyebrow">Simulated shop · Actual replay samples</p><h3 id="metric-title">${title}</h3></div><div class="metric-legend" aria-label="Chart legend"><span class="legend-item new">New checkout</span><span class="legend-item old">Old checkout (dashed)</span></div><div class="chart-wrap"><svg id="metrics-chart" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="chart-title chart-description"><title id="chart-title">Checkout error rates${whole ? " through the night" : ` during the ${inventoryView ? "inventory" : "rounding"} fault`}</title><desc id="chart-description">${escape(description)}</desc>${grids}${limitLine}<path d="${path("new_rate")}" class="chart-line new"/><path d="${path("old_rate")}" class="chart-line old"/>${limitText}${markerSvg}${labels}</svg></div>${markerLegend}<p class="chart-threshold-note">${state.signedChoice ? "Dashed line: 5% limit for signed new checkout order." : "Dashed line: the 5% limit order 1 would have had, if signed."}</p><p class="metric-caption">${escape(caption)}</p><details class="chart-table"><summary>Read the chart samples</summary><div class="table-scroll"><table><caption>Complete one-minute samples, Priya's local time</caption><thead><tr><th scope="col">Minute</th><th scope="col">Old checkout</th><th scope="col">New checkout</th><th scope="col">Checkouts</th></tr></thead><tbody>${samples.map((sample) => `<tr><th scope="row">${escape(timeOf(sample.sampled_at))}</th><td>${percent(sample.old_rate)}</td><td>${percent(sample.new_rate)}</td><td>${escape(sample.checkouts ?? "")}</td></tr>`).join("")}</tbody></table></div></details></section>`;
+    return `<section class="metric-card" aria-labelledby="metric-title"><div class="metric-title"><p class="eyebrow">Simulated shop · Actual replay samples</p><h3 id="metric-title">${title}</h3></div><div class="metric-legend" aria-label="Chart legend"><span class="legend-item new">New checkout</span><span class="legend-item old">Old checkout (dashed)</span></div><div class="chart-wrap"><svg id="metrics-chart" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="chart-title chart-description"><title id="chart-title">Checkout error rates${whole ? " through the night" : ` during the ${inventoryView ? "inventory" : "rounding"} fault`}</title><desc id="chart-description">${escape(description)}</desc>${grids}${limitLine}<path d="${path("new_rate")}" class="chart-line new"/><path d="${path("old_rate")}" class="chart-line old"/>${limitText}${markerSvg}${sampleCursor}${labels}</svg></div>${sampleInspector(samples)}${markerLegend}<p class="chart-threshold-note">${state.signedChoice ? "Dashed line: 5% limit for signed new checkout order." : "Dashed line: the 5% limit order 1 would have had, if signed."}</p><p class="metric-caption">${escape(caption)}</p><details class="chart-table"><summary>Read the chart samples</summary><div class="table-scroll"><table><caption>Complete one-minute samples, Priya's local time</caption><thead><tr><th scope="col">Minute</th><th scope="col">Old checkout</th><th scope="col">New checkout</th><th scope="col">Checkouts</th></tr></thead><tbody>${samples.map((sample) => `<tr><th scope="row">${escape(timeOf(sample.sampled_at))}</th><td>${percent(sample.old_rate)}</td><td>${percent(sample.new_rate)}</td><td>${escape(sample.checkouts ?? "")}</td></tr>`).join("")}</tbody></table></div></details></section>`;
   }
 
   function context() {
@@ -414,6 +458,7 @@
     if (!data || !data.choices || typeof data.choices.signed !== "boolean" || typeof data.choices.approved !== "boolean" || !Array.isArray(data.orders) || !Array.isArray(data.timeline) || !Array.isArray(data.messages) || !Array.isArray(data.metrics) || !Array.isArray(data.logs) || !data.signature || !data.expiry || !data.morning || !data.counts) throw new Error("The replay returned an incomplete result. Please retry.");
     for (const count of ["pages", "automatic_incidents_handled", "approved_actions"]) if (!Number.isInteger(data.counts[count]) || data.counts[count] < 0) throw new Error("The replay counts could not be read. Please retry.");
     if (data.metrics.some((sample) => !Number.isFinite(sample.old_rate) || !Number.isFinite(sample.new_rate) || sample.old_rate < 0 || sample.new_rate < 0 || sample.old_rate > 1 || sample.new_rate > 1)) throw new Error("The replay metrics could not be read. Please retry.");
+    if (data.metrics.some((sample) => !Number.isFinite(sample.all_rate) || sample.all_rate < 0 || sample.all_rate > 1 || !Number.isInteger(sample.checkouts) || !Number.isInteger(sample.new_checkouts) || sample.new_checkouts < 0 || sample.checkouts < sample.new_checkouts || !Number.isFinite(Date.parse(sample.sampled_at)))) throw new Error("The replay traffic samples could not be read. Please retry.");
     for (const key of ["lines", "kept", "undone", "by_hand"]) if (!Array.isArray(data.morning[key])) throw new Error("The morning record could not be read. Please retry.");
     if (data.messages.some((message) => !Array.isArray(message.lines))) throw new Error("The wake-up record could not be read. Please retry.");
     if (data.permission_checks !== undefined && (!Array.isArray(data.permission_checks) || data.permission_checks.some((row) => !row || typeof row.who !== "string" || typeof row.tried !== "string" || typeof row.answer !== "string" || typeof row.changed !== "boolean"))) throw new Error("The permission checks could not be read. Please retry.");
@@ -504,6 +549,11 @@
       return;
     }
     const action = target.dataset.action;
+    if (action === "sample-earlier" || action === "sample-later") {
+      const current = Number(document.getElementById("chart-minute")?.value);
+      inspectSample(current + (action === "sample-earlier" ? -1 : 1));
+      return;
+    }
     if (action === "compare-way") {
       const way = target.dataset.compareWay;
       if (!state.replay?.three_ways?.some((row) => row.way === way)) return;
@@ -554,6 +604,7 @@
         state.view = "dusk";
         state.nightScene = "inventory";
         state.comparisonWay = "signed";
+        state.chartTime = null;
         live.textContent = "Replay reset. Choose whether to sign the demo orders.";
       });
     }
@@ -562,6 +613,10 @@
   window.addEventListener("pagehide", () => {
     ++state.request;
     state.controller?.abort();
+  });
+
+  document.addEventListener("input", (event) => {
+    if (event.target.id === "chart-minute" && !state.busy) inspectSample(Number(event.target.value));
   });
 
   load(true, true, () => { live.textContent = "Demo ready. Review the orders before bed."; prefetch(); });
