@@ -1,0 +1,288 @@
+{
+  "version": 1,
+  "captured_at": "2026-10-27T12:42:01.951996+00:00",
+  "label": "Recorded GitLab executions. Shop incidents may use labelled demo inputs.",
+  "project": {
+    "id": 88050495,
+    "name": "GitLab AI Hackathon / Transcend October 2026 / alejandro-publius / Showcase",
+    "web_url": "https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase"
+  },
+  "runs": [
+    {
+      "id": 10124688,
+      "flow": "dusk",
+      "title": "Draft Night Orders for 2026-10-27",
+      "status": "finished",
+      "execution_status": "Completed",
+      "created_at": "2026-10-27T12:03:48Z",
+      "updated_at": "2026-10-27T12:05:37Z",
+      "web_url": "https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/automate/agent-sessions/10124688",
+      "source_url": "https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/work_items/2",
+      "steps": [
+        {
+          "index": 1,
+          "kind": "tool",
+          "component": "",
+          "name": "",
+          "title": "Starting Flow: Project gitlab-ai-hackathon/transcend-october-2026/43649347/showcase, standing watch issue #2. Draft Night Orders for the night of 2026-10-27 in America/Los_Angeles.",
+          "status": "success",
+          "text": "Starting Flow: Project gitlab-ai-hackathon/transcend-october-2026/43649347/showcase, standing watch issue #2. Draft Night Orders for the night of 2026-10-27 in America/Los_Angeles. Inspect the actual merged merge requests, deployments and allowed targets. Use only verified changes; when no safe candidate is supported by the evidence, draft zero orders and clearly explain missing evidence and what was left out. Create one draft merge request for the human to review, with only ops/night-orders.yml changed. Do not merge or approve it, do not change production settings, and do not write issue comments. Keep the signed-permission boundary from skills/night-orders/SKILL.md."
+        },
+        {
+          "index": 2,
+          "kind": "tool",
+          "component": "scout",
+          "name": "get_repository_file",
+          "title": "Get repository file skills/night-orders/SKILL.md from project 88050495 at ref HEAD",
+          "status": "success",
+          "text": "Get repository file skills/night-orders/SKILL.md from project 88050495 at ref HEAD"
+        },
+        {
+          "index": 3,
+          "kind": "tool",
+          "component": "scout",
+          "name": "list_issue_notes",
+          "title": "Read comments on issue #2 in project 88050495",
+          "status": "success",
+          "text": "Read comments on issue #2 in project 88050495"
+        },
+        {
+          "index": 4,
+          "kind": "tool",
+          "component": "scout",
+          "name": "gitlab_merge_request_search",
+          "title": "List merge requests in project 88050495 with filters: state: merged",
+          "status": "success",
+          "text": "List merge requests in project 88050495 with filters: state: merged"
+        },
+        {
+          "index": 5,
+          "kind": "tool",
+          "component": "scout",
+          "name": "get_repository_file",
+          "title": "Get repository file ops/targets.yml from project 88050495 at ref HEAD",
+          "status": "success",
+          "text": "Get repository file ops/targets.yml from project 88050495 at ref HEAD"
+        },
+        {
+          "index": 6,
+          "kind": "tool",
+          "component": "scout",
+          "name": "get_issue",
+          "title": "Read issue #2 in project 88050495",
+          "status": "success",
+          "text": "Read issue #2 in project 88050495"
+        },
+        {
+          "index": 7,
+          "kind": "tool",
+          "component": "scout",
+          "name": "gitlab_api_get",
+          "title": "Making GitLab API request: /api/v4/projects/88050495/deployments with params {'per_page': 50, 'order_by': 'created_at', 'sort': 'desc'}",
+          "status": "success",
+          "text": "Making GitLab API request: /api/v4/projects/88050495/deployments with params {'per_page': 50, 'order_by': 'created_at', 'sort': 'desc'}"
+        },
+        {
+          "index": 8,
+          "kind": "tool",
+          "component": "scout",
+          "name": "gitlab_merge_request_search",
+          "title": "List merge requests in project 88050495 with filters: state: all",
+          "status": "success",
+          "text": "List merge requests in project 88050495 with filters: state: all"
+        },
+        {
+          "index": 9,
+          "kind": "tool",
+          "component": "scout",
+          "name": "get_repository_file",
+          "title": "Get repository file ops/night-orders.yml from project 88050495 at ref HEAD",
+          "status": "success",
+          "text": "Get repository file ops/night-orders.yml from project 88050495 at ref HEAD"
+        },
+        {
+          "index": 10,
+          "kind": "tool",
+          "component": "scout",
+          "name": "gitlab_api_get",
+          "title": "Making GitLab API request: /api/v4/projects/88050495/repository/commits with params {'per_page': 20}",
+          "status": "success",
+          "text": "Making GitLab API request: /api/v4/projects/88050495/repository/commits with params {'per_page': 20}"
+        },
+        {
+          "index": 11,
+          "kind": "agent",
+          "component": "scout",
+          "name": "",
+          "title": "scout response",
+          "status": "success",
+          "text": "```json\n{\n  \"night\": \"2026-10-27\",\n  \"orders\": [],\n  \"left_out\": [\n    {\n      \"change\": \"Day sheet for 2026-10-27\",\n      \"why\": \"no day sheet for today. Issue #2 has only the session-start note and a status note, and no note titled \\\"Day sheet\\\". I took the night date from your request, not from a day sheet title.\"\n    },\n    {\n      \"change\": \"Today's merged merge requests\",\n      \"why\": \"The merge request search for this project returns no merge requests in any state, so there is no merged change to inspect and no diff to read. Today's default-branch commits are direct pushes and branch merges. They cover the README, the Devpost draft, the pipeline, dependency bumps, the GraphQL endpoint fix and the permission explorer. None of them is a flag or traffic change. None is an MR whose production impact I could verify, so I didn't treat any as a candidate.\"\n    },\n    {\n      \"change\": \"Production deployments\",\n      \"why\": \"The deployments API returns an empty list. There is no evidence of anything deployed to production tonight. The recent commit notes also say no Google Cloud project is connected and the Cloud Run deploy jobs were left out of the pipeline.\"\n    },\n    {\n      \"change\": \"Feature flag state and changes kept from earlier nights\",\n      \"why\": \"There is no day sheet to list flag states or kept changes. ops/state.yml was not part of the evidence. The only allowed flags are new_checkout and stock_from_cache, and I have no evidence that either changed today. I did not draft anything that could reverse an earlier keep, because those belong to the morning countersign.\"\n    },\n    {\n      \"change\": \"flag_set and traffic_to_revision orders\",\n      \"why\": \"ops/targets.yml allows flags new_checkout and stock_from_cache in production and staging, and services shop and shop-staging. With no verified change and no named earlier revision, any order would be a guess. Zero orders means every alert wakes the engineer, which is the safe default. I drafted no order on payment errors.\"\n    },\n    {\n      \"change\": \"Draft merge request changing only ops/night-orders.yml\",\n      \"why\": \"Not created. My tools here are read-only: I can read files and call GET endpoints. I cannot create a branch, commit, or open a merge request. The intended content is night: \\\"2026-10-27\\\", expires: \\\"07:00\\\", orders: [], with drafted_by set by the flow. The file on the default branch still says night \\\"2026-10-06\\\". Nothing was merged, approved, commented on, or changed in production.\"\n    }\n  ],\n  \"question\": null\n}\n```"
+        },
+        {
+          "index": 12,
+          "kind": "agent",
+          "component": "critic_1",
+          "name": "",
+          "title": "critic_1 response",
+          "status": "success",
+          "text": "ok"
+        },
+        {
+          "index": 13,
+          "kind": "tool",
+          "component": "commit_writer",
+          "name": "create_branch",
+          "title": "Create branch orders/2026-10-27 from main in project 88050495",
+          "status": "success",
+          "text": "Create branch orders/2026-10-27 from main in project 88050495"
+        },
+        {
+          "index": 14,
+          "kind": "tool",
+          "component": "commit_writer",
+          "name": "create_commit",
+          "title": "Create commit in project 88050495 on orders/2026-10-27 with 1 file action (update)",
+          "status": "success",
+          "text": "Create commit in project 88050495 on orders/2026-10-27 with 1 file action (update)"
+        },
+        {
+          "index": 15,
+          "kind": "agent",
+          "component": "commit_writer",
+          "name": "",
+          "title": "commit_writer response",
+          "status": "success",
+          "text": "orders/2026-10-27"
+        },
+        {
+          "index": 16,
+          "kind": "tool",
+          "component": "mr_writer",
+          "name": "create_merge_request",
+          "title": "Created merge request: https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/merge_requests/1",
+          "status": "success",
+          "text": "Created merge request: https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/merge_requests/1"
+        }
+      ],
+      "artifacts": [
+        {
+          "kind": "merge_request",
+          "iid": 1,
+          "title": "Draft: Night orders 2026-10-27",
+          "web_url": "https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/merge_requests/1",
+          "state": "opened",
+          "draft": true,
+          "sha": "4467f11c7738daab8538c05767e9ce17b99253f0",
+          "changed_files": [
+            "ops/night-orders.yml"
+          ],
+          "validation": "Orders parser passed: 0 bounded orders"
+        }
+      ],
+      "steps_truncated": false,
+      "errors": [],
+      "artifacts_truncated": false
+    },
+    {
+      "id": 10120703,
+      "flow": "watch",
+      "title": "Evaluate incident 3 order for new_che...",
+      "status": "finished",
+      "execution_status": "Completed",
+      "created_at": "2026-10-27T11:06:19Z",
+      "updated_at": "2026-10-27T11:07:20Z",
+      "web_url": "https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/automate/agent-sessions/10120703",
+      "source_url": "https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/issues/3",
+      "steps": [
+        {
+          "index": 1,
+          "kind": "tool",
+          "component": "",
+          "name": "",
+          "title": "Starting Flow: Incident #3. Signed orders whose numbers match right now: order 1: new_checkout off in production, because MR !31 turned on new_checkout in production at 16:20; its ",
+          "status": "success",
+          "text": "Starting Flow: Incident #3. Signed orders whose numbers match right now: order 1: new_checkout off in production, because MR !31 turned on new_checkout in production at 16:20; its price rounding is new code. (numbers now: checkout error rate (new path) 7.9%, above 5.0% for 5 min). The signed file is ops/night-orders.yml at commit e129e28f9948af566ae053ef2c44ffca3df35ace; the allowed targets are in ops/targets.yml on the default branch. Decide whether one of these orders fits the evidence, not only the numbers. If unsure, choose none."
+        },
+        {
+          "index": 2,
+          "kind": "tool",
+          "component": "investigator",
+          "name": "get_repository_file",
+          "title": "Get repository file skills/night-orders/SKILL.md from project 88050495 at ref HEAD",
+          "status": "success",
+          "text": "Get repository file skills/night-orders/SKILL.md from project 88050495 at ref HEAD"
+        },
+        {
+          "index": 3,
+          "kind": "tool",
+          "component": "investigator",
+          "name": "get_issue",
+          "title": "Read issue #3 in project 88050495",
+          "status": "success",
+          "text": "Read issue #3 in project 88050495"
+        },
+        {
+          "index": 4,
+          "kind": "tool",
+          "component": "investigator",
+          "name": "get_repository_file",
+          "title": "Get repository file ops/night-orders.yml from project 88050495 at ref e129e28f9948af566ae053ef2c44ffca3df35ace",
+          "status": "success",
+          "text": "Get repository file ops/night-orders.yml from project 88050495 at ref e129e28f9948af566ae053ef2c44ffca3df35ace"
+        },
+        {
+          "index": 5,
+          "kind": "tool",
+          "component": "investigator",
+          "name": "get_repository_file",
+          "title": "Get repository file ops/targets.yml from project 88050495 at ref HEAD",
+          "status": "success",
+          "text": "Get repository file ops/targets.yml from project 88050495 at ref HEAD"
+        },
+        {
+          "index": 6,
+          "kind": "tool",
+          "component": "investigator",
+          "name": "get_commit_diff",
+          "title": "Using get_commit_diff: project_id=88050495, commit_sha=e129e28f9948af566ae053ef2c44ffca3df35ace",
+          "status": "success",
+          "text": "Using get_commit_diff: project_id=88050495, commit_sha=e129e28f9948af566ae053ef2c44ffca3df35ace"
+        },
+        {
+          "index": 7,
+          "kind": "agent",
+          "component": "investigator",
+          "name": "",
+          "title": "investigator response",
+          "status": "success",
+          "text": "```night-orders-request\n{\"order\": null, \"fits_because\": null, \"declined\": {\"id\": 1, \"why\": \"The evidence fits order 1, but the signed ops/night-orders.yml at e129e28 has an empty orders list, so I can't confirm the order was signed.\"}, \"page\": [\"new_checkout errors 7.9% on new path vs 0.3% old (MR !31 rounding ValueError)\", \"Order 1 is not in the signed file at e129e28, so I did not use it\", \"Suggest turning new_checkout off in production; reply with a thumbs-up to approve\"], \"suggest\": {\"action\": \"flag_set\", \"flag\": \"new_checkout\", \"environment\": \"production\", \"to\": \"off\"}}\n```"
+        },
+        {
+          "index": 8,
+          "kind": "tool",
+          "component": "request_writer",
+          "name": "create_issue_note",
+          "title": "Add comment to issue #3 in project 88050495",
+          "status": "success",
+          "text": "Add comment to issue #3 in project 88050495"
+        }
+      ],
+      "artifacts": [
+        {
+          "kind": "note",
+          "title": "Agent response on the incident",
+          "web_url": "https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/issues/3#note_4098028965",
+          "state": "posted",
+          "text": "```night-orders-request\n{\"order\": null, \"fits_because\": null, \"declined\": {\"id\": 1, \"why\": \"The evidence fits order 1, but the signed ops/night-orders.yml at e129e28 has an empty orders list, so I can't confirm the order was signed.\"}, \"page\": [\"new_checkout errors 7.9% on new path vs 0.3% old (MR !31 rounding ValueError)\", \"Order 1 is not in the signed file at e129e28, so I did not use it\", \"Suggest turning new_checkout off in production; reply with a thumbs-up to approve\"], \"suggest\": {\"action\": \"flag_set\", \"flag\": \"new_checkout\", \"environment\": \"production\", \"to\": \"off\"}}\n```",
+          "validation": "Watch request parser passed: no automatic order requested"
+        }
+      ],
+      "steps_truncated": false,
+      "errors": [],
+      "artifacts_truncated": false
+    }
+  ],
+  "more_runs_available": false,
+  "source": "Read-only GitLab GraphQL checkpoints and REST merge-request read-back",
+  "limits": "Recorded execution is not proof of a deployed relay or production remediation."
+}

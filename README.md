@@ -18,6 +18,8 @@ An entry for [Life After Code, the GitLab Transcend Hackathon](https://gitlab-tr
 
 **No install:** open the demo on GitLab Pages, published by the project's pipeline: **[https://showcase-700ee4.gitlab.io](https://showcase-700ee4.gitlab.io)**.
 
+**Inspect the real agents:** the [execution explorer](https://showcase-700ee4.gitlab.io/activity.html) shows captured GitLab Duo sessions, their tool calls and answers, and direct links to the draft orders MR and watch response. The capture command reads real GraphQL checkpoints and validates MR files at their exact source commit. This is recorded execution evidence; the guided shop story remains simulated. [Capture and provenance](docs/EXECUTION_EXPLORER.md).
+
 To run it yourself, from the repository root, with Python 3.11 or newer and [uv](https://docs.astral.sh/uv/getting-started/installation/):
 
 ```sh

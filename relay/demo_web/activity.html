@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f4f0e7">
+    <meta name="description" content="Inspect recorded Night Orders GitLab Duo sessions, the tools they used, and the merge requests they created.">
+    <title>Night Orders | Agent executions</title>
+    <link rel="stylesheet" href="/demo/assets/style.css">
+    <link rel="stylesheet" href="/demo/assets/activity.css">
+    <script src="/demo/assets/activity.js" defer></script>
+  </head>
+  <body class="activity-page" data-static="0">
+    <header class="site-header">
+      <a class="brand" href="/demo" aria-label="Night Orders demo home">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Night Orders<span>A night with clear limits</span></span>
+      </a>
+      <a class="activity-back" href="/demo">Try the guided night <span aria-hidden="true">↗</span></a>
+    </header>
+    <div class="page-shell activity-shell">
+      <section class="activity-intro" aria-labelledby="activity-title">
+        <div>
+          <p class="eyebrow">GitLab Duo Agent Platform · Recorded executions</p>
+          <h1 id="activity-title">See what the agents<br class="activity-title-break"> actually did.</h1>
+          <p class="activity-intro-copy">Follow the tools they called, read their decisions, and open the work they left for a person to review.</p>
+        </div>
+        <aside class="activity-provenance" aria-label="About these records">
+          <span class="activity-evidence-mark" aria-hidden="true">●</span>
+          <strong>Real GitLab sessions</strong>
+          <p>A saved record of actual Duo executions. Any simulated incident inputs remain demo data. This is not a live production feed.</p>
+          <span class="activity-captured-label">Snapshot captured</span>
+          <time id="capture-time">Loading capture time...</time>
+        </aside>
+      </section>
+      <p id="activity-announcement" class="screen-reader-only" role="status" aria-live="polite" aria-atomic="true"></p>
+      <main id="activity-root" aria-busy="true">
+        <div class="activity-loading"><span class="eyebrow">Reading the record</span><h2>Loading agent executions...</h2><p>Getting the captured GitLab sessions and their artifacts.</p></div>
+      </main>
+      <noscript><div class="activity-empty"><h2>This explorer needs JavaScript.</h2><p>The guided demo and repository describe the same workflow. Follow the repository links to inspect the source records.</p><a href="/demo">Return to the guided night</a></div></noscript>
+      <footer class="footer-note">A finished agent run is a record of work, not permission to deploy. People still sign the orders and decide what stays.</footer>
+    </div>
+  </body>
+</html>

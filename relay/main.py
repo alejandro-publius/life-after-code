@@ -82,7 +82,7 @@ from fastapi import FastAPI, Header
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from nightorders import daysheet, kept, memory, morning, rehearsal, state, status_page
+from nightorders import daysheet, execution, kept, memory, morning, rehearsal, state, status_page
 from nightorders.dawn import render_watch_log
 from nightorders.decide import Night
 from nightorders.gitlab_ports import GitLab, GitLabPorts, GoogleToken, Http, RelayError, push
@@ -588,6 +588,19 @@ def create_app(make_store: Callable[[Config], Any] = make_store,
         # Fixed fixture selectors only. This route never reads runtime credentials,
         # GitLab, a production state store or the tick's action ports.
         return JSONResponse(demo_replay(signed, approved), headers=DEMO_PAGE_HEADERS)
+
+    @app.get("/activity", response_class=HTMLResponse)
+    @app.get("/activity/", response_class=HTMLResponse, include_in_schema=False)
+    def agent_activity() -> FileResponse:
+        return FileResponse(demo_files / "activity.html", media_type="text/html", headers=DEMO_PAGE_HEADERS)
+
+    @app.get("/activity.json")
+    def agent_execution_record() -> JSONResponse:
+        try:
+            return JSONResponse(execution.load_recording(), headers=DEMO_PAGE_HEADERS)
+        except (OSError, ValueError):
+            return JSONResponse({"error": "The recorded executions cannot be read right now."},
+                                status_code=503, headers=DEMO_PAGE_HEADERS)
 
     app.mount("/demo/assets", StaticFiles(directory=demo_files, check_dir=False), name="demo-assets")
 

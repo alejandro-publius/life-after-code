@@ -156,6 +156,27 @@ def incident_memory(page, *, signed: bool, approved: bool):
         assert "new human signature" in handoff
 
 
+def execution_explorer(page, base: str, *, static: bool = False):
+    """The visible run and artifact are the captured GitLab record, not a canned success screen."""
+    recorded = json.loads((ROOT / "relay" / "nightorders" / "agent_runs.json").read_text())
+    page.goto(base + ("/activity.html" if static else "/activity"), wait_until="networkidle")
+    expect(page.locator("#activity-root")).to_have_attribute("aria-busy", "false")
+    for run in recorded["runs"]:
+        page.locator(f'[data-flow="{run["flow"]}"]').click()
+        page.locator(f'[data-run-id="{run["id"]}"]').click()
+        expect(page.locator("#run-title")).to_have_text(run["title"])
+        expect(page.locator(".activity-step")).to_have_count(len(run["steps"]))
+        expect(page.locator(".activity-artifact")).to_have_count(len(run["artifacts"]))
+        for index, artifact in enumerate(run["artifacts"]):
+            expect(page.locator(".activity-artifact-title").nth(index)).to_have_attribute("href", artifact["web_url"])
+        fits_screen(page)
+    if not any(run["flow"] == "dawn" for run in recorded["runs"]):
+        page.locator('[data-flow="dawn"]').click()
+        expect(page.get_by_role("heading", name="No dawn run captured yet.")).to_be_visible()
+    page.locator('[data-flow="all"]').click()
+    expect(page.locator(".activity-run-choice")).to_have_count(len(recorded["runs"]))
+
+
 def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | None, screen: str):
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -292,6 +313,9 @@ def main():
                         page = context.new_page()
                         walk(page, base, signed=signed, approved=approved, screenshots=None, screen=screen)
                         page.close()
+                    page = context.new_page()
+                    execution_explorer(page, base, static=True)
+                    page.close()
                     context.close()
                     print(f"static {screen}: signed, declined and unsigned paths passed")
             finally:
@@ -309,6 +333,9 @@ def main():
                     page = context.new_page()
                     walk(page, base, signed=signed, approved=approved, screenshots=args.screenshots, screen=screen)
                     page.close()
+                page = context.new_page()
+                execution_explorer(page, base)
+                page.close()
                 page = context.new_page()  # the relay's own page at /, drawn with the demo's stylesheet
                 page.goto(base + "/", wait_until="networkidle")
                 expect(page.locator("h1")).to_have_text("Nothing signed yet. Here is the demo.")

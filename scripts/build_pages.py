@@ -21,11 +21,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "relay")]
 
-from nightorders import browser_demo  # noqa: E402
+from nightorders import browser_demo, execution  # noqa: E402
 
 WEB = ROOT / "relay" / "demo_web"
 COMBINATIONS = [(True, True), (True, False), (False, True), (False, False)]
-ASSETS = ("app.js", "style.css", "og.png")
+ASSETS = ("app.js", "style.css", "og.png", "activity.js", "activity.css")
 GALLERY = ROOT / "docs" / "images" / "gallery"
 
 
@@ -39,6 +39,7 @@ def page() -> str:
     text = text.replace('content="/demo/assets/og.png"', 'content="assets/og.png"')
     text = text.replace('<a class="brand" href="/demo"', '<a class="brand" href="./"')
     text = text.replace('<body class="no-js">', '<body class="no-js" data-static="1">')
+    text = text.replace('href="/activity"', 'href="activity.html"')
     return text
 
 
@@ -50,6 +51,13 @@ def build(out: Path, project_url: str | None) -> list[Path]:
     index = out / "index.html"
     index.write_text(page(), encoding="utf-8")
     written.append(index)
+    activity = (WEB / "activity.html").read_text(encoding="utf-8")
+    activity = activity.replace('href="/demo/assets/', 'href="assets/').replace('src="/demo/assets/', 'src="assets/')
+    activity = activity.replace('href="/demo"', 'href="./"').replace('data-static="0"', 'data-static="1"')
+    for filename, contents in (("activity.html", activity), ("activity.json", json.dumps(execution.load_recording()))):
+        target = out / filename
+        target.write_text(contents, encoding="utf-8")
+        written.append(target)
     for asset in ASSETS:
         shutil.copyfile(WEB / asset, out / "assets" / asset)
         written.append(out / "assets" / asset)

@@ -16,6 +16,10 @@ def test_the_static_site_has_the_page_its_assets_and_the_four_replays(tmp_path):
     page = (out / "index.html").read_text(encoding="utf-8")
     assert 'data-static="1"' in page and 'href="assets/style.css"' in page and 'src="assets/app.js"' in page
     assert "/demo/assets" not in page and 'href="/demo"' not in page
+    assert 'href="activity.html"' in page
+    activity = (out / "activity.html").read_text()
+    assert 'data-static="1"' in activity and "/demo/assets" not in activity
+    assert json.loads((out / "activity.json").read_text())["version"] == 1
     for asset in ("app.js", "style.css", "og.png"):
         assert (out / "assets" / asset).exists()
     for signed, approved in COMBINATIONS:
