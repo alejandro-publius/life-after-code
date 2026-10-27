@@ -18,6 +18,7 @@
     retry: null,
     permissionCase: 2,
     memoryIncident: null,
+    comparisonWay: "signed",
   };
 
   const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -198,8 +199,29 @@
   function threeWays() {
     const rows = state.replay.three_ways || [];
     if (!rows.length) return "";
-    const short = {signed: "Signed, model on", standing: "Signed, no model", unsigned: "Nothing signed"};
-    return `<section class="three-ways" aria-labelledby="three-ways-title"><h3 class="section-title" id="three-ways-title">The same night, three ways</h3><p class="small-copy">Counted by the same Watch code on the same demo night. Only the permission changes. "Model on" is the design: the watch flow checks the reason. "No model" is the standing orders fallback: code acts on the numbers alone.</p><div class="three-ways-scroll"><table><thead><tr><th scope="col">Night</th><th scope="col">Wake-ups</th><th scope="col">Fix to approve</th><th scope="col">Handled asleep</th><th scope="col">Did not help</th></tr></thead><tbody>${rows.map((row) => `<tr class="${row.way === "signed" ? "is-designed" : ""}"><th scope="row">${escape(short[row.way] || row.label)}</th><td>${escape(row.wake_ups)}</td><td>${escape(row.fix_offered)}</td><td>${escape(row.handled_asleep)}</td><td>${escape(row.did_not_help)}</td></tr>`).join("")}</tbody></table></div><p class="decision-note"><strong>Why the model's key matters.</strong> With code alone, the numbers matched at 01:50 and code turned the new checkout off. It did not help, and she was woken anyway, with nothing to approve.</p></section>`;
+    const labels = {
+      signed: {title: "Signed + Duo", copy: "Code checks permission. Duo checks the reason."},
+      standing: {title: "Signed, code only", copy: "The same limits, without the agent's reason check."},
+      unsigned: {title: "Nothing signed", copy: "Every incident needs the person on call."},
+    };
+    const metrics = [
+      ["wake_ups", "Wake-ups", "Times Priya is paged", false],
+      ["fix_offered", "Fixes offered", "Wake-ups with one action to approve", true],
+      ["handled_asleep", "Handled while asleep", "Faults resolved without another page", true],
+      ["did_not_help", "Changes that did not help", "Automatic actions followed by a wake-up", false],
+    ];
+    const baseline = rows.find((row) => row.way === "signed");
+    const selected = rows.find((row) => row.way === state.comparisonWay) || baseline;
+    if (!selected || !baseline) return "";
+    const summary = `${labels[selected.way].title}: ${selected.wake_ups} wake-ups, ${selected.fix_offered} fixes offered, ${selected.handled_asleep} handled while asleep, ${selected.did_not_help} changes that did not help.`;
+    const cards = rows.map((row, index) => `<button type="button" class="compare-choice${row.way === selected.way ? " selected" : ""}" data-action="compare-way" data-compare-way="${row.way}" aria-pressed="${row.way === selected.way}" aria-controls="compare-outcomes"><span class="compare-option">0${index + 1}</span><strong>${labels[row.way].title}</strong><span>${labels[row.way].copy}</span><span class="compare-selected">${row.way === selected.way ? "Viewing this night" : "Explore this night"}</span></button>`).join("");
+    const outcomes = metrics.map(([key, label, explanation, higherBetter]) => {
+      const difference = selected[key] - baseline[key];
+      const improved = higherBetter ? difference > 0 : difference < 0;
+      const change = selected.way === "signed" ? "Signed + Duo baseline" : difference === 0 ? "Same as signed + Duo" : `${Math.abs(difference)} ${difference > 0 ? "more" : "fewer"} than signed + Duo`;
+      return `<div class="compare-metric"><div class="compare-metric-head"><strong id="compare-count-${key}">${escape(selected[key])}</strong><span class="compare-delta${difference ? improved ? " better" : " worse" : ""}">${change}</span></div><h4>${label}</h4><p>${explanation}</p></div>`;
+    }).join("");
+    return `<section class="three-ways comparison-lab" id="compare-panel" aria-labelledby="three-ways-title"><div class="compare-heading"><p class="eyebrow">Same faults. Different permission.</p><h3 id="three-ways-title">The same night, three ways</h3><p>Explore what changes when the agent can decline, code acts alone, or nothing is signed. This comparison leaves your own replay choices unchanged.</p></div><div class="compare-choices" aria-label="Choose a night to compare">${cards}</div><div id="compare-outcomes" class="compare-outcomes" role="region" aria-label="Selected comparison outcomes"><p class="screen-reader-only" role="status" aria-live="polite" aria-atomic="true">${summary}</p>${outcomes}</div><p class="compare-source">Demo data, counted by the actual decision code. These are three fixed scenarios with the same planted faults, not a prediction or measured production impact.</p><details class="compare-table"><summary>Read all the numbers together</summary><div class="three-ways-scroll"><table><thead><tr><th scope="col">Night</th><th scope="col">Wake-ups</th><th scope="col">Fix to approve</th><th scope="col">Handled asleep</th><th scope="col">Did not help</th></tr></thead><tbody>${rows.map((row) => `<tr class="${row.way === selected.way ? "is-designed" : ""}"><th scope="row">${labels[row.way].title}</th><td>${escape(row.wake_ups)}</td><td>${escape(row.fix_offered)}</td><td>${escape(row.handled_asleep)}</td><td>${escape(row.did_not_help)}</td></tr>`).join("")}</tbody></table></div></details></section>`;
   }
 
   function samplesForChart() {
@@ -375,7 +397,7 @@
     const wasOpen = {evidence: document.getElementById("evidence-details")?.open, table: document.querySelector("details.chart-table")?.open};
     const content = state.view === "dusk" ? dusk() : state.view === "dawn" ? dawn() : state.nightScene === "inventory" ? inventory() : checkout();
     const failure = state.error ? `<div class="inline-error" role="alert"><p>${escape(state.error)}</p>${button("retry-replay", "Retry this choice", "retry", "secondary")}</div>` : "";
-    root.innerHTML = `<div class="journey-layout"><main class="journey-panel" id="journey-content">${failure}${state.busy ? "<p class=\"loading-note\">Checking your demo choice...</p>" : ""}${content}</main>${context()}</div>${incidentMemory()}${evidence()}${permissionChecks()}`;
+    root.innerHTML = `<div class="journey-layout"><main class="journey-panel" id="journey-content">${failure}${state.busy ? "<p class=\"loading-note\">Checking your demo choice...</p>" : ""}${content}</main>${context()}</div><nav class="proof-nav" aria-label="Explore the evidence"><span>Look closer</span><a href="#incident-memory">Incident memory</a><a href="#evidence-details">Decision evidence</a><a href="#permission-title">Permission checks</a><a href="${STATIC ? "activity.html" : "/activity"}">Real GitLab runs</a></nav>${incidentMemory()}${evidence()}${permissionChecks()}`;
     if (wasOpen.evidence) document.getElementById("evidence-details")?.setAttribute("open", "");
     if (wasOpen.table) document.querySelector("details.chart-table")?.setAttribute("open", "");
     document.body.classList.toggle("compact-intro", state.signedChoice !== null);
@@ -395,6 +417,7 @@
     for (const key of ["lines", "kept", "undone", "by_hand"]) if (!Array.isArray(data.morning[key])) throw new Error("The morning record could not be read. Please retry.");
     if (data.messages.some((message) => !Array.isArray(message.lines))) throw new Error("The wake-up record could not be read. Please retry.");
     if (data.permission_checks !== undefined && (!Array.isArray(data.permission_checks) || data.permission_checks.some((row) => !row || typeof row.who !== "string" || typeof row.tried !== "string" || typeof row.answer !== "string" || typeof row.changed !== "boolean"))) throw new Error("The permission checks could not be read. Please retry.");
+    if (data.three_ways !== undefined && (!Array.isArray(data.three_ways) || data.three_ways.length !== 3 || new Set(data.three_ways.map((row) => row?.way)).size !== 3 || data.three_ways.some((row) => !row || !["signed", "standing", "unsigned"].includes(row.way) || ["wake_ups", "fix_offered", "handled_asleep", "did_not_help"].some((key) => !Number.isInteger(row[key]) || row[key] < 0)))) throw new Error("The comparison outcomes could not be read. Please retry.");
     return data;
   }
 
@@ -481,6 +504,18 @@
       return;
     }
     const action = target.dataset.action;
+    if (action === "compare-way") {
+      const way = target.dataset.compareWay;
+      if (!state.replay?.three_ways?.some((row) => row.way === way)) return;
+      const tableOpen = document.querySelector(".compare-table")?.open;
+      state.comparisonWay = way;
+      document.getElementById("compare-panel").outerHTML = threeWays();
+      if (tableOpen) document.querySelector(".compare-table")?.setAttribute("open", "");
+      document.querySelector(`[data-compare-way="${way}"]`)?.focus({preventScroll: true});
+      const selected = state.replay.three_ways.find((row) => row.way === way);
+      live.textContent = `${selected.label}: ${selected.wake_ups} wake-ups, ${selected.handled_asleep} handled while asleep, ${selected.did_not_help} changes that did not help. Your replay choices are unchanged.`;
+      return;
+    }
     if (action === "download-memory") { downloadMemory(); return; }
     if (action === "memory-incident") {
       const incident = Number(target.dataset.incident);
@@ -518,6 +553,7 @@
         state.approvedChoice = null;
         state.view = "dusk";
         state.nightScene = "inventory";
+        state.comparisonWay = "signed";
         live.textContent = "Replay reset. Choose whether to sign the demo orders.";
       });
     }

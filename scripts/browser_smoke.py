@@ -156,6 +156,34 @@ def incident_memory(page, *, signed: bool, approved: bool):
         assert "new human signature" in handoff
 
 
+def comparison_lab(page, base: str):
+    """Changing the comparison reads actual replay counts without changing this night's choices."""
+    source = "/replay-signed-approved.json" if DEMO_PATH == "/" else "/demo/replay?signed=true&approved=true"
+    response = page.request.get(base + source)
+    assert response.ok
+    expected = {row["way"]: row for row in response.json()["three_ways"]}
+    current_counts = page.locator(".stat-value").all_text_contents()
+    signature = page.locator(".choice-badge").inner_text()
+    for way in ("unsigned", "standing", "signed"):
+        choice = page.locator(f'[data-compare-way="{way}"]')
+        choice.focus()
+        page.keyboard.press("Enter")
+        expect(choice).to_have_attribute("aria-pressed", "true")
+        expect(choice).to_be_focused()
+        for metric in ("wake_ups", "fix_offered", "handled_asleep", "did_not_help"):
+            expect(page.locator(f"#compare-count-{metric}")).to_have_text(str(expected[way][metric]))
+        expect(page.locator("#replay-status")).to_contain_text("Your replay choices are unchanged.")
+        assert page.locator(".stat-value").all_text_contents() == current_counts
+        expect(page.locator(".choice-badge")).to_have_text(signature)
+    page.locator(".compare-table > summary").click()
+    page.locator('[data-compare-way="unsigned"]').click()
+    expect(page.locator(".compare-table")).to_have_attribute("open", "")
+    expect(page.locator(".compare-delta").first).to_have_text("1 more than signed + Duo")
+    page.locator(".compare-table > summary").click()
+    page.locator('[data-compare-way="signed"]').click()
+    fits_screen(page)
+
+
 def execution_explorer(page, base: str, *, static: bool = False):
     """The visible run and artifact are the captured GitLab record, not a canned success screen."""
     recorded = json.loads((ROOT / "relay" / "nightorders" / "agent_runs.json").read_text())
@@ -245,6 +273,7 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
     expected = ["1" if signed else "2", "1" if signed else "0", "1" if signed and approved else "0"]
     assert page.locator(".stat-value").all_text_contents() == expected
     expect(page.locator(".three-ways tbody tr")).to_have_count(3)
+    comparison_lab(page, base)
     if signed:  # the kept change is a lease, and the replay shows it ending when the fix ships
         expect(page.locator(".lease-line").first).to_contain_text("A lease, not forever.")
         expect(page.locator(".lease-line").nth(1)).to_contain_text("!39 reached production. At 15:40 code put it back")
