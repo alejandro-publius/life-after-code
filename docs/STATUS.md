@@ -6,6 +6,10 @@ Updated **27 Oct 2026**, including development after the submission checkpoint.
 
 **Later GitHub work:** a clearer first screen, interactive three-way comparison, minute-by-minute traffic inspection, a real keep/restore decision in the simulated morning, and a six-case operational verifier through the actual HTTP relay and persistent store. Both container images now require digest-bound scanning evidence before release. These later changes have not reached GitLab: project `88050495` is archived, and both authorized unarchive requests returned 403. See the single [nine-stage acceptance map](STAGE_EVIDENCE.md) for implementation, observed evidence and external blockers, and the [development record](codex/DEVELOPMENT_UPDATES.md) for the post-deadline boundary.
 
+**Usable local product:** `uv run --locked python scripts/run_local.py` now starts the complete browser controller and its disposable shop. It executes actual HTTP requests and flag changes, saves intent before each write, reads state back independently, measures whole-shop recovery and lets the person keep or restore the change before final cleanup. Laptop keep, phone restore and unsigned refusal journeys pass with downloaded receipts. [Run it and distinguish execution layers](LOCAL_RUN.md). The replay and captured execution explorer also have a portable offline ZIP builder with source and file provenance.
+
+The package correction at `2df2e4a` was verified in both real local containers, including installed versions and non-root startup; [results](codex/packaged-runtime.json). Claude's completed sustainability branch was reviewed and merged as `6c89d66` with its window-lookup optimization. Thirty-three focused decision/benchmark tests passed. The recorded small CPU saving is for the synthetic night on Claude's machine, not measured energy, carbon or production savings.
+
 ## Current evidence
 
 | Item | State and source |

@@ -16,7 +16,9 @@ An entry for [Life After Code, the GitLab Transcend Hackathon](https://gitlab-tr
 
 ## Try one night in the browser
 
-**No install:** open the demo on GitLab Pages, published by the project's pipeline: **[https://showcase-700ee4.gitlab.io](https://showcase-700ee4.gitlab.io)**.
+**Run a real local night:** `uv run --locked python scripts/run_local.py`. This starts a disposable shop and a browser journey through local consent, real HTTP failures, a reversible flag change, independent recovery checks, morning keep/restore and cleanup. No external credentials are needed. [Start command, execution boundaries and offline bundle](docs/LOCAL_RUN.md).
+
+**GitLab Pages is currently blocked:** the event's parent group is archived, and the [previous Pages URL](https://showcase-700ee4.gitlab.io) redirected anonymous visitors to sign-in in the independent browser check. Later GitHub improvements are available through the local commands, not that frozen deployment.
 
 **Inspect the real agents:** the [execution explorer](https://showcase-700ee4.gitlab.io/activity.html) shows captured GitLab Duo sessions, their tool calls and answers, and direct links to the draft orders MR and watch response. The capture command reads real GraphQL checkpoints and validates MR files at their exact source commit. This is recorded execution evidence; the guided shop story remains simulated. [Capture and provenance](docs/EXECUTION_EXPLORER.md).
 
@@ -33,7 +35,7 @@ Open **[http://localhost:8080/demo](http://localhost:8080/demo)** on a laptop or
 1. Review Priya's two orders, each with the line the rehearsal code wrote after trying it on a simulated staging shop, and what was left out tonight. Then choose **Sign demo orders** or **Leave unsigned**.
 2. Both checkout paths fail. Read the three-line wake-up and choose **Approve cached stock** or **Decline cached stock** when a suggestion is available.
 3. Only the new checkout fails. See whether the signed order permits code to turn it off, and inspect the old and new checkout chart against the 5% limit.
-4. Read the morning brief, the actual replay counts and the recorded keep-or-undo decision. Open **Read the decision evidence** for the signature, checks and ledger.
+4. Read the morning brief and choose whether to keep the checkout change or restore every changed flag. Inspect the actual resulting configuration and compare the three permission paths. Open **Read the decision evidence** for the signature, checks and ledger.
 
 On the signed and approved path, code records **1 wake-up, 1 incident handled while Priya slept and 1 human-approved action**. These are counts from this invented night, not measured production impact. Try leaving the orders unsigned to see the same faults without permission to act.
 
@@ -59,7 +61,7 @@ Code alone acted on the numbers at 01:50, the change did not help, and Priya was
 
 *Local app screenshot. The chart displays samples returned by the replay, with a 5% limit for the signed new checkout order.*
 
-**What is real:** each combination of demo choices is computed in isolated memory through the existing [Watch decision code](relay/nightorders/watch.py), including its recovery checks, ledger and morning countersign code. The four results are cached so repeat choices load quickly. The browser's buttons select recorded demo signatures and approvals. They do not merge a GitLab request, push code or send a phone notification. Each replay computation is bounded to 960 steps and 10 seconds.
+**What is real in the guided replay:** each combination of demo choices is computed in isolated memory through the existing [Watch decision code](relay/nightorders/watch.py), including its recovery checks, ledger and morning countersign code. Its eight results are cached so repeat choices load quickly. These buttons select demo signatures, approvals and morning decisions. They do not merge a GitLab request, push code or send a phone notification. Each replay computation is bounded to 960 steps and 10 seconds. The separate local night above executes actual HTTP requests and scoped changes against its owned disposable process.
 
 **What is demo data:** Juniper Market, Priya, today's changes and both faults are invented. Model replies, signature, approval and morning merge are recorded fixtures. Metrics are computed from the simulated shop and its changing flags. See the [bundled fixture notes](relay/nightorders/demo_story_data/README.md) and [source demo night](demo/night-2026-10-20/README.md). No live model or production service is called by the browser demo.
 
@@ -129,6 +131,9 @@ Path A, category **Supervised**: "your agents run the workflow, you approve the 
 | [Devpost draft](docs/DEVPOST.md) | An English submission draft with pending links and proof called out |
 | [Video script](docs/VIDEO.md) | A filmable browser replay under three minutes |
 | [Current status](docs/STATUS.md) | Verified progress and integration gaps |
+| [Real local night](docs/LOCAL_RUN.md) | One start command, actual local execution and portable offline playback |
+| [Stage evidence](docs/STAGE_EVIDENCE.md) | Concrete acceptance conditions and observed boundaries for all nine stages |
+| [Measured resource work](docs/claude/sustainability/RESULTS.md) | Identical replay outcomes with measured CPU savings; no carbon claim |
 | [Morning handoff](docs/MORNING.md) | The next concrete steps for Alex |
 | [Rules check](docs/codex/RULES_CHECK.md) | Quoted primary-source requirements and dates |
 

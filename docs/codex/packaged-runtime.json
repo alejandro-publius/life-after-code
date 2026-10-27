@@ -1,0 +1,200 @@
+{
+  "source_commit": "2df2e4afa28dbe2a2c0bf73b536fa833d425cc0c",
+  "services": [
+    {
+      "service": "relay",
+      "source_commit": "2df2e4afa28dbe2a2c0bf73b536fa833d425cc0c",
+      "tag": "night-orders-local/relay:2df2e4a",
+      "image_id": "sha256:27f6cd763cbade28d1005a2cf007cf16c524240c0337e2e5ba22cd268708d26c",
+      "configured_user": "10001:10001",
+      "checks": [
+        {
+          "name": "health",
+          "status": "passed",
+          "response": {
+            "ok": true,
+            "commit": "2df2e4a"
+          }
+        },
+        {
+          "name": "demo HTML",
+          "status": "passed",
+          "details": {
+            "status": 200,
+            "bytes": 6981
+          }
+        },
+        {
+          "name": "demo replay keep checkout",
+          "status": "passed",
+          "details": {
+            "counts": {
+              "pages": 1,
+              "automatic_incidents_handled": 1,
+              "approved_actions": 1,
+              "incidents": 2,
+              "model_requests": 2
+            },
+            "morning_choice": "keep_checkout",
+            "after_morning": {
+              "new_checkout": "off",
+              "stock_from_cache": "off"
+            },
+            "permission_check_count": 24
+          }
+        },
+        {
+          "name": "demo replay restore all",
+          "status": "passed",
+          "details": {
+            "counts": {
+              "pages": 1,
+              "automatic_incidents_handled": 1,
+              "approved_actions": 1,
+              "incidents": 2,
+              "model_requests": 2
+            },
+            "morning_choice": "restore_all",
+            "after_morning": {
+              "new_checkout": "on",
+              "stock_from_cache": "off"
+            },
+            "permission_check_count": 24
+          }
+        },
+        {
+          "name": "activity HTML",
+          "status": "passed",
+          "details": {
+            "status": 200,
+            "bytes": 2813
+          }
+        },
+        {
+          "name": "activity data",
+          "status": "passed",
+          "details": {
+            "run_count": 2,
+            "flows": [
+              "dusk",
+              "watch"
+            ]
+          }
+        },
+        {
+          "name": "asset app.js",
+          "status": "passed",
+          "details": {
+            "status": 200,
+            "bytes": 68378
+          }
+        },
+        {
+          "name": "asset style.css",
+          "status": "passed",
+          "details": {
+            "status": 200,
+            "bytes": 40754
+          }
+        },
+        {
+          "name": "asset activity.js",
+          "status": "passed",
+          "details": {
+            "status": 200,
+            "bytes": 14627
+          }
+        },
+        {
+          "name": "asset activity.css",
+          "status": "passed",
+          "details": {
+            "status": 200,
+            "bytes": 10703
+          }
+        },
+        {
+          "name": "asset morning.css",
+          "status": "passed",
+          "details": {
+            "status": 200,
+            "bytes": 1585
+          }
+        }
+      ],
+      "errors": [],
+      "container_id": "b7ee0c62deb72dee92874e38ba5b49d14636b3426d1367501ed4e6c177e19acc",
+      "runtime_uid": "10001",
+      "installed_versions": {
+        "certifi": "2026.10.23",
+        "opentelemetry-api": "1.45.1",
+        "fastapi": "0.142.2"
+      },
+      "container_removed": true,
+      "status": "passed"
+    },
+    {
+      "service": "shop",
+      "source_commit": "2df2e4afa28dbe2a2c0bf73b536fa833d425cc0c",
+      "tag": "night-orders-local/shop:2df2e4a",
+      "image_id": "sha256:b07c9c8d8af79e43ca73325cb0aa335cbb67642ca8f8c42fba6e4d087d066b43",
+      "configured_user": "10001:10001",
+      "checks": [
+        {
+          "name": "health",
+          "status": "passed",
+          "response": {
+            "ok": true,
+            "commit": "2df2e4a"
+          }
+        },
+        {
+          "name": "new checkout",
+          "status": "passed",
+          "details": {
+            "ok": true,
+            "order": "JM-000001",
+            "path": "new",
+            "region": "uk",
+            "currency": "GBP",
+            "total": "12.35",
+            "stock_from": "inventory",
+            "payment": "demo-pay-000001",
+            "label": "demo order: nothing is charged or shipped"
+          }
+        },
+        {
+          "name": "shop HTML",
+          "status": "passed",
+          "details": {
+            "status": 200,
+            "bytes": 5640
+          }
+        },
+        {
+          "name": "metrics",
+          "status": "passed",
+          "details": {
+            "label": "DEMO SHOP: simulated customers and planted faults",
+            "environment": "development",
+            "minutes": []
+          }
+        }
+      ],
+      "errors": [],
+      "container_id": "fa4943e53aeadae8fe9e60e5575e86d094535642460c2c44d6492a7ea2ad5be0",
+      "runtime_uid": "10001",
+      "installed_versions": {
+        "certifi": "2026.10.23",
+        "opentelemetry-api": "1.45.1",
+        "fastapi": "0.142.2"
+      },
+      "container_removed": true,
+      "status": "passed"
+    }
+  ],
+  "container_scanning": {
+    "status": "unrun",
+    "reason": "No cached analyzer image; registry.gitlab.com is outside current network policy."
+  }
+}

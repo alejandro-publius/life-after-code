@@ -49,6 +49,13 @@ and [container scanning configuration](https://docs.gitlab.com/user/application_
 
 ## Local verification and current limit
 
+The corrected images were built and exercised locally from `2df2e4afa28dbe2a2c0bf73b536fa833d425cc0c`.
+Both ran as UID 10001 and contained `certifi 2026.10.23` and `opentelemetry-api 1.45.1`, matching the audited
+runtime lock. Both morning replay choices, captured execution data and a real HTTP shop checkout passed.
+[Exact image IDs, installed versions and results](codex/packaged-runtime.json). This closes the previously
+observed drift in both packaged requirement files. It is local image execution, not registry publication or
+a GitLab container-analyzer scan.
+
 From the repository root:
 
 ```sh

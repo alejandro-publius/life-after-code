@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Run a bounded Night Orders session against a disposable local shop, with actual checkout requests and measured recovery.">
+  <title>A real local night | Night Orders</title>
+  <link rel="stylesheet" href="/local/assets/style.css">
+  <link rel="stylesheet" href="/local/assets/local.css">
+  <script src="/local/assets/local.js" defer></script>
+</head>
+<body class="local-page">
+  <a class="local-skip" href="#local-stage">Skip to the local run</a>
+  <header class="site-header local-header">
+    <a class="brand" href="/local" aria-label="Night Orders local night">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Night Orders<span>A little more sleep. A clear record.</span></span>
+    </a>
+    <nav aria-label="Other Night Orders experiences">
+      <a href="/demo">Guided replay</a>
+      <a href="/activity">Recorded Duo runs</a>
+    </nav>
+  </header>
+  <main class="local-shell">
+    <section class="local-intro" aria-labelledby="local-title">
+      <p class="local-kicker">Standing Orders / Local execution</p>
+      <h1 id="local-title">Run a real local night.</h1>
+      <p>Give a disposable shop one exact permission. Plant a fault, watch the code decide, then check whether real checkout requests recover.</p>
+      <div class="local-truth"><span>Real local HTTP</span><span>Planted fault</span><span>Accelerated clock</span></div>
+    </section>
+    <p id="local-announcement" class="local-sr" role="status" aria-live="polite"></p>
+    <div id="local-error" class="local-error" role="alert" hidden>
+      <strong>We could not confirm that step.</strong>
+      <p id="local-error-copy"></p>
+      <button type="button" id="local-retry" class="local-button local-secondary">Reload current state</button>
+    </div>
+    <noscript><p class="local-error">This local controller needs JavaScript to send requests to the disposable shop. Enable JavaScript and reload this page.</p></noscript>
+    <div class="local-workspace">
+      <section id="local-stage" class="local-stage" aria-labelledby="local-stage-title" aria-busy="true" data-phase="loading">
+        <p class="local-kicker">Connecting to your local session</p>
+        <h2 id="local-stage-title" tabindex="-1">Reading the saved state.</h2>
+        <p>No action runs until you choose it.</p>
+      </section>
+      <aside class="local-evidence" aria-labelledby="local-evidence-title">
+        <div class="local-evidence-heading"><h2 id="local-evidence-title">The shop, as measured</h2><span id="local-phase" class="local-pill">Connecting</span></div>
+        <div id="local-metrics" class="local-metrics"></div>
+        <p class="local-metric-note">Whole-shop errors need actual traffic. An empty checkout path is never proof of recovery.</p>
+        <dl id="local-flags" class="local-facts"></dl>
+        <div class="local-request-total"><strong id="local-request-count">0</strong><span>shop HTTP requests<br><small>Checkout, control and readback requests</small></span></div>
+        <details class="local-detail"><summary>What is real in this run?</summary>
+          <ul>
+            <li><strong>Real:</strong> a disposable local shop process, checkout HTTP requests, flag writes, saved snapshots and independent readback.</li>
+            <li><strong>Controlled inputs:</strong> a planted checkout fault and an accelerated minute clock. The wait is shortened; the checkout code still runs.</li>
+            <li><strong>Standing Orders:</strong> deterministic permission checks. This run does not call a model or create a GitLab approval.</li>
+            <li><strong>Separate evidence:</strong> <a href="/activity">recorded GitLab Duo sessions</a>. Live GitLab writes are unavailable in this local run.</li>
+          </ul>
+        </details>
+      </aside>
+    </div>
+    <section class="local-record" aria-labelledby="local-record-title">
+      <div class="local-record-heading"><div><p class="local-kicker">Your run leaves a record</p><h2 id="local-record-title">What actually happened</h2></div><p id="local-session-label">Waiting for a session</p></div>
+      <details id="local-events-detail" class="local-detail"><summary id="local-events-summary">No events yet</summary><ol id="local-events" class="local-events"></ol></details>
+      <details class="local-detail"><summary>Inspect checkout responses and saved state</summary><p>Local session keys are omitted. Times in the checkout evidence use the accelerated shop clock.</p><pre id="local-raw" tabindex="0">Waiting for the local session.</pre></details>
+      <div class="local-record-actions"><button id="local-reload" type="button" class="local-button local-secondary" disabled>Reload saved run</button><a class="local-text-link" href="/local/api/receipt" download>Download current receipt</a></div>
+    </section>
+    <footer class="local-footer">This shop is disposable. Finish removes the planted fault and restores its starting flags.</footer>
+  </main>
+</body>
+</html>
