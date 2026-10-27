@@ -1,6 +1,6 @@
 # Devpost submission draft
 
-English draft, updated **11 Oct 2026 (Pacific Time)**. The form fields and the story below are pasted into Devpost as they are; [SUBMIT.md](SUBMIT.md) says in what order. Keep the status statements until real execution evidence replaces them.
+English draft, updated **27 Oct 2026**. The form fields and the story below are pasted into Devpost as they are; [SUBMIT.md](SUBMIT.md) says in what order. Keep the status statements until real execution evidence replaces them.
 
 ## Submission fields
 
@@ -11,11 +11,11 @@ English draft, updated **11 Oct 2026 (Pacific Time)**. The form fields and the s
 | Entrant | Alex Velazquez, solo |
 | Path | Path A: Start Fresh |
 | Autonomy category | Supervised: the agents run the night, she approves the bounds before bed and the outcome over coffee |
-| Public GitLab repository | Pending. A public GitHub repository does not replace the required GitLab URL. |
-| Working project URL | The browser demo on GitLab Pages, published by the pipeline (pending the GitLab project). Locally: `http://localhost:8080/demo`. |
-| Public YouTube video | Pending. Target 2:40; must be below 3:00. |
+| Public GitLab repository | https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase |
+| Working project URL | https://showcase-700ee4.gitlab.io (the browser demo on GitLab Pages, published by the project's pipeline) |
+| Public YouTube video | The YouTube link (2:55, captioned; file `dist/night-orders-demo.mp4`) |
 | Built with | python, fastapi, gitlab-duo-agent-platform, gitlab-ci, gitlab-feature-flags, gitlab-pages, google-cloud-run, cloud-scheduler, ntfy, playwright |
-| Google Cloud bonus | Claim only with a public Cloud Run URL that answers and the deploy pipeline visible |
+| Google Cloud bonus | Not claimed: the Cloud Run deployment code is in the repository, but no project was deployed |
 
 The [official rules](https://gitlab-transcend.devpost.com/rules) define Supervised as "your agents run the workflow, you approve the outcome". That is this project: nobody approves the 03:13 action itself; she approved its bounds at 22:06, and she approves what stays at 07:42.
 
@@ -87,7 +87,7 @@ Python decision code keeps permission checks apart from side effects. A FastAPI 
 
 Every refusal is run, not described: [23 attempts](https://github.com/alejandro-publius/life-after-code/blob/main/docs/REFUSALS.md) against the real decision code (model replies, a planted log line, a teammate's merge or thumbs-up, the clock, thin traffic, a switched-off path that reads 0%, files people write), 0 production changes, and a control row that does act. A test keeps that page equal to the code's output.
 
-**Current integration status:** nothing has run on GitLab.com or Google Cloud yet. Live Duo execution, visible GitLab pipeline history and a public deployment URL are pending, tracked gate by gate in [LIVE_GATES.md](LIVE_GATES.md). Recorded model replies and schema validation show local behavior and configuration, not the required live GitLab Duo Agent Platform use.
+**What ran live on GitLab (27 Oct 2026), and what is still offline.** The project is public on GitLab and its [pipeline](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/pipelines/2993982870) passes on the default branch: 616 tests, lint, SAST, IaC, secret and dependency scanning, a hash-checked dependency audit with an SBOM, a phone and laptop browser walk, the registry images with container scanning, the demo on [GitLab Pages](https://showcase-700ee4.gitlab.io) and a tagged release. The watch flow was created in the GitLab AI Catalog, enabled in the project, and [run for real](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/automate/agent-sessions/10120703) on [incident #3](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/issues/3) with the demo night's 03:12 evidence. It read `ops/night-orders.yml` in the repository, found that nothing is signed there, declined order 1, ignored the planted log line that told it to roll everything back, and posted a three-line page with one suggested fix. The relay's own parser accepts that reply. Still offline: the browser demo replays one invented night with recorded model replies; the relay is not deployed (no Google Cloud project), so no real night has changed a feature flag; the dusk and dawn flows have not run live.
 
 Source code and instructions: [README](../README.md), [decision core](../relay/nightorders/), [flow definitions](../flows/), [pipeline](../.gitlab-ci.yml), [deployment setup](../deploy/README.md) and [how another team adopts it](ADOPT.md).
 
