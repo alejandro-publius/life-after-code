@@ -13,8 +13,8 @@ English draft, updated **27 Oct 2026**. The form fields and the story below are 
 | Autonomy category | Supervised: the agents run the night, she approves the bounds before bed and the outcome over coffee |
 | Public GitLab repository | https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase |
 | Working project URL | https://showcase-700ee4.gitlab.io (the browser demo on GitLab Pages, published by the project's pipeline) |
-| Public YouTube video | The YouTube link (2:55, captioned; file `dist/night-orders-demo.mp4`) |
-| Built with | python, fastapi, gitlab-duo-agent-platform, gitlab-ci, gitlab-feature-flags, gitlab-pages, google-cloud-run, cloud-scheduler, ntfy, playwright |
+| Public YouTube video | Not included |
+| Built with | python, fastapi, gitlab-duo-agent-platform, gitlab-ci, gitlab-pages, gitlab-feature-flags, playwright |
 | Google Cloud bonus | Not claimed: the Cloud Run deployment code is in the repository, but no project was deployed |
 
 The [official rules](https://gitlab-transcend.devpost.com/rules) define Supervised as "your agents run the workflow, you approve the outcome". That is this project: nobody approves the 03:13 action itself; she approved its bounds at 22:06, and she approves what stays at 07:42.
