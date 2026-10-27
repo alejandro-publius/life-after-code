@@ -133,7 +133,7 @@ def test_pages_publishes_the_static_demo_and_the_release_links_it():
     assert "uv run --locked python scripts/build_pages.py --out public" in commands(pages)
     assert "public" in pages["artifacts"]["paths"]
     release = resolved("release")
-    assert release["needs"] == ["pages", "package_images"]
+    assert release["needs"] == ["pages"]
     assert release["release"]["description"] == "release-notes.md"
     assert {link["name"] for link in release["release"]["assets"]["links"]} >= {"Browser demo on GitLab Pages"}
     for name in ("package_images", "container_scanning", "pages", "release"):
