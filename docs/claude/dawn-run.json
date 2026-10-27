@@ -1,0 +1,53 @@
+{
+  "checked_at": "2026-10-27T13:18:52.049506+00:00",
+  "demo_data_label": "DEMO DATA. This watch log is rendered by code from the repository's simulated night of 20 Oct 2026 (demo/night-2026-10-20): the shop, its traffic and both faults are invented, and the agent replies in that night are recorded notes, not live model output. It is not a production night, and this issue is not the standing watch issue. What is real: the decision code that wrote this record, and the Dawn flow execution that reads it.",
+  "flow": "dawn",
+  "project_id": 88050495,
+  "consumer_id": 13304393,
+  "start": "api",
+  "source_commit": "e167f1d3ceed",
+  "night": "2026-10-20",
+  "loose_ends": [
+    "stock_from_cache on in production (approved by thumbs-up, 01:53)",
+    "new_checkout off in production (order 1, 03:13)"
+  ],
+  "demo_issue": null,
+  "watch_log_note": null,
+  "goal": null,
+  "workflow_id": null,
+  "web_url": "",
+  "status": "not_started",
+  "execution_status": "",
+  "errors": [],
+  "merge_request_url": "",
+  "merge_request": null,
+  "state_file": null,
+  "flow_notes": [],
+  "review_adjustment": "",
+  "validation": "not checked",
+  "result": "blocked",
+  "problems": [
+    "GitLab create the demo issue: HTTP 403 (403 Forbidden)",
+    "Checked with the same token through GraphQL project.userPermissions: createIssue false, createMergeRequestIn false, pushCode false, readProject true. The token (a legacy personal access token, granular false, scopes including api and ai_features, user alejandro-publius, member role Developer+ with base access 30) is read-only in this project, so the demo issue, the note and the flow start cannot be sent with it. Reads succeed (issue notes, project, members)."
+  ],
+  "limitations": [
+    "The night is simulated demo data; the Duo session and its GitLab artifacts are real",
+    "No human countersign: the merge request is left as a draft, unapproved and unmerged",
+    "No production target changes: nothing restores or keeps a flag or traffic here",
+    "No deployed relay took part: this script posted the log and started the flow",
+    "Dawn execution has not been demonstrated; this file records two blocked attempts, not a result"
+  ],
+  "observation": "The dawn flow was not started: GitLab create the demo issue: HTTP 403 (403 Forbidden)",
+  "attempts": [
+    {
+      "at": "2026-10-27T12:50:00+00:00",
+      "outcome": "no credential in Claude's environment; nothing sent"
+    },
+    {
+      "at": "2026-10-27T13:18:52.049506+00:00",
+      "outcome": "token from Alex: POST /projects/88050495/issues answered 403 Forbidden; GraphQL shows every write ability false for this token"
+    }
+  ],
+  "command": "GITLAB_TOKEN=... uv run --locked python scripts/claude_run_dawn.py --project 88050495 --consumer-id 13304393 --apply --out docs/claude/dawn-run.json",
+  "needs": "A token GitLab lets write in project 88050495 (issues, notes, merge requests, the Flows API): a granular personal access token with those permissions, or the access Codex used today to create issue #3 and start session 10124688. Then rerun the command; a rerun finds nothing to reuse and starts clean."
+}
