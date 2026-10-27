@@ -13,7 +13,7 @@ English draft, updated **27 Oct 2026**. The form fields and the story below are 
 | Autonomy category | Supervised: the agents run the night, she approves the bounds before bed and the outcome over coffee |
 | Public GitLab repository | https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase |
 | Working project URL | https://showcase-700ee4.gitlab.io (the browser demo on GitLab Pages, published by the project's pipeline) |
-| Public YouTube video | Not included |
+| Public YouTube video | Alex to upload before submission |
 | Built with | python, fastapi, gitlab-duo-agent-platform, gitlab-ci, gitlab-pages, gitlab-feature-flags, playwright |
 | Google Cloud bonus | Not claimed: the Cloud Run deployment code is in the repository, but no project was deployed |
 
@@ -83,11 +83,13 @@ These counts are evidence about an invented night, not measured production impac
 
 ## How it is built
 
-Python decision code keeps permission checks apart from side effects. A FastAPI relay on Cloud Run, called once a minute by Cloud Scheduler, works through GitLab itself: feature flags, incidents and timeline events, merge request merges and approvals as signatures, thumbs-up reactions as approvals, the deployments API that ends a kept change, and the Duo workflows API that starts the watch and dawn flows. If that API will not start a flow on an account, a relay setting runs Standing Orders instead: no model at night, code alone, and it says so on every incident.
+Python decision code keeps permission checks apart from side effects. The FastAPI relay is designed for Cloud Run, called once a minute by Cloud Scheduler; that deployment has not run yet. Its GitLab integration implements feature flags, incidents and timeline events, merge request merges and approvals as signatures, thumbs-up reactions as approvals, the deployments API that ends a kept change, and the Duo workflows API that starts the watch and dawn flows. If that API will not start a flow on an account, a relay setting runs Standing Orders instead: no model at night, code alone, and it says so on every incident.
 
 Every refusal is run, not described: [23 attempts](https://github.com/alejandro-publius/life-after-code/blob/main/docs/REFUSALS.md) against the real decision code (model replies, a planted log line, a teammate's merge or thumbs-up, the clock, thin traffic, a switched-off path that reads 0%, files people write), 0 production changes, and a control row that does act. A test keeps that page equal to the code's output.
 
-**What ran live on GitLab (27 Oct 2026), and what is still offline.** The project is public on GitLab and its [pipeline](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/pipelines/2993982870) passes on the default branch: 616 tests, lint, SAST, IaC, secret and dependency scanning, a hash-checked dependency audit with an SBOM, a phone and laptop browser walk, the registry images with container scanning, the demo on [GitLab Pages](https://showcase-700ee4.gitlab.io) and a tagged release. The watch flow was created in the GitLab AI Catalog, enabled in the project, and [run for real](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/automate/agent-sessions/10120703) on [incident #3](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/issues/3) with the demo night's 03:12 evidence. It read `ops/night-orders.yml` in the repository, found that nothing is signed there, declined order 1, ignored the planted log line that told it to roll everything back, and posted a three-line page with one suggested fix. The relay's own parser accepts that reply. Still offline: the browser demo replays one invented night with recorded model replies; the relay is not deployed (no Google Cloud project), so no real night has changed a feature flag; the dusk and dawn flows have not run live.
+The browser also exposes these results in **Check the permission boundary**. A judge can inspect each attempted action and the code's exact verdict, including a valid control that does act. The 24 results are computed from simulated inputs during replay or the static build; selecting a case reads the result without changing a service.
+
+**What ran live on GitLab (27 Oct 2026), and what is still offline.** The public project passed all 18 jobs in [pipeline 2994115593](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/pipelines/2994115593) for sync commit `0e4d89a`: 622 application tests with 94% coverage, lint, SAST, IaC, secret and dependency scanning, a hash-checked dependency audit with an SBOM, a phone and laptop browser walk, registry images with container scanning, [GitLab Pages](https://showcase-700ee4.gitlab.io) deployment and a tagged release. The [27 Oct handoff](HANDOFF.md#what-is-live-on-gitlab-today-real-verifiable) records a watch flow created in the GitLab AI Catalog, enabled in the project, and [run for real](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/automate/agent-sessions/10120703) on [incident #3](https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase/-/issues/3) with the demo night's 03:12 evidence. It reports that the flow read `ops/night-orders.yml`, found nothing signed, declined order 1, ignored the planted log line and posted a three-line page with one suggested fix that the relay's parser accepted. The session contents were not independently re-read in this Codex check. Still offline: the browser replays an invented night with recorded model replies; no deployed relay has changed a feature flag, and dusk and dawn have not run live. The Pages deployment passed, but direct public playback remains unverified from this network-restricted environment.
 
 Source code and instructions: [README](../README.md), [decision core](../relay/nightorders/), [flow definitions](../flows/), [pipeline](../.gitlab-ci.yml), [deployment setup](../deploy/README.md) and [how another team adopts it](ADOPT.md).
 
@@ -109,12 +111,12 @@ The design lesson is that useful autonomy can be narrow. The agent investigates 
 
 The audience is a small team without a follow-the-sun rotation, where one person holds the pager. The demonstrated benefit is a way to handle a known reversible fault within prior permission while escalating a fault that does not fit. No customer trial, sleep improvement or sustainability gain has been measured.
 
-Next: the live GitLab Duo run in the hackathon workspace, visible pipeline history and the Cloud Run deployment, then a real test night with the same faults, filmed for the video. After that, more actions on the menu (each needs its apply, snapshot, restore and refusals), and a rotation that hands the orders over at shift change.
+Before submission: verify public Pages playback, upload the required video and attach its link. The live watch-flow record and passing GitLab pipeline already exist. After the hackathon: deploy the relay, run a real test night and morning countersign, then expand the action menu only when each action has apply, snapshot, restore and refusal checks. A later rotation can hand the orders over at shift change.
 
 ## Before submitting
 
-- Replace pending repository, video and project links with verified public URLs.
-- Capture genuine Duo Agent Platform execution and visible GitLab pipeline history.
+- Open the linked public GitLab project and Pages demo; add Alex's uploaded video URL.
+- Preserve the linked Duo session and pipeline evidence, and verify the final submitted commit's pipeline result.
 - Check that the MIT licence is detected in the GitLab About section.
 - Keep the public English video below 3:00 and preserve readable demo labels.
 - If requesting the cloud bonus, verify the public Google Cloud deployment and repository deployment code.
