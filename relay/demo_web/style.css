@@ -41,6 +41,56 @@ button:focus-visible, a:focus-visible, summary:focus-visible, select:focus-visib
   outline-offset: 4px;
 }
 button:disabled { cursor: default; opacity: .55; }
+
+.memory-panel { margin: 30px 0; padding: 32px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.memory-header { display: flex; justify-content: space-between; gap: 32px; align-items: flex-start; }
+.memory-header > div { max-width: 690px; }
+.memory-header h2 { font-size: clamp(26px, 3vw, 36px); letter-spacing: -.04em; line-height: 1.15; margin: 8px 0 14px; }
+.memory-header p { color: var(--muted); margin-bottom: 0; }
+.memory-header .button { flex-shrink: 0; margin-top: 10px; }
+.memory-totals { display: flex; flex-wrap: wrap; gap: 12px 28px; padding: 20px 0; margin: 10px 0 22px; border-bottom: 1px solid var(--line); color: var(--muted); }
+.memory-totals strong { color: var(--ink); font-size: 22px; margin-right: 5px; }
+.memory-workspace { display: grid; grid-template-columns: minmax(180px, 280px) minmax(0, 1fr); gap: 28px; align-items: start; }
+.memory-picker { display: grid; gap: 12px; }
+.memory-choice { padding: 18px; display: grid; gap: 7px; text-align: left; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 12px; }
+.memory-choice > span { font-size: 12px; color: var(--muted); }
+.memory-choice > strong { font-size: 15px; }
+.memory-choice > small { font-size: 12px; }
+.memory-choice.selected { background: var(--slate); border-color: var(--slate); color: #fffdf7; box-shadow: 0 4px 14px #24384318; }
+.memory-choice.selected > span { color: #d3dedf; }
+.memory-choice.selected > small { color: var(--amber); }
+.memory-detail { min-width: 0; }
+.memory-outcome { background: var(--green-light); padding: 20px 24px; border-radius: 12px; border-left: 4px solid var(--green); }
+.memory-outcome-label { color: var(--green); font-weight: 750; font-size: 12px; letter-spacing: .03em; }
+.memory-outcome h3 { margin: 8px 0; font-size: 19px; }
+.memory-outcome p { margin: 0; }
+.memory-chain { list-style: none; margin: 24px 0 0; padding: 0 0 0 22px; }
+.memory-node { border-left: 2px solid var(--line); padding: 0 0 24px 24px; position: relative; overflow-wrap: anywhere; }
+.memory-node::before { content: ''; position: absolute; left: -7px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--slate-light); }
+.memory-node:last-child { padding-bottom: 0; border-left-color: transparent; }
+.memory-node-head { display: flex; justify-content: space-between; gap: 14px; align-items: baseline; }
+.memory-node-kind { font-size: 13px; font-weight: 750; }
+.memory-node time { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.memory-node p { margin: 7px 0; font-size: 14px; }
+.memory-node .memory-reason { color: var(--muted); font-size: 12px; }
+.memory-node.memory-woke::before, .memory-node.memory-failed::before { border-color: #986319; background: var(--amber-light); }
+.memory-node.memory-recovered::before { border-color: var(--green); background: var(--green-light); }
+.memory-action { display: inline-block; padding: 4px 8px; margin: 3px 6px 0 0; border-radius: 5px; background: var(--paper); font-size: 12px; font-weight: 650; }
+.memory-boundary { border-top: 1px solid var(--line); padding-top: 20px; margin: 24px 0 8px; font-size: 13px; font-weight: 650; }
+.memory-panel > .small-copy { margin-bottom: 0; }
+@media (max-width: 760px) {
+  .memory-panel { padding: 22px 18px; }
+  .memory-header { display: block; }
+  .memory-header .button { margin-top: 18px; width: 100%; }
+  .memory-workspace { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .memory-picker { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .memory-choice { padding: 13px; }
+  .memory-choice > strong { font-size: 13px; }
+  .memory-totals { gap: 10px 20px; font-size: 12px; }
+  .memory-outcome { padding: 17px; }
+  .memory-chain { padding-left: 8px; }
+  .memory-node { padding-left: 18px; }
+}
 button[hidden], [hidden] { display: none !important; }
 .no-js #replay-root, .no-js .journey-nav { display: none; }
 

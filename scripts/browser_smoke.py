@@ -134,6 +134,28 @@ def permission_boundary(page):
     expect(page.locator("#permission-action")).to_have_attribute("data-permitted", "true")
 
 
+def incident_memory(page, *, signed: bool, approved: bool):
+    """A handoff keeps the distinction between recovery and an unverified human fix."""
+    expect(page.locator(".memory-choice")).to_have_count(2)
+    page.locator('.memory-choice[data-incident="2"]').click()
+    expect(page.locator(".memory-outcome-label")).to_have_text(
+        "Recovery observed" if signed else "Human attention needed")
+    page.locator('.memory-choice[data-incident="1"]').click()
+    expect(page.locator(".memory-outcome-label")).to_have_text(
+        "A person chose the fix" if signed and approved else "Human attention needed")
+    expect(page.locator('.memory-choice[data-incident="1"]')).to_be_focused()
+    if signed and approved:
+        expect(page.locator(".memory-outcome")).to_contain_text("does not independently verify recovery")
+        with page.expect_download() as pending:
+            page.get_by_role("button", name="Download shift handoff").click()
+        download = pending.value
+        assert download.suggested_filename.startswith("night-orders-demo-handoff-")
+        handoff = Path(download.path()).read_text()
+        assert "Demo data" in handoff and "Recovery observed" in handoff
+        assert "A person chose the fix" in handoff
+        assert "new human signature" in handoff
+
+
 def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | None, screen: str):
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -218,6 +240,7 @@ def walk(page, base: str, *, signed: bool, approved: bool, screenshots: Path | N
     if signed and approved:
         capture(page, screenshots, f"demo-{screen}-morning.png")
     permission_boundary(page)
+    incident_memory(page, signed=signed, approved=approved)
     fits_screen(page)
     if screen == "phone":
         readable(page)

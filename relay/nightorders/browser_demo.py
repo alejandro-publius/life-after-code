@@ -27,6 +27,7 @@ from .orders import load_yaml, watch_window
 from .morning import push_lines
 from .rehearsal import rehearse
 from .refusals import Row, rows as refusal_rows
+from . import memory
 
 DATA = Path(__file__).with_name("demo_story_data")
 FIXTURE = DATA / "night-2026-10-20"
@@ -312,6 +313,7 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
     sig = night.signature
     objects = load_yaml(FIXTURE / "gitlab.yml")
     rehearsed = rehearsal(night.oncall, night.targets, scenario, objects)
+    incident_memory = memory.remember({}, night.orders.night.isoformat(), night.ledger.events, night.orders)
     return {
         "label": LABEL, "choices": {"signed": signed, "approved": approved},
         "repo_url": REPO_URL,
@@ -320,6 +322,7 @@ def replay(*, signed: bool = True, approved: bool = True) -> dict:
         "objects": gitlab_objects(night, ports, objects, signed, morning, rehearsed),
         "three_ways": list(three_ways()),
         "permission_checks": [asdict(row) for row in permission_checks()],
+        "incident_memory": incident_memory,
         "persona": {"name": night.oncall.first_name, "display_name": night.oncall.display_name, "user": night.oncall.user},
         "night": night.orders.night.isoformat(), "timezone": str(night.oncall.timezone),
         "signature": {"signed": sig is not None, "method": sig.method if sig else None,

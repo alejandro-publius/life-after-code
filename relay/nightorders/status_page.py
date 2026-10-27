@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from . import kept
+from . import kept, memory
 from .decide import APPROVAL_WINDOW_MINUTES
 from .signals import Metrics
 
@@ -171,6 +171,7 @@ def public(doc: dict | None, now: datetime) -> dict:
         "kept": [kept.summary(item) for item in relay.get("kept") or []],
         "kept_ended": [{"at": e.get("at"), "text": e.get("text")} for e in relay.get("kept_ended") or []],
         "relay_failing": bool(relay.get("error")),
+        "incident_memory": memory.view(relay),
     }
 
 
@@ -365,6 +366,25 @@ def render(doc: dict | None, now: datetime, unavailable: bool = False) -> str:
              "requests.</p></div></aside>"]
 
     body.append('<div class="journey-layout">' + "".join(main) + "".join(aside) + "</div>")
+    episodes = memory.view(relay)["episodes"]
+    if episodes:
+        body.append('<section class="memory-panel" aria-labelledby="memory-heading">'
+                    '<p class="eyebrow">What the next shift inherits</p>'
+                    '<h2 id="memory-heading">Incident memory</h2>'
+                    '<a class="button secondary" href="/handoff.md">Download shift handoff</a>'
+                    '<p>Observed outcomes from earlier ticks and nights. Every new night still needs fresh permission.</p>')
+        for episode in episodes[:8]:
+            incident_link = _link(project, f"/-/issues/{episode['incident']}", f"Incident #{episode['incident']}")
+            body.append(f'<details class="memory-live-episode"><summary>'
+                        f'{incident_link}'
+                        f' · {_e(episode["outcome_label"])}</summary><p>{_e(episode["lesson"])}</p>'
+                        '<ol class="memory-chain">')
+            for step in episode["steps"]:
+                body.append(f'<li class="memory-node"><div class="memory-node-head">'
+                            f'<strong>{_e(KIND_WORDS.get(step["kind"], step["kind"]))}</strong>'
+                            f'<time>{_e(step["at"])}</time></div><p>{_e(step["text"])}</p></li>')
+            body.append('</ol></details>')
+        body.append('</section>')
     body.append('<footer class="footer-note">The agent suggests where to look. The code checks the permission. '
                 "The on-call person decides what matters.</footer></div>")
     return ('<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'

@@ -23,7 +23,7 @@ from typing import Any
 
 import httpx
 
-from . import kept
+from . import kept, memory
 from .gitlab_ports import GitLab, Http, flag_on_for_all, flag_reaches, parse_time
 from .model import OnCall, Targets
 from .orders import load_context
@@ -202,6 +202,15 @@ def render(sheet: dict) -> str:
     if "kept" in sheet:  # the relay adds its kept list; the command line has none to add
         lines += ["", "### Kept from earlier nights"]
         lines += [f"- {line}" for line in sheet["kept"]] or ["- nothing kept"]
+    if sheet.get("incident_memory"):
+        lines += ["", "### What earlier nights taught us", "",
+                  "Historical observations, never permission. Check fresh evidence before drafting new orders."]
+        for episode in sheet["incident_memory"]:
+            lines.append(f"- Incident #{episode['incident']} on {_plain(episode['night'])}: "
+                         f"{_plain(episode['title'])}. {_plain(episode['outcome_label'])}. "
+                         f"{_plain(episode['lesson'])}")
+            if episode.get("action"):
+                lines.append(f"  - recorded action: {_plain(json.dumps(episode['action'], sort_keys=True))}")
     lines += ["", f"Tonight is {sheet['date']}: the orders file says night: \"{sheet['date']}\". "
                   "Targets the orders may name are in ops/targets.yml. Orders end at 07:00."]
     return "\n".join(lines) + "\n"
@@ -272,6 +281,7 @@ def step(relay_doc: dict, now: datetime, oncall: OnCall, targets: Targets, gitla
         del tries[day]
     sheet = collect(gitlab, now, oncall, targets)
     sheet["kept"] = [kept.summary(item) for item in relay_doc.get("kept") or []]
+    sheet["incident_memory"] = memory.briefing(relay_doc, before_night=sheet["date"])
     post(gitlab, watch_issue, render(sheet))
     relay_doc["daysheet"] = today
     return [f"day sheet posted on the watch issue: {len(sheet['merged_today'])} merge(s), "

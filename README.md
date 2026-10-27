@@ -8,6 +8,8 @@ For the engineer on call for a small team, an obvious reversible fix can still m
 
 The agent work runs as three custom **GitLab Duo Agent Platform** flows: dusk drafts the orders from the day's merges, watch reads each incident and names a signed order or declines, and dawn proposes the morning countersign. Code checks everything they say, and GitLab holds the record: the orders are a merge request, each alert is an incident, each action is a feature flag change, and the morning is a second merge request.
 
+**The next shift inherits the evidence.** Incident memory follows each alert through the agent's decision, human approval, action and recovery check. It survives the nightly reset and puts earlier outcomes into the next dusk briefing, with unsuccessful actions first. In the browser, select an incident to trace its decisions and download the shift handoff. A person approving a fix is kept distinct from code verifying recovery. [How incident memory works](docs/INCIDENT_MEMORY.md).
+
 Why it matters: on a small team one person often holds the pager with nobody behind them, so a single page at 03:00 costs a night's sleep and the next day's work. A survey of on-call workers outside software found that 56% slept worse on on-call nights even when no call came ([source](https://pmc.ncbi.nlm.nih.gov/articles/PMC5876943/), unverified), and Google's SRE book counts about six hours of follow-up work behind each incident ([source](https://sre.google/sre-book/being-on-call/), unverified). [Notes and what is still to check](docs/research/oncall_case.md).
 
 An entry for [Life After Code, the GitLab Transcend Hackathon](https://gitlab-transcend.devpost.com/), Path A. Built by Alex Velazquez. [MIT licence](LICENSE).

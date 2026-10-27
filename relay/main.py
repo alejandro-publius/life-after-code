@@ -79,10 +79,10 @@ from zoneinfo import ZoneInfo
 
 import httpx
 from fastapi import FastAPI, Header
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from nightorders import daysheet, kept, morning, rehearsal, state, status_page
+from nightorders import daysheet, kept, memory, morning, rehearsal, state, status_page
 from nightorders.dawn import render_watch_log
 from nightorders.decide import Night
 from nightorders.gitlab_ports import GitLab, GitLabPorts, GoogleToken, Http, RelayError, push
@@ -594,6 +594,16 @@ def create_app(make_store: Callable[[Config], Any] = make_store,
     @app.get("/healthz")
     def healthz() -> dict:
         return {"ok": True, "commit": os.environ.get("CI_COMMIT_SHORT_SHA") or "local"}
+
+    @app.get("/handoff.md")
+    def shift_handoff() -> PlainTextResponse:
+        public = snapshot()["public"]
+        if not public["available"]:
+            return PlainTextResponse("Incident memory is unavailable. Try again shortly.\n", status_code=503)
+        return PlainTextResponse(memory.handoff(public["incident_memory"], public["label"]),
+                                 media_type="text/markdown",
+                                 headers={"Content-Disposition": 'attachment; filename="night-orders-handoff.md"',
+                                          "Cache-Control": "no-store"})
 
     @app.get("/readyz")
     def readyz() -> JSONResponse:

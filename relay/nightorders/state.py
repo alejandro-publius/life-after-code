@@ -47,6 +47,7 @@ from .ledger import Event, Ledger
 from .model import Action, Alert, Condition, OnCall, Order, Orders, Signature, Targets
 from .orders import watch_window
 from .watch import Incident, Watch
+from . import memory
 
 VERSION = 1
 STORAGE_API = "https://storage.googleapis.com"
@@ -210,6 +211,7 @@ def capture(watch: Watch, doc: dict) -> None:
         saved["expired_orders"] = orders.night.isoformat() if watch.expired else None
         # What the morning needs to make its record of the night, should no good tick come before noon.
         saved["orders"], saved["signature"] = _dump_orders(orders), _dump_signature(watch.night.signature)
+    memory.remember(doc["relay"], doc["night"], watch.night.ledger.events, orders)
 
 
 def _recorded(doc: dict, night: str) -> bool:
@@ -239,6 +241,8 @@ def next_night(doc: dict, night: str, orders: Orders | None, oncall: OnCall, now
     fresh["ports"] = {name: {k: v for k, v in entries.items() if k in keep}
                       for name, entries in (doc.get("ports") or {}).items() if isinstance(entries, dict)}
     fresh["relay"] = dict(doc.get("relay") or {})
+    memory.remember(fresh["relay"], doc["night"], load_ledger(doc).events,
+                    _load_orders(ended) if ended is not None else None)
     if orders is not None and now >= watch_window(orders, oncall)[1]:
         fresh["watch"]["expired"] = True
         fresh["watch"]["expired_orders"] = orders.night.isoformat()

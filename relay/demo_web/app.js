@@ -17,6 +17,7 @@
     controller: null,
     retry: null,
     permissionCase: 2,
+    memoryIncident: null,
   };
 
   const escape = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -288,6 +289,36 @@
     return `<details class="evidence" id="evidence-details"><summary><span>Read the decision evidence</span><span class="small-copy">Signature, checks and the code's record</span></summary><div class="evidence-grid"><section class="evidence-section"><h3>Demo signature and expiry</h3><dl class="evidence-list"><dt>Signature</dt><dd>${signature.signed ? `Priya (demo persona, GitLab user ${escape(signature.user)}) by ${escape(signature.method)} at ${escape(timeOf(signature.at))}` : "Unsigned. Watch has no permission to act alone."}</dd><dt>Ends</dt><dd>${escape(replay.expiry.time)} in ${escape(replay.timezone)}</dd><dt>When expiry happens</dt><dd>Permission ends. Existing changes are not automatically reverted.</dd>${signature.signed ? `<dt>Signed commit</dt><dd>Demo placeholder. On a live night this is the merge commit code read the orders from.</dd>` : ""}</dl><h3>What was checked</h3>${checks ? `<ul class="evidence-list">${checks}</ul>` : "<p>No signed order was carried out in this replay.</p>"}</section><section class="evidence-section"><h3>The actual wake-up messages</h3><ul class="evidence-list">${pageItems}</ul></section>${packHtml}<section class="evidence-section evidence-wide"><h3>Ledger written by Watch</h3><ol class="evidence-list ledger-list">${replay.timeline.map((event) => `<li><span class="mono">${escape(event.time)} · ${escape(event.kind)}</span><p>${escape(event.text)}</p></li>`).join("")}</ol><details><summary>Read the recorded port log</summary><pre class="proof-log">${escape(replay.logs.join("\n"))}</pre></details><details><summary>Read the demo order structure</summary><pre class="proof-log">${escape(JSON.stringify(replay.orders, null, 2))}</pre></details><details><summary>Read the morning record</summary><pre class="proof-log">${escape(morningProof(replay.morning))}</pre></details></section></div><div class="evidence-sources"><strong>Inspect the code and labelled files</strong><a href="${escape(code("blob/main/relay/nightorders/watch.py"))}">Watch decision code</a><a href="${escape(code("blob/main/relay/nightorders/decide.py"))}">The two keys</a><a href="${escape(code("blob/main/relay/nightorders/demo_night.py"))}">In-memory replay</a><a href="${escape(code("tree/main/demo/night-2026-10-20"))}">Labelled demo inputs</a><p class="small-copy">The same existing Watch code makes these verdicts. Shop faults and agent replies are recorded demo data. This page does not run a live model, make GitLab writes, send phone push notifications or call production services.</p></div></details>`;
   }
 
+  function incidentMemory() {
+    const memory = state.replay.incident_memory;
+    if (!memory?.episodes?.length) return "";
+    const episode = memory.episodes.find((item) => item.incident === state.memoryIncident) || memory.episodes[0];
+    const words = {alert: "Signal", asked: "Agent review", declined: "Agent declined", woke: "Human attention", approved: "Human decision", acted: "Bounded action", recovered: "Recovery check", failed: "Action failed", refused: "Request refused", stood_down: "Recovered before action"};
+    const stages = episode.steps.map((step) => `<li class="memory-node memory-${escape(step.kind)}"><div class="memory-node-head"><span class="memory-node-kind">${escape(words[step.kind] || step.kind)}</span><time>${escape(timeOf(step.at))}</time></div><p>${escape(step.text)}</p>${step.because ? `<p class="memory-reason"><strong>Why this order existed:</strong> ${escape(step.because)}</p>` : ""}${step.action ? `<span class="memory-action">${escape(actionName(step.action))}</span>` : ""}${step.changed === false ? '<span class="memory-action">Target was already in that state</span>' : ""}</li>`).join("");
+    const counts = memory.counts;
+    return `<section class="memory-panel" id="incident-memory" aria-labelledby="memory-heading"><div class="memory-header"><div><p class="eyebrow">What the next shift inherits</p><h2 id="memory-heading" tabindex="-1">The night leaves a memory.</h2><p>Follow an incident from its first alert to the actual outcome. The next dusk briefing carries this evidence forward, so the next engineer can see what helped and what still needs a person.</p></div><button class="button secondary" type="button" data-action="download-memory">Download shift handoff</button></div><div class="memory-totals"><span><strong>${memory.episodes.length}</strong> incidents remembered</span><span><strong>${counts.recovered || 0}</strong> recoveries checked</span><span><strong>${counts.human_action || 0}</strong> fixes chosen by a person</span></div><div class="memory-workspace"><nav class="memory-picker" aria-label="Choose an incident">${memory.episodes.map((item) => `<button type="button" class="memory-choice${item.incident === episode.incident ? " selected" : ""}" data-action="memory-incident" data-incident="${item.incident}" aria-pressed="${item.incident === episode.incident}"><span>Incident #${item.incident} · ${escape(item.night)}</span><strong>${escape(item.title.replace(/^Night watch:\s*/, ""))}</strong><small>${escape(item.outcome_label)}</small></button>`).join("")}</nav><div class="memory-detail" id="memory-detail" aria-live="polite"><div class="memory-outcome"><span class="memory-outcome-label">${escape(episode.outcome_label)}</span><h3>What to carry into tomorrow</h3><p>${escape(episode.lesson)}</p></div><ol class="memory-chain" aria-label="Incident decision chain">${stages}</ol>${episode.truncated ? '<p class="small-copy">A long incident was compacted. The latest event of each kind is retained.</p>' : ""}</div></div><p class="memory-boundary">${escape(memory.authority)}</p><p class="small-copy">Demo data, derived from this replay's actual ledger. The running relay keeps up to ${memory.limits.incidents} incidents across nights. No incident history from a production service is shown here.</p></section>`;
+  }
+
+  function downloadMemory() {
+    const memory = state.replay.incident_memory;
+    if (!memory) return;
+    const lines = ["# Night Orders shift handoff", "", state.replay.label, "", `Night: ${state.replay.night}`, "", memory.authority, ""];
+    for (const episode of memory.episodes) {
+      lines.push(`## Incident #${episode.incident}: ${episode.outcome_label}`, "", episode.title, "", episode.lesson, "");
+      for (const step of episode.steps) lines.push(`- ${timeOf(step.at)} [${step.kind}] ${step.text}`);
+      lines.push("");
+    }
+    const url = URL.createObjectURL(new Blob([lines.join("\n")], {type: "text/markdown;charset=utf-8"}));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `night-orders-demo-handoff-${state.replay.night}.md`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    live.textContent = "Downloaded the demo shift handoff with each incident's recorded decisions and outcome.";
+  }
+
   function permissionResult(row, index) {
     const control = index === 0;
     const passed = control ? row.changed : !row.changed;
@@ -344,7 +375,7 @@
     const wasOpen = {evidence: document.getElementById("evidence-details")?.open, table: document.querySelector("details.chart-table")?.open};
     const content = state.view === "dusk" ? dusk() : state.view === "dawn" ? dawn() : state.nightScene === "inventory" ? inventory() : checkout();
     const failure = state.error ? `<div class="inline-error" role="alert"><p>${escape(state.error)}</p>${button("retry-replay", "Retry this choice", "retry", "secondary")}</div>` : "";
-    root.innerHTML = `<div class="journey-layout"><main class="journey-panel" id="journey-content">${failure}${state.busy ? "<p class=\"loading-note\">Checking your demo choice...</p>" : ""}${content}</main>${context()}</div>${evidence()}${permissionChecks()}`;
+    root.innerHTML = `<div class="journey-layout"><main class="journey-panel" id="journey-content">${failure}${state.busy ? "<p class=\"loading-note\">Checking your demo choice...</p>" : ""}${content}</main>${context()}</div>${incidentMemory()}${evidence()}${permissionChecks()}`;
     if (wasOpen.evidence) document.getElementById("evidence-details")?.setAttribute("open", "");
     if (wasOpen.table) document.querySelector("details.chart-table")?.setAttribute("open", "");
     document.body.classList.toggle("compact-intro", state.signedChoice !== null);
@@ -450,6 +481,16 @@
       return;
     }
     const action = target.dataset.action;
+    if (action === "download-memory") { downloadMemory(); return; }
+    if (action === "memory-incident") {
+      const incident = Number(target.dataset.incident);
+      if (!state.replay?.incident_memory?.episodes.some((item) => item.incident === incident)) return;
+      state.memoryIncident = incident;
+      const panel = document.getElementById("incident-memory");
+      panel.outerHTML = incidentMemory();
+      document.querySelector(`.memory-choice[data-incident="${incident}"]`)?.focus({preventScroll: true});
+      return;
+    }
     if (action === "retry") { state.retry?.(); return; }
     if (action === "sign" || action === "unsigned") {
       const signed = action === "sign";
