@@ -78,6 +78,9 @@ variables:
 unit_tests:
   extends: .python
   stage: test
+  variables:
+    # Python 3.12 monitoring keeps coverage from exhausting the replay's real 10-second budget.
+    COVERAGE_CORE: sysmon
   script:
     - uv run --locked pytest -q --junitxml=report.xml --cov=relay --cov=shop --cov=agent --cov-report=term
       --cov-report=xml:coverage.xml
