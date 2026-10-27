@@ -120,7 +120,7 @@
     const title = node("h2", "", run.title || "GitLab Duo session " + String(run.id));
     title.id = "run-title";
     title.tabIndex = -1;
-    head.append(top, title, link(run.web_url, "Open the original GitLab session ↗", "activity-external"));
+    head.append(top, title, link(run.web_url, "Open the original GitLab session", "activity-external"));
     const facts = node("div", "activity-detail-facts");
     facts.append(node("span", "", "Started " + dateText(run.created_at)));
     if (run.execution_status) facts.append(node("span", "", "Execution: " + String(run.execution_status)));

@@ -2,6 +2,8 @@
 
 Written by Claude Code on Tue 27 Oct 2026, 11:20 UTC. Alex is handing the project to Codex to finish the submission; Claude Code will review Codex's updates.
 
+**Historical checkpoint.** Codex subsequently installed dusk and dawn, ran dusk, added persistent incident memory and published the execution explorer. Use [STATUS.md](STATUS.md) for current evidence and [CLAUDE_PARALLEL_HANDOFF.md](CLAUDE_PARALLEL_HANDOFF.md) for the current division of work; the remaining-work list below describes 11:20 UTC.
+
 **Deadline: Tue 27 Oct 2026, 13:00 UTC (6:00 AM Pacific).** Submission completion is the priority. Do not start a new project or redesign.
 
 ## What the project is

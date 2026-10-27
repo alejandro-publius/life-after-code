@@ -25,7 +25,7 @@ from nightorders import browser_demo, execution  # noqa: E402
 
 WEB = ROOT / "relay" / "demo_web"
 COMBINATIONS = [(True, True), (True, False), (False, True), (False, False)]
-ASSETS = ("app.js", "style.css", "og.png", "activity.js", "activity.css")
+ASSETS = ("app.js", "style.css", "og.png", "activity.js", "activity.css", "hero.css", "compare.css")
 GALLERY = ROOT / "docs" / "images" / "gallery"
 
 

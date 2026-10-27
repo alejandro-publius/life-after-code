@@ -33,6 +33,8 @@ Standing watch issue: **#2**. Keep existing orders MR !1 as evidence; do not mer
 
 Use credentials already available in your environment or Alex's authorized session. Do not put tokens in files, logs, commits or Git remote URLs. Codex cannot transfer an environment credential through this document.
 
+If GitLab credentials are unavailable, keep coding: build a bounded `scripts/claude_run_dawn.py` runner that generates the labelled demo log, starts the existing consumer, waits for completion and writes the evidence JSON. Read the token only from `GITLAB_TOKEN`, and make no changes when it is absent. Add targeted tests with mocked GitLab responses, push it to GitHub, and record the command for Codex to execute with its available access. Do not claim that implementing the runner demonstrates a live Dawn run.
+
 ## Avoid collisions and keep work current
 
 You own `flows/`, `deploy/`, `docs/claude/`, new `scripts/claude_*` utilities and their tests. Codex owns `relay/`, `shop/`, the browser, shared docs and its scripts. Do not edit the shared README, Devpost draft, root pipeline or application while Codex is working; put requested edits in your evidence report.
