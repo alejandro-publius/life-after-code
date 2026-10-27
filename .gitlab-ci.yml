@@ -50,8 +50,8 @@ default:
 variables:
   UV_VERSION: "0.12.19"          # the same uv as .github/workflows/checks.yml
   PLAYWRIGHT_VERSION: "1.62.0"   # the same Playwright as scripts/browser_smoke.py
-  RELAY_IMAGE: $CI_REGISTRY_IMAGE/relay:$CI_COMMIT_SHORT_SHA
-  SHOP_IMAGE: $CI_REGISTRY_IMAGE/shop:$CI_COMMIT_SHORT_SHA
+  RELAY_IMAGE: $CI_REGISTRY_IMAGE/relay:$CI_COMMIT_SHA
+  SHOP_IMAGE: $CI_REGISTRY_IMAGE/shop:$CI_COMMIT_SHA
 
 .python:
   image: python:3.12-slim-bookworm
@@ -210,13 +210,38 @@ package_images:
   script:
     # The same Dockerfile the Cloud Run deploy builds (deploy/Dockerfile), once per service.
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
-    - docker build --file deploy/Dockerfile --build-arg APP_DIR=relay --build-arg CI_COMMIT_SHORT_SHA="$CI_COMMIT_SHORT_SHA"
-      --tag "$RELAY_IMAGE" .
-    - docker build --file deploy/Dockerfile --build-arg APP_DIR=shop --build-arg CI_COMMIT_SHORT_SHA="$CI_COMMIT_SHORT_SHA"
-      --tag "$SHOP_IMAGE" .
-    - docker push "$RELAY_IMAGE"
-    - docker push "$SHOP_IMAGE"
-  allow_failure: true   # the registry images are a bonus; the demo, tests and release do not depend on them
+    - |
+      set -eu
+      mkdir -p container-evidence/receipts
+      : > container-evidence/images.env
+      for service in relay shop; do
+        case "$service" in
+          relay) tag="$RELAY_IMAGE"; variable=RELAY_SCAN_IMAGE ;;
+          shop) tag="$SHOP_IMAGE"; variable=SHOP_SCAN_IMAGE ;;
+        esac
+        docker build --file deploy/Dockerfile --build-arg APP_DIR="$service" \
+          --build-arg CI_COMMIT_SHORT_SHA="$CI_COMMIT_SHORT_SHA" --tag "$tag" .
+        docker push "$tag" > "container-evidence/receipts/$service-push.log"
+        digest=$(awk '/digest: sha256:/ {print $3}' "container-evidence/receipts/$service-push.log")
+        printf '%s\n' "$digest" | grep -Eq '^sha256:[0-9a-f]{64}$'
+        image="${tag%:*}@$digest"
+        # Pull by the registry manifest digest, then record what Docker actually read back.
+        docker pull "$image"
+        docker image inspect --format '{{json .RepoDigests}}' "$image" \
+          > "container-evidence/receipts/$service-repo-digests.json"
+        printf '{"schema":1,"service":"%s","commit":"%s","pipeline":"%s","tag":"%s","digest":"%s","image":"%s"}\n' \
+          "$service" "$CI_COMMIT_SHA" "$CI_PIPELINE_ID" "$tag" "$digest" "$image" \
+          > "container-evidence/receipts/$service.json"
+        printf '%s=%s\n' "$variable" "$image" >> container-evidence/images.env
+      done
+  allow_failure: false
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - container-evidence/receipts/
+    reports:
+      dotenv: container-evidence/images.env
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: never
@@ -224,10 +249,92 @@ package_images:
 
 container_scanning:
   stage: package
-  needs: [package_images]
+  image: registry.gitlab.com/security-products/container-scanning:8
+  needs:
+    - job: package_images
+      artifacts: true
+  dependencies: [package_images]
   variables:
-    CS_IMAGE: $RELAY_IMAGE
-  allow_failure: true
+    SCAN_SERVICE: relay
+    CS_IMAGE: $RELAY_SCAN_IMAGE
+    CS_SEVERITY_THRESHOLD: UNKNOWN
+    CS_IGNORE_UNFIXED: "false"
+    CS_DISABLE_LANGUAGE_VULNERABILITY_SCAN: "false"
+  script:
+    - |
+      set -eu
+      case "$SCAN_SERVICE" in
+        relay) export CS_IMAGE="$RELAY_SCAN_IMAGE" ;;
+        shop) export CS_IMAGE="$SHOP_SCAN_IMAGE" ;;
+        *) exit 1 ;;
+      esac
+      evidence="container-evidence/scans/$SCAN_SERVICE"
+      mkdir -p "$evidence"
+      rm -f gl-container-scanning-report.json gl-sbom*.cdx.json
+      scanner_status=0
+      gtcs scan || scanner_status=$?
+      report_hash=""
+      if [ -f gl-container-scanning-report.json ]; then
+        cp gl-container-scanning-report.json "$evidence/report.json"
+        hash_output=$(sha256sum "$evidence/report.json")
+        report_hash=${hash_output%% *}
+      fi
+      for sbom in gl-sbom*.cdx.json; do
+        if [ -f "$sbom" ]; then cp "$sbom" "$evidence/"; fi
+      done
+      # No Python is required inside the analyzer image. Bind its exact input and output bytes here.
+      printf '{"schema":1,"service":"%s","commit":"%s","pipeline":"%s","image":"%s","exit_code":%s,"report_sha256":"%s"}\n' \
+        "$SCAN_SERVICE" "$CI_COMMIT_SHA" "$CI_PIPELINE_ID" "$CS_IMAGE" "$scanner_status" "$report_hash" \
+        > "$evidence/invocation.json"
+      exit "$scanner_status"
+  allow_failure: false
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - container-evidence/scans/relay/
+    reports:
+      container_scanning: container-evidence/scans/relay/report.json
+      cyclonedx: container-evidence/scans/relay/gl-sbom*.cdx.json
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+container_scanning_shop:
+  extends: container_scanning
+  variables:
+    SCAN_SERVICE: shop
+    CS_IMAGE: $SHOP_SCAN_IMAGE
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - container-evidence/scans/shop/
+    reports:
+      container_scanning: container-evidence/scans/shop/report.json
+      cyclonedx: container-evidence/scans/shop/gl-sbom*.cdx.json
+
+container_policy:
+  stage: package
+  image: python:3.12-slim-bookworm
+  needs:
+    - job: package_images
+      artifacts: true
+    - job: container_scanning
+      artifacts: true
+    - job: container_scanning_shop
+      artifacts: true
+  when: always
+  allow_failure: false
+  script:
+    - python scripts/container_policy.py --root container-evidence --registry-image "$CI_REGISTRY_IMAGE"
+      --commit "$CI_COMMIT_SHA" --pipeline "$CI_PIPELINE_ID" --out container-evidence/policy.json
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - container-evidence/policy.json
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule"
       when: never
@@ -252,7 +359,31 @@ pages:
 
 release:
   stage: release
-  needs: [pages]
+  needs:
+    - job: pages
+      artifacts: true
+    - job: container_policy
+      artifacts: true
+    - job: unit_tests
+      artifacts: false
+    - job: lint
+      artifacts: false
+    - job: demo_night
+      artifacts: false
+    - job: browser_smoke
+      artifacts: false
+    - job: deploy_unit_tests
+      artifacts: false
+    - job: dependency_audit
+      artifacts: false
+    - job: validate_orders
+      artifacts: false
+    - job: validate_state
+      artifacts: false
+    - job: validate_flows
+      artifacts: false
+    - job: cli_audit
+      artifacts: false
   image: registry.gitlab.com/gitlab-org/cli:v1.120.0
   script:
     - echo "Release v0.1.$CI_PIPELINE_IID of $CI_COMMIT_SHORT_SHA"

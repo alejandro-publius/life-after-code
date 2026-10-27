@@ -119,12 +119,20 @@ def test_the_code_owner_of_the_signed_files_is_the_on_call_person():
 
 
 def test_the_images_are_built_from_the_deploy_dockerfile_pushed_to_this_project_and_scanned():
-    script = " ".join(commands(resolved("package_images")))
-    assert "--file deploy/Dockerfile --build-arg APP_DIR=relay" in script and "APP_DIR=shop" in script
-    assert 'docker push "$RELAY_IMAGE"' in script and 'docker push "$SHOP_IMAGE"' in script
-    assert CI["variables"]["RELAY_IMAGE"] == "$CI_REGISTRY_IMAGE/relay:$CI_COMMIT_SHORT_SHA"
+    assert CI["variables"]["RELAY_IMAGE"] == "$CI_REGISTRY_IMAGE/relay:$CI_COMMIT_SHA"
+    assert CI["variables"]["SHOP_IMAGE"] == "$CI_REGISTRY_IMAGE/shop:$CI_COMMIT_SHA"
     assert resolved("package_images")["services"] == ["docker:27.5.1-dind"]
-    assert resolved("container_scanning")["variables"]["CS_IMAGE"] == "$RELAY_IMAGE"
+    assert resolved("package_images")["allow_failure"] is False
+    for service, name in (("relay", "container_scanning"), ("shop", "container_scanning_shop")):
+        scan = resolved(name)
+        assert scan["allow_failure"] is False
+        assert scan["needs"] == [{"job": "package_images", "artifacts": True}]
+        assert scan["variables"]["CS_IMAGE"] == f"${service.upper()}_SCAN_IMAGE"
+        assert scan["artifacts"]["reports"]["container_scanning"] == f"container-evidence/scans/{service}/report.json"
+    policy = resolved("container_policy")
+    assert policy["allow_failure"] is False and policy["when"] == "always"
+    assert policy["needs"] == [{"job": name, "artifacts": True}
+                               for name in ("package_images", "container_scanning", "container_scanning_shop")]
     assert {"template": "Jobs/Container-Scanning.gitlab-ci.yml"} in CI["include"]
 
 
@@ -133,10 +141,15 @@ def test_pages_publishes_the_static_demo_and_the_release_links_it():
     assert "uv run --locked python scripts/build_pages.py --out public" in commands(pages)
     assert "public" in pages["artifacts"]["paths"]
     release = resolved("release")
-    assert release["needs"] == ["pages"]
+    needed = {item["job"]: item for item in release["needs"]}
+    assert set(needed) == {"pages", "container_policy", "unit_tests", "lint", "demo_night", "browser_smoke",
+                           "deploy_unit_tests", "dependency_audit", "validate_orders", "validate_state",
+                           "validate_flows", "cli_audit"}
+    assert needed["pages"]["artifacts"] and needed["container_policy"]["artifacts"]
+    assert not any(item.get("optional") for item in needed.values())
     assert release["release"]["description"] == "release-notes.md"
     assert {link["name"] for link in release["release"]["assets"]["links"]} >= {"Browser demo on GitLab Pages"}
-    for name in ("package_images", "container_scanning", "pages", "release"):
+    for name in ("package_images", "container_scanning", "container_scanning_shop", "container_policy", "pages", "release"):
         rules = resolved(name)["rules"]
         assert rules[0] == {"if": '$CI_PIPELINE_SOURCE == "schedule"', "when": "never"}, name
         assert rules[-1] == {"if": "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"}, name
