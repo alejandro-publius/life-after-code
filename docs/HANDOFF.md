@@ -13,7 +13,7 @@ Night Orders, an entry for GitLab's Life After Code hackathon (Devpost, Path A, 
 | What | Where |
 |---|---|
 | Source of truth for the code | GitHub `alejandro-publius/life-after-code`, branch `main` (also `claude/life-after-code-hackathon-5wm0gs`, same commits) |
-| Assigned GitLab project (required by the rules) | https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase (project id `88050495`), branch `main` at `57a907d` |
+| Assigned GitLab project (required by the rules) | https://gitlab.com/gitlab-ai-hackathon/transcend-october-2026/43649347/showcase (project id `88050495`), branch `main` (same content as GitHub `main` plus one merge commit) |
 | Devpost submission (Alex edits it, logged in) | https://devpost.com/submit-to/31503-life-after-code/manage/submissions/1220111/edit |
 | Paste-ready Devpost text | the fields table and sections of [DEVPOST.md](DEVPOST.md); every link must be absolute (GitLab URLs) when pasted |
 | Browser demo on GitLab Pages | https://showcase-700ee4.gitlab.io (URL recorded by the release job; **not verified from Claude's container**, which blocks gitlab.io: open it in a browser) |
