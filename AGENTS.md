@@ -21,12 +21,14 @@ Path A: a new AI project on GitLab that automates the post-code lifecycle with a
 
 ## Who owns what
 
-Alex copies messages between Claude Code and Codex.
+Updated 27 Oct 2026 with Alex's explicit authorization for parallel work and frequent pushes. This replaces the earlier deploy-only Codex assignment and the earlier restriction on pushing main.
 
-- Claude Code owns: docs/ (except docs/codex/), the agent and app code, the root .gitlab-ci.yml, AGENTS.md, CLAUDE.md, README.md.
-- Codex owns: deploy/ and docs/codex/.
-- Edit only your own paths. If you need a change somewhere else, ask for it in your report.
-- Codex works on branches named codex/<task> and does not merge to main. Claude Code reviews and merges.
+- Codex owns the application, browser, incident memory, execution explorer, shared README/submission docs, and GitLab main synchronization.
+- Claude Code owns `flows/`, `deploy/`, `docs/claude/`, new `scripts/claude_*` utilities and their tests. The current task is in [docs/CLAUDE_PARALLEL_HANDOFF.md](docs/CLAUDE_PARALLEL_HANDOFF.md).
+- Both may push completed work to GitHub main after fetching and incorporating its latest commits. Work on separate task branches or worktrees; do not reset another agent's work.
+- Codex syncs GitHub changes to GitLab through ordinary merges that preserve GitLab's additional history. Never force-push either main branch.
+- Keep changes within the assigned paths. Record a needed shared-file change in `docs/claude/` so Codex can integrate it without a concurrent edit.
+- Alex handles the video and Devpost submission. Do not start another video project.
 
 ## Report format
 
